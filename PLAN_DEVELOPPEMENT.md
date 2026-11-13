@@ -6,6 +6,12 @@
 
 Le premier livrable est un jeu arcade autonome, en portrait, jouable au clavier, à la manette et au stick arcade. **Moune Creste de Jeutel (`mouncrst`) est l’unique référence de gameplay.** Les réglages MAME par défaut servent de point de départ et figurent dans le manifeste de chaque relevé. Le développement couvre la partie solo en premier, puis le mode deux joueurs et les réglages de borne tels qu’ils se comportent dans cette version. Une sortie Windows 1080p est la cible initiale. Le projet est nommé SwarmAttack et la production visuelle et sonore utilise des assets propres.
 
+## Niveau de fidélité
+
+**SwarmAttack est une version améliorée de Moune Creste, pas une copie exacte.** Jeutel sert de référence pour les règles, les trajectoires, les seuils et les barèmes. Les défauts de la carte ne sont pas reproduits.
+
+Première application : la boucle Jeutel perd des trames quand son traitement déborde, ce qui fige le jeu une frame de temps en temps. SwarmAttack avance à pas régulier. Les comparaisons avec Jeutel se font au rythme du compteur de boucle `0x8005`, pour vérifier les règles sans hériter de ces pauses.
+
 ## Références vérifiées
 
 | Référence | Constat | Usage |
