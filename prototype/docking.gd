@@ -33,7 +33,6 @@ var stage := Stage.INTRO
 var bonus := 0
 var remaining_tenths := 300
 var _elapsed := 0
-var _control_ticks := 0
 var _result_frames := 0
 var _horizontal := Axis.new(128)
 var _vertical := Axis.new(120)
@@ -66,8 +65,12 @@ func step(input_mask: int) -> void:
 	if stage == Stage.INTRO:
 		_advance_intro()
 	elif stage == Stage.APPROACH:
-		if _elapsed % BOARD_FRAMES_PER_CONTROL == 0:
+		var phase := _elapsed % BOARD_FRAMES_PER_CONTROL
+		if phase == 0:
 			_advance_approach(input_mask)
+		elif phase == 1:
+			# The board counts the clock down on the frame after each control tick.
+			remaining_tenths -= 1
 		_elapsed += 1
 	else:
 		_result_frames += 1
@@ -92,9 +95,6 @@ func _release() -> void:
 
 
 func _advance_approach(input_mask: int) -> void:
-	if _control_ticks > 0:
-		remaining_tenths -= 1
-	_control_ticks += 1
 	if remaining_tenths <= 1:
 		remaining_tenths = 0
 		stage = Stage.TIMED_OUT
