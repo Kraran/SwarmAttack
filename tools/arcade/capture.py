@@ -47,6 +47,13 @@ def read_replay(path, frames):
     return data
 
 
+def probe_range(text):
+    match = re.fullmatch(r"([0-9a-f]{4})(?:-([0-9a-f]{4}))?", text.lower())
+    if not match or int(match[1], 16) > int(match[2] or match[1], 16):
+        raise argparse.ArgumentTypeError(f"Plage d'adresses invalide : {text}")
+    return f"{match[1]}-{match[2] or match[1]}"
+
+
 def capture(args):
     replay = read_replay(args.replay, args.frames) if args.replay else None
     roms = args.rom_dir.resolve()
@@ -69,6 +76,9 @@ def capture(args):
     }
     if replay is not None:
         metadata["replay_sha256"] = hashlib.sha256(replay).hexdigest()
+    probes = list(dict.fromkeys(args.probe or ()))
+    if probes:
+        metadata["probe"] = {"ranges": probes, "from": args.probe_from}
     output = args.output.resolve() / ROM_SET
     output.mkdir(parents=True, exist_ok=True)
 
@@ -86,6 +96,7 @@ def capture(args):
                 os.environ, SWARM_SCENARIO=scenario, SWARM_FRAMES=str(frames),
                 SWARM_SNAPSHOT_INTERVAL=str(args.snap_every),
                 SWARM_SNAPSHOT_START=str(args.snap_from),
+                SWARM_PROBE=",".join(probes), SWARM_PROBE_START=str(args.probe_from),
             )
             result = subprocess.run(
                 [
@@ -112,6 +123,21 @@ def capture(args):
                     len(bytes.fromhex(row[key])) != size for key, size in REGISTER_SIZES.items()
                 ):
                     raise ValueError(f"Trace invalide à la frame {frame} ({scenario})")
+            probe = None
+            if probes:
+                probe = scratch / "probe.csv"
+                with probe.open(newline="", encoding="ascii") as stream:
+                    probe_rows = list(csv.reader(stream))
+                sizes = [
+                    2 * (int(last, 16) - int(first, 16) + 1)
+                    for first, last in (item.split("-") for item in probes)
+                ]
+                if (
+                    probe_rows[:1] != [["frame", *probes]]
+                    or [row[0] for row in probe_rows[1:]] != [str(i) for i in range(args.probe_from, frames)]
+                    or any([len(value) for value in row[1:]] != sizes for row in probe_rows[1:])
+                ):
+                    raise ValueError(f"Sonde incomplète pour {scenario}")
             snapshots = []
             if args.snap_every:
                 snapshots = [
@@ -120,10 +146,12 @@ def capture(args):
                 ]
                 if any(not snapshot.is_file() for snapshot in snapshots):
                     raise ValueError(f"Captures d'écran incomplètes pour {scenario}")
-            captures.append((scenario, frames, trace, snapshots))
-        for scenario, frames, trace, snapshots in captures:
+            captures.append((scenario, frames, trace, snapshots, probe))
+        for scenario, frames, trace, snapshots, probe in captures:
             target = output / f"{scenario}.csv"
             trace.replace(target)
+            if probe:
+                probe.replace(output / f"{scenario}-probe.csv")
             if snapshots:
                 pictures = output / f"{scenario}-snapshots"
                 pictures.mkdir(exist_ok=True)
@@ -150,6 +178,11 @@ if __name__ == "__main__":
     parser.add_argument("--frames", type=int)
     parser.add_argument("--snap-every", type=int, default=0, help="Intervalle des captures PNG, 0 pour désactiver.")
     parser.add_argument("--snap-from", type=int, default=0, help="Index de la première capture PNG.")
+    parser.add_argument(
+        "--probe", type=probe_range, action="append",
+        help="Adresse ou plage hexadécimale à relever à chaque frame, par exemple 8005 ou 8222-8232.",
+    )
+    parser.add_argument("--probe-from", type=int, default=0, help="Index de la première frame de la sonde.")
     parser.add_argument("--output", type=Path, default=ROOT / ".reference")
     options = parser.parse_args()
     if options.frames is not None and options.frames < 1:
@@ -160,4 +193,6 @@ if __name__ == "__main__":
         parser.error("--snap-every doit être positif ou nul")
     if options.snap_from < 0:
         parser.error("--snap-from doit être positif ou nul")
+    if options.probe_from < 0:
+        parser.error("--probe-from doit être positif ou nul")
     capture(options)

@@ -1,12 +1,14 @@
 extends SceneTree
 
 # Compare l'approche d'amarrage du module II avec les relevés Jeutel.
-# Chaque dossier contient trace.csv (entrées et sprites) et dock-registers.csv
-# (RAM 0x8222-0x8232, objet 0x8140-0x814e, compteur de boucle 0x8005).
+# Chaque dossier contient replay.csv (entrées et sprites) et replay-probe.csv,
+# produits par capture.py avec la sonde PROBE à partir de la frame 6700.
 
 const Pilot = preload("res://pilot.gd")
 const Docking = preload("res://docking.gd")
 const FIRST_PROBE_FRAME := 6700
+# État d'amarrage, objet du module cible et compteur de boucle.
+const PROBE := "frame,8222-8232,8140-814e,8005-8005"
 
 var _failures := 0
 
@@ -26,11 +28,11 @@ func _byte(hex: String, index: int) -> int:
 	return hex.substr(index * 2, 2).hex_to_int()
 
 
-func _read(path: String, first_frame: int, columns: int) -> Dictionary:
+func _read(path: String, first_frame: int, columns: int, header := "") -> Dictionary:
 	var rows := {}
 	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		_fail("Relevé manquant : %s" % path)
+	if file == null or (header != "" and file.get_line().strip_edges() != header):
+		_fail("Relevé manquant ou en-tête invalide : %s" % path)
 		return rows
 	while not file.eof_reached():
 		var row := file.get_csv_line()
@@ -40,34 +42,33 @@ func _read(path: String, first_frame: int, columns: int) -> Dictionary:
 
 
 func _compare(folder: String, expected_stage: int, expected_bonus: int) -> void:
-	var probe := _read(folder.path_join("dock-registers.csv"), FIRST_PROBE_FRAME, 4)
-	var trace := _read(folder.path_join("trace.csv"), FIRST_PROBE_FRAME, 9)
+	var probe := _read(folder.path_join("replay-probe.csv"), FIRST_PROBE_FRAME, 4, PROBE)
+	var trace := _read(folder.path_join("replay.csv"), FIRST_PROBE_FRAME, 9)
 	if probe.is_empty() or trace.is_empty():
 		return
 	var last_frame: int = probe.keys().max()
+	var label := folder.get_base_dir().get_file()
 
 	# Le prototype commence l'approche quand les deux attentes initiales de la
 	# carte sont écoulées. Son premier pas est le tick de contrôle suivant.
 	var start := -1
 	for frame in range(FIRST_PROBE_FRAME + 1, last_frame + 1):
-		var registers: String = probe[frame][1]
-		var ticked: bool = probe[frame][3] != probe[frame - 1][3]
-		if start < 0:
-			if ticked and _byte(probe[frame][3], 0) % 4 == 0 and _byte(probe[frame - 1][1], 2) == 0 and _byte(probe[frame - 1][1], 3) == 0:
-				start = frame
-			else:
-				continue
-		if start == frame:
+		var before: String = probe[frame - 1][1]
+		if (
+			probe[frame][3] != probe[frame - 1][3] and _byte(probe[frame][3], 0) % 4 == 0
+			and _byte(before, 2) == 0 and _byte(before, 3) == 0
+		):
+			start = frame
 			break
 	if start < 0:
-		_fail("%s : début de l'approche introuvable" % folder)
+		_fail("%s : début de l'approche introuvable" % label)
 		return
 
 	var sprites: String = trace[start - 1][7]
 	var dock := Docking.new(2, _byte(sprites, 4), false)
 	if dock.position != Vector2i(_byte(sprites, 4), _byte(sprites, 7)):
 		_fail("%s : position de départ %s, Jeutel %d,%d" % [
-			folder, dock.position, _byte(sprites, 4), _byte(sprites, 7)
+			label, dock.position, _byte(sprites, 4), _byte(sprites, 7)
 		])
 
 	var position_errors := 0
@@ -109,30 +110,30 @@ func _compare(folder: String, expected_stage: int, expected_bonus: int) -> void:
 		if wrong and first_error < 0:
 			first_error = frame
 			printerr("%s : premier écart à la frame %d | prototype %s v %d,%d chrono %s | Jeutel %d,%d v %d,%d chrono %s" % [
-				folder.get_file(), frame, dock.position, dock._horizontal.velocity, dock._vertical.velocity,
+				label, frame, dock.position, dock._horizontal.velocity, dock._vertical.velocity,
 				dock.display_clock(), _byte(sprites, 4), _byte(sprites, 7), _byte(registers, 0),
 				_byte(registers, 1), clock
 			])
 
 	print("%s | départ frame %d | %d frames comparées | écarts position %d, vitesse %d, chrono %d" % [
-		folder.get_file(), start, compared, position_errors, velocity_errors, clock_errors
+		label, start, compared, position_errors, velocity_errors, clock_errors
 	])
 	if position_errors or velocity_errors or clock_errors:
-		_fail("%s : l'approche diverge de Jeutel" % folder.get_file())
+		_fail("%s : l'approche diverge de Jeutel" % label)
 
 	var jeutel_done: bool = end_frame >= 0 and _byte(probe[end_frame][1], 16) != 0
 	if expected_stage == Docking.Stage.SUCCESS:
 		if not jeutel_done or dock.stage != Docking.Stage.SUCCESS:
 			_fail("%s : amarrage attendu à la même frame, prototype %s, Jeutel %s (frame %d)" % [
-				folder.get_file(), Docking.Stage.keys()[dock.stage], "terminé" if jeutel_done else "en cours", end_frame
+				label, Docking.Stage.keys()[dock.stage], "terminé" if jeutel_done else "en cours", end_frame
 			])
 		elif dock.bonus != expected_bonus:
-			_fail("%s : bonus %d, attendu %d" % [folder.get_file(), dock.bonus, expected_bonus])
+			_fail("%s : bonus %d, attendu %d" % [label, dock.bonus, expected_bonus])
 		else:
-			print("%s | amarrage à la frame %d | bonus %d" % [folder.get_file(), end_frame, dock.bonus])
+			print("%s | amarrage à la frame %d | bonus %d" % [label, end_frame, dock.bonus])
 	elif end_frame >= 0:
 		_fail("%s : fin inattendue à la frame %d (%s)" % [
-			folder.get_file(), end_frame, Docking.Stage.keys()[dock.stage]
+			label, end_frame, Docking.Stage.keys()[dock.stage]
 		])
 
 

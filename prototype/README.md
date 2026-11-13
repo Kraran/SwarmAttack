@@ -46,13 +46,17 @@ Les positions des huit cibles correspondent sur les 87 premières images de la f
 
 ## Comparaison de l’amarrage
 
-Les relevés `dock-probe-success` et `dock-probe-held` suivent le [replay solo](../tools/arcade/replays/solo-docking.csv) avec, à partir de la frame 6700, la RAM `0x8222–0x8232`, l’objet `0x8140–0x814e` et le compteur de boucle `0x8005`. Ils proviennent d’une variante locale de `trace.lua` conservée dans `.reference`. Cette sonde reste à intégrer au collecteur.
+Deux replays suivent le même parcours solo jusqu’à l’approche du module II. [solo-docking.csv](../tools/arcade/replays/solo-docking.csv) réussit l’amarrage. [solo-docking-held.csv](../tools/arcade/replays/solo-docking-held.csv) maintient le bouton à partir de la frame 6750. La sonde relève, à partir de la frame 6700, l’état d’amarrage `0x8222–0x8232`, l’objet `0x8140–0x814e` et le compteur de boucle `0x8005`.
 
 ```powershell
+$sonde = '--probe', '8222-8232', '--probe', '8140-814e', '--probe', '8005', '--probe-from', '6700'
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking.csv --frames 7450 @sonde --output .reference\dock-success
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held.csv --frames 7450 @sonde --output .reference\dock-held
+
 & $godot --headless --path prototype --script res://tests/compare_docking.gd -- `
-    "$traces\dock-probe-success" "$traces\dock-probe-held"
+    "$traces\dock-success\mouncrst" "$traces\dock-held\mouncrst"
 ```
 
 Le comparateur avance le prototype d’un pas à chaque incrément du compteur de boucle Jeutel. Dans ces conditions, la position, les deux vitesses et le chrono du module II sont identiques à Jeutel sur 660 images pour l’amarrage réussi et 701 images avec le bouton maintenu. L’amarrage se produit à la frame 7417 avec un bonus de 2 600 points, comme sur la carte.
 
-Deux limites restent ouvertes. La boucle Jeutel saute certaines frames, 17 sur 750 dans le relevé réussi et 9 sur 750 avec le bouton maintenu, à des intervalles qui dépendent de la situation. Le prototype en temps réel ne reproduit pas ces sauts et avance donc un peu plus vite que la carte. La montée du module et l’arrivée du module cible avant la frame 6700 ne sont pas encore comparées, de même que l’amarrage des modules I et II.
+Deux limites restent ouvertes. La boucle Jeutel saute certaines frames, 17 sur 750 dans le relevé réussi et 9 sur 750 avec le bouton maintenu, à des intervalles qui dépendent de la situation. Le [carnet de relevés](../tools/arcade/README.md) en décrit le mécanisme. Le prototype en temps réel ne reproduit pas ces sauts et avance donc un peu plus vite que la carte. La montée du module et l’arrivée du module cible avant la frame 6700 ne sont pas encore comparées, de même que l’amarrage des modules I et II.
