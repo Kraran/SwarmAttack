@@ -90,3 +90,37 @@ Le compteur `0x8005` ne progresse pas à toutes les frames. Sur les deux approch
 Le désassemblage montre un ordonnanceur de tâches piloté par l’interruption de trame. Le gestionnaire en `0x0066` coupe l’interruption par `0xB000`, puis poursuit en `0x00DE`. Il incrémente le compteur, appelle `0x039F` à chaque passage et `0x047A` un passage sur quatre, ce qui correspond au tick de contrôle de l’amarrage. L’ordonnanceur en `0x0229` réarme ensuite l’interruption et reprend une tâche. Une trame qui survient pendant que l’interruption est coupée est perdue, ce qui explique un compteur figé quand le traitement déborde. Le rythme dépend donc de la charge de la carte à chaque instant.
 
 Pour comparer une séquence à la frame près, relever `0x8005` avec la trace et avancer la simulation à chaque incrément du compteur.
+
+## Après l’amarrage
+
+Trois replays partent du même parcours solo et divergent pendant l’approche du module II vers le module III. Les captures relèvent toute la RAM (`--probe 8000-83ff`) et une image toutes les 20 frames.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-suite.csv --frames 9600 --probe 8000-83ff --snap-from 7400 --snap-every 20 --output .reference\suite
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-collision.csv --frames 9600 --probe 8000-83ff --probe-from 6100 --snap-from 7440 --snap-every 20 --output .reference\collision
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held.csv --frames 9600 --probe 8000-83ff --probe-from 6100 --snap-from 7900 --snap-every 20 --output .reference\timeout
+```
+
+| Cas | Déroulement observé |
+| --- | --- |
+| Amarrage réussi | Contact à la frame 7417. Écran `BONUS 13 × 200 = 2600` et `BRAVO !!` pendant 305 frames. Le combat reprend à la frame 7723 avec le module II posé sur le module III, et le score passe à 3 880. |
+| Collision | Le module II explose à la frame 7452. `SORRY NO BONUS` s’affiche, puis le combat reprend à la frame 7918 avec le module III seul. |
+| Chrono écoulé | Le chrono atteint `00:0` à la frame 7942. Le combat reprend à la frame 8125 avec le module II seul. |
+
+`0x8097` compte les modules restants. Il vaut 3 au départ et baisse d’une unité par vaisseau détruit, quel que soit le nombre de modules assemblés.
+
+| Événement du replay de suite | Frame | `0x8097` |
+| --- | --- | --- |
+| Module I détruit | 5215 | 3 → 2 à la frame 5504 |
+| Vaisseau II + III détruit | 8090 | 2 → 1 à la frame 8379 |
+| Module II seul détruit | 9021 | 1 → 0 à la frame 9313 |
+
+Après une destruction, `0x8004` reste à 1 pendant 161 frames, puis 127 frames s’écoulent avant la baisse du compteur. Le module suivant monte alors du bas de l’écran, s’immobilise à mi-hauteur et redescend à sa place avant la reprise. Après la destruction du vaisseau II + III, c’est le module II seul qui repart. À zéro, la carte affiche `JEU 1 TERMINE`, `ESSAYEZ A NOUVEAU` et `JEU TERMINE`, puis revient à la démonstration.
+
+### Vaisseau II + III
+
+Les lignes de défilement 26 à 28 portent la position et les lignes 29 et 30 la même valeur plus 8. La ligne 26 va de `0x0e` à `0xc0` entre les deux butées.
+
+Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Un appui tire un projectile central à l’abscisse de la ligne 26 plus 4, depuis l’ordonnée de registre `0x27`. L’appui suivant tire une paire aux abscisses de la ligne 29 et de la ligne 29 plus 16, depuis `0x38`. Tous montent de 4 par frame.
+
+À la reprise de la première capture, deux projectiles sont apparus aux abscisses `0x40` et `0x50` sans appui sur le bouton. Leur origine reste à expliquer.
