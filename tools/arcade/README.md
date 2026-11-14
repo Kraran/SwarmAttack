@@ -134,7 +134,15 @@ Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Re
 
 Tous montent de 4 par image. L’abscisse suit le même report que le module I (`x_registre − 17`, `y_logique = 251 − y_registre`). À la reprise après amarrage, le prochain appui forme le groupe 0 (frame 7776, vaisseau à x = 112, projectiles à 99 et 123). Après un déplacement à la butée gauche (`0x822b` = 30, soit x = 14), le groupe 0 part à 1 et 25, le groupe 1 à 5 et 21.
 
-Un appui est refusé tant que le groupe qui devrait partir est encore en vol : l’appui 7940–7944 n’ajoute rien, l’alternance reste sur le groupe 0, et le nouvel appui 7965 le déclenche une fois le groupe libre. Les appuis observés durent 5 images et ne produisent qu’une volée. Un maintien qui commencerait pendant l’occupation d’un groupe et se poursuivrait après sa disparition n’est pas relevé ; le prototype reprend le comportement `fire_busy` du module I (pas de tir différé, nouvel front d’appui nécessaire).
+Un appui est refusé tant que le groupe qui devrait partir est encore en vol : l’appui 7940–7944 n’ajoute rien, l’alternance reste sur le groupe 0, et le nouvel appui 7965 le déclenche une fois le groupe libre. Les appuis observés durent 5 images et ne produisent qu’une volée. Un maintien commencé pendant l’occupation d’un groupe et poursuivi après sa disparition n’est pas encore relevé ; le prototype reprend le comportement `fire_busy` du module I (pas de tir différé, nouvel front d’appui nécessaire).
+
+Le replay [solo-docking-held-fire.csv](replays/solo-docking-held-fire.csv) reprend `solo-docking-suite.csv` à l’identique jusqu’après la reprise (7723), puis écarte les tirs de la suite. Un premier tap de 5 images à 7775 lance le groupe 0 (comme dans la suite, vaisseau au centre, projectiles fantômes déjà disparus). Le maintien de 120 images commence à 7790, pendant que ce groupe vole encore (disparition vers 7830). Le déplacement vers la gauche des frames 7800–7859 est conservé ; le vaisseau reste ensuite à la butée gauche, sans l’aller à droite de la suite qui se terminait par une destruction à 8090. Après le relâchement à 7910, un second cycle commence à 7940 pour le groupe suivant (tap de 5 images, puis maintien de 120 images à partir de 7955, disparition attendue vers 7990, relâchement à 8075).
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held-fire.csv --frames 8200 --probe 8000-83ff --probe-from 7760 --snap-from 7770 --snap-every 2 --output .reference\pr2-held-fire
+```
+
+Sur cette capture, vérifier surtout : l’apparition du groupe 0 à 7776 ; l’absence ou la présence d’une nouvelle volée au moment où ce groupe disparaît vers 7830, alors que le bouton est encore enfoncé ; le relâchement à 7910 ; le second tap à 7940 ; la disparition du second groupe vers 7990 pendant le maintien commencé à 7955.
 
 Les lignes de défilement 26 à 30 de `0x9800`, dans ces captures, restent inertes pendant le combat du vaisseau assemblé. La position du vaisseau se lit dans `0x822b` (128 au centre, 30 à gauche). L’ancienne description d’un projectile central à « la ligne 26 plus 4 » puis d’une paire à « la ligne 29 et la ligne 29 plus 16 » ne correspond pas à ces traces : chaque groupe tire deux projectiles.
 
