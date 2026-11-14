@@ -126,7 +126,9 @@ func hits_ship(ship_x: int, module := 1) -> bool:
 	return false
 
 
-# Union des hitboxes des modules assemblés. La zone combinée II + III n'est pas relevée.
+# Union des hitboxes des modules assemblés. La zone combinée II + III n'est pas relevée :
+# la seule destruction observée (pr1-suite, frame 8090, x = 192) ne permet pas de caler
+# les bords, car le drapeau 0x8004 bascule avec un décalage par rapport aux sprites.
 func hits_attached(ship_x: int, attached: int) -> bool:
 	for module in range(1, 4):
 		if attached & (1 << (module - 1)) and hits_ship(ship_x, module):

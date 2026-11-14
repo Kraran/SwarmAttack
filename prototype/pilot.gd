@@ -8,6 +8,10 @@ const FIELD_SIZE := Vector2i(224, 256)
 const START_X := 112
 const MIN_X := 14
 const MAX_X := 200
+# Vaisseau II + III : butée gauche confirmée à MIN_X (0x822b = 30 sur pr1-suite et pr2-held-fire,
+# tenue plusieurs images avec la gauche enfoncée). La butée droite n'est pas relevée :
+# la destruction de la suite à 8090 arrive à 0x822b = 208 (x = 192) pendant encore
+# un déplacement vers la droite, sans palier tant que le vaisseau est vivant.
 const SHIP_Y := 200
 const MOVE_STEP := 2
 const SHOT_START_Y := 183
