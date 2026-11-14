@@ -126,6 +126,14 @@ func hits_ship(ship_x: int, module := 1) -> bool:
 	return false
 
 
+# Union des hitboxes des modules assemblés. La zone combinée II + III n'est pas relevée.
+func hits_attached(ship_x: int, attached: int) -> bool:
+	for module in range(1, 4):
+		if attached & (1 << (module - 1)) and hits_ship(ship_x, module):
+			return true
+	return false
+
+
 func _advance_enemy(enemy: Enemy, ship: int) -> void:
 	if enemy.separate_at > 0 and _wave_clock >= enemy.separate_at:
 		enemy.separate_at = 0

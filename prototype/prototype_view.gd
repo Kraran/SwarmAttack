@@ -164,7 +164,10 @@ func _draw_combat() -> void:
 	_draw_enemies()
 	var pilot := combat.pilot
 	if _run.phase != ArcadeRun.Phase.REPLACEMENT and _run.phase != ArcadeRun.Phase.GAME_OVER:
-		_draw_module(Vector2(pilot.ship_x, pilot.ship_y()), pilot.module, SHIP)
+		# Dessiner la base d'abord, puis les modules supérieurs.
+		for module in range(3, 0, -1):
+			if pilot.has_module(module):
+				_draw_module(Vector2(pilot.ship_x, pilot.module_y(module)), module, SHIP)
 	if pilot.shot_active:
 		draw_rect(Rect2(Vector2(pilot.shot_position), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
 	if pilot.second_shot_active:
@@ -232,14 +235,14 @@ func _draw_panel() -> void:
 		return
 	match _run.phase:
 		ArcadeRun.Phase.REPLACEMENT:
-			_text(425, "Module %d perdu" % _run.module, 20, SHOT)
+			_text(425, "Vaisseau perdu", 20, SHOT)
 		ArcadeRun.Phase.GAME_OVER:
 			_text(425, "Partie terminée", 20, SHOT)
-		ArcadeRun.Phase.NO_PARTNER:
-			_text(425, "Vagues terminées · Amarrage indisponible", 17, SHIP)
 		_:
 			_text(425, "Vague %d / %d" % [_run.wave_number, ArcadeRun.WAVES_BEFORE_DOCK], 20, PRIMARY)
-	_text(463, "%03d points   ·   %d cibles" % [_run.score(), _run.combat.wave.remaining], 17, MUTED)
+	_text(463, "%03d points   ·   %d cibles   ·   Vies %d" % [
+		_run.score(), _run.combat.wave.remaining, _run.lives
+	], 17, MUTED)
 	if _diagnostics:
 		_draw_readout()
 
@@ -257,7 +260,7 @@ func _draw_docking_panel() -> void:
 		_:
 			_text(425, "Mission amarrage", 20, PRIMARY)
 			_text(463, "Chrono   %s" % dock.display_clock(), 17, SHOT)
-	_text(510, "%03d points" % _run.score(), 17, MUTED)
+	_text(510, "%03d points   ·   Vies %d" % [_run.score(), _run.lives], 17, MUTED)
 	if _diagnostics:
 		var point := dock.display_position()
 		_text(543, "Module %d    x %d    y %d" % [dock.module, point.x, point.y], 17, SHIP)
@@ -266,7 +269,9 @@ func _draw_docking_panel() -> void:
 func _draw_readout() -> void:
 	var pilot := _run.combat.pilot
 	_text(510, "Image %d   ·   Pas de 16,5 ms" % _run.frame, 17, MUTED)
-	_text(543, "Module %d    x %d    y %d" % [pilot.module, pilot.ship_x, pilot.ship_y()], 17, SHIP)
+	_text(543, "Vaisseau %s    x %d    y %d" % [
+		_run.ship_label(), pilot.ship_x, pilot.ship_y()
+	], 17, SHIP)
 	if pilot.shot_active:
 		var point := pilot.shot_position
 		_text(576, "Projectile    x %d    y %d" % [point.x, point.y], 17, SHOT)

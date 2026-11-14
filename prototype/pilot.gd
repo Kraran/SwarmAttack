@@ -17,6 +17,7 @@ const SHOT_LENGTH := 4
 var frame := 0
 var ship_x := START_X
 var module: int
+var attached: int
 var shot_active := false
 var shot_position := Vector2i.ZERO
 var second_shot_active := false
@@ -24,13 +25,22 @@ var second_shot_position := Vector2i.ZERO
 var _fire_held := false
 
 
-func _init(module_number := 1, start_x := START_X) -> void:
+func _init(module_number := 1, start_x := START_X, attached_modules := 0) -> void:
 	module = module_number
 	ship_x = start_x
+	attached = attached_modules if attached_modules != 0 else 1 << (module_number - 1)
+
+
+func has_module(number: int) -> bool:
+	return bool(attached & (1 << (number - 1)))
+
+
+func module_y(number: int) -> int:
+	return SHIP_Y + (number - 1) * 8
 
 
 func ship_y() -> int:
-	return SHIP_Y + (module - 1) * 8
+	return module_y(module)
 
 
 func clear_shots() -> void:
