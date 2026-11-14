@@ -103,6 +103,25 @@ Le premier appui (11020) fait apparaître à 11021 une paire, registres matérie
 
 Un contact a lieu à 11889 (`0x8004` = 1, vaisseau toujours à `0x822b` = 130, `0x822c` = 232). Les vies passent de 3 à 2 à 12185 (289 images de boucle, y compris des frames figées). Les tuiles d’explosion apparaissent à y = 208 et 224. Les ennemis encore visibles à l’écran sont trop hauts ; le sprite toucheur n’est pas identifié de façon univoque, donc la hitbox du I + II n’est pas recalée sur ce contact.
 
+Le replay [solo-docking-i-ii-hitbox.csv](replays/solo-docking-i-ii-hitbox.csv) reprend le trajet de réussite jusqu’à 10352, relâche tir et droite à la reprise (10904), et ne tire plus. Il calque le calendrier de `solo-docking-hitbox.csv` sur le départ de vague 10935 observé dans `pr6` : droite à 10947 (vague encore haute, ordonnées ennemies basses vers 11030), gauche à 11062 (butée droite attendue vers 10990), retour vers le centre à 11202 (butée gauche attendue vers 11157), puis attente immobile à partir de 11252, pour un contact dû à un seul ennemi identifiable.
+
+```powershell
+git fetch origin
+git checkout tir-i-ii
+git pull
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-hitbox.csv --frames 13000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 2 --output .reference\pr6b-hitbox-i-ii
+```
+
+À relever : `0x8004`, `0x822b` / `0x822c` stables au moment du contact, le sprite toucheur (un seul, avec sa position brute), `0x8005` et les vies `0x8097`.
+
+Le replay [solo-docking-i-ii-iii.csv](replays/solo-docking-i-ii-iii.csv) reprend le même préfixe, relâche à 10904, puis, à partir de 11020 (entrée large déjà remontée), enchaîne des cycles de 100 images : deux taps de 5 images (paire puis tir central) et une traversée latérale alternée, pour traverser la vague 3, la vague 4 et arriver à l’amarrage I + II vers le III. C’est un pilotage en boucle ouverte : la survie jusqu’à l’amarrage n’est pas garantie, et si l’approche commence pendant un cycle le tir devient une poussée. La fenêtre de la vague 4 et celle de l’intro ne sont pas encore mesurées ; la capture va jusqu’à 24 000 images pour les laisser de la marge.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii.csv --frames 24000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 10 --output .reference\pr7-amarrage-i-ii-iii
+```
+
+À relever : la fin des vagues 3 et 4, le début d’intro (`0x8224` / `0x8226`), le chrono, le contact ou l’échec (`0x8004`, `0x8232`, `0x822b`, `0x822c`), le bonus et l’écran, le vaisseau repris. Si l’amarrage est atteint, une reprise plus serrée (instantanés toutes les 2 images sur la seule fenêtre d’approche) pourra suivre.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.
