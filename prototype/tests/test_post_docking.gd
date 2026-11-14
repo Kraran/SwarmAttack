@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_check_timeout_resumes_as_two()
 	_check_life_lost_after_assembled_ship()
 	_check_cycle_continues_without_partner()
+	_check_module_one_docks_with_two()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -178,3 +179,20 @@ func _check_cycle_continues_without_partner() -> void:
 	_expect(run.wave_number == 1, "Le cycle reprend à la vague 1, obtenu %d" % run.wave_number)
 	_expect(run.attached == 6, "Le vaisseau II + III est conservé")
 	print("OK cycle suivant : combat poursuivi sans nouvel amarrage")
+
+
+func _check_module_one_docks_with_two() -> void:
+	# Règle relevée : l'amarrage I + II n'a lieu que si le module I est encore
+	# là après la vague 4. Les seuils, la reprise et le tir de l'assemblage
+	# I + II restent à mesurer (replay solo-docking-i-ii.csv).
+	var run := ArcadeRun.new()
+	run.attached = 1
+	run.wave_number = 4
+	run.combat = CombatRound.new(4, 1, Pilot.START_X, 255, 1)
+	run.combat.outcome = CombatRound.Outcome.CLEARED
+	run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.DOCKING, "Après la vague 4, le module I doit amarrer le II")
+	_expect(run.docking_target() == 2, "La cible est le module II, obtenu %d" % run.docking_target())
+	_expect(run.docking.module == 1, "Le module en approche est le I, obtenu %d" % run.docking.module)
+	_expect(run.front_module() == 1, "Le module supérieur reste le I tant que l'amarrage n'est pas conclu")
+	print("OK vague 4 avec le module I : approche vers le module II")

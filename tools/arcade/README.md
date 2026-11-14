@@ -66,6 +66,19 @@ Les variantes suivantes se reproduisent en copiant le replay et en remplaçant l
 
 La tolérance de 6 unités est vérifiée pour ce contact entre les modules II et III. Les seuils de l’assemblage I et II en partie et les effets d’autres vitesses d’approche restent à mesurer.
 
+Le jeu n’amarre le module I avec le II que si le module I est encore là après la vague 4. Les captures `pr1-*`, `pr2-held-fire` et `pr3-hitbox` suivent toutes le parcours solo qui perd le module I à la frame 5215, puis amarrent le II sur le III. La démonstration, elle, réussit un I + II (chrono `10:7` à 2685, bonus `10 × 100 = 1000` à 2686–2687) mais ce n’est pas une approche jouée, et les traces de cette démo ne sont pas dans le dépôt.
+
+Le replay [solo-docking-i-ii.csv](replays/solo-docking-i-ii.csv) reprend `solo-docking.csv` à l’identique jusqu’à la frame 5159, alors que le module I vient d’aller à droite (x ≈ 150). Au lieu de revenir au centre et d’y zigzager — ce qui le fait détruire à 5215 par un plongeon (sprite 3, x ≈ 121, y montant vers 188) — il poursuit vers la butée droite, tisse dans la moitié droite et tire toutes les 60 images, puis, à partir de 6400, enchaîne des maintiens de tir de 180 images avec de petites corrections latérales, pour tenter l’approche si elle a déjà commencé. Ce n’est qu’un premier essai : le moment exact du début d’approche I + II n’est pas connu.
+
+```powershell
+git fetch origin
+git checkout amarrage-i-ii
+git pull
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii.csv --frames 10000 --probe 8000-83ff --probe-from 5100 --snap-from 6000 --snap-every 2 --output .reference\pr5-amarrage-i-ii
+```
+
+À relever : à 5215, `0x8004` doit rester à 0 et `0x8097` à 3 (le module I a survécu). Ensuite, le basculement de `0x8004` / `0x8232` et le chrono `0x8230–0x8231` au contact ; les positions `0x822b,0x822c` pendant l’approche ; le bonus et la durée de l’écran de résultat ; le vaisseau repris (I + II attendu) et son premier tir ; une collision ou une expiration, le cas échéant. L’amarrage I + II vers le III n’est pas visé par ce premier passage.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.
