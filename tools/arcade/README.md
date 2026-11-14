@@ -95,7 +95,13 @@ git pull
 python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-fire.csv --frames 13000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 2 --output .reference\pr6-tir-i-ii
 ```
 
-À relever : le motif de tir (créneaux `0x8161–0x8168`, `bullet_ram`, écarts et hauteurs de départ, éventuelle alternance de groupes, refus pendant qu’un groupe vole, maintien sans volée différée) ; la butée gauche (`0x822b` en palier, avec `0x8004` = 0) ; un contact immobile au centre (`0x8004`, position du sprite toucheur, `0x822b` / `0x822c` stables). Vies `0x8097` et compteur `0x8005` pour dater au rythme de la boucle.
+La capture `pr6-tir-i-ii` est complète (13 000 images, sonde `8000-83ff` depuis 10900, instantanés toutes les 2 images depuis 10900, même empreinte de replay). À la reprise (10904), le tir est relâché ; `0x822b` passe de 128 à 130 dès 10905 sans commande, puis reste à 130 jusqu’au déplacement. La vague apparaît à 10935.
+
+Le premier appui (11020) fait apparaître à 11021 une paire, registres matériels x = 122 et 138 (logique 105 et 121, soit x vaisseau − 1 ± 8 pour `0x822b` = 130), y matériel = 40 (logique 211). Le deuxième appui (11035), alors que la paire vole encore, fait apparaître à 11036 un projectile central (x matériel 130, logique 113, y matériel 52, logique 199). Les deux volées coexistent (3 projectiles). Les premières volées rencontrent des ennemis et sont interrompues ; le tap 11090, les créneaux étant libres, relance la paire, et l’appui 11100, pendant que cette paire vole encore, relance le projectile central. Le maintien commencé à 11170 fait apparaître la paire à 11171 (y = 211) ; elle reste visible jusqu’à 11223 (y = 3) et disparaît à 11224, soit 53 images, sans aucune volée différée jusqu’au relâchement à 11290. Un nouvel front d’appui est nécessaire. Le projectile central, lancé à y = 199, dure 50 images s’il n’est pas interrompu.
+
+À 11300 le vaisseau pousse à gauche (premier pas à 11302). La butée gauche est `0x822b` = 30 (x = 14), tenue de 11353 à 11421 avec la gauche enfoncée et `0x8004` = 0. Le retour au centre aboutit à `0x822b` = 130 à 11471, où le vaisseau reste immobile.
+
+Un contact a lieu à 11889 (`0x8004` = 1, vaisseau toujours à `0x822b` = 130, `0x822c` = 232). Les vies passent de 3 à 2 à 12185 (289 images de boucle, y compris des frames figées). Les tuiles d’explosion apparaissent à y = 208 et 224. Les ennemis encore visibles à l’écran sont trop hauts ; le sprite toucheur n’est pas identifié de façon univoque, donc la hitbox du I + II n’est pas recalée sur ce contact.
 
 ## Sonde de RAM
 
