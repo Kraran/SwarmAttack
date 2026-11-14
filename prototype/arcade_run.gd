@@ -141,9 +141,8 @@ func _advance_from_clear() -> void:
 		_begin_combat(combat.pilot.ship_x, 255)
 	elif docking_target() != 0:
 		phase = Phase.DOCKING
-		# L'approche d'un assemblage I + II vers le module III n'est pas relevée :
-		# on réutilise le modèle du module supérieur.
-		docking = Docking.new(front_module(), combat.pilot.ship_x)
+		# pr7 : l'assemblage I + II s'approche du III depuis 0x822c = 232.
+		docking = Docking.new(front_module(), combat.pilot.ship_x, true, attached)
 		_docking_life_taken = false
 	else:
 		# Aucun partenaire restant : nouveau cycle des quatre vagues. PROVISOIRE.
@@ -211,10 +210,13 @@ func _resume_from_docking(input_mask: int) -> void:
 		attached = 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	else:
-		# Temps écoulé : le module en approche poursuit seul, recentré à x = 112.
+		# Temps écoulé : le module en approche poursuit, recentré à x = 112.
 		# II → III : 0x822b passe de 31 à 128 à la frame 8125 (pr1-timeout).
 		# I + II : 0x822b passe de 96 à 128 à la frame 11526 (pr5b), vies inchangées.
+		# I + II → III (pr7, 16775) : le I + II continue (0x814a = 3), vies 3,
+		# sans bonus, 0x822b = 128, 0x822c = 216 (modules à y = 192 et 200).
 		resume_x = Pilot.START_X
+	var i_ii_timeout_altitude := stage == Docking.Stage.TIMED_OUT and attached == 3
 	_previous_score += combat.score + docking.credited_bonus()
 	combat.score = 0
 	docking = null
@@ -225,6 +227,8 @@ func _resume_from_docking(input_mask: int) -> void:
 		return
 	wave_number = WAVE_AFTER_DOCK
 	_begin_combat(resume_x, 255)
+	if i_ii_timeout_altitude:
+		combat.pilot.assembly_y_offset = 0
 	if input_mask & Pilot.FIRE:
 		combat.pilot.absorb_held_fire()
 	if not leftover.is_empty():

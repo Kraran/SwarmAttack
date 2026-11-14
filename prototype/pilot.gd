@@ -41,12 +41,18 @@ var _fire_held := false
 var _group_active: Array[bool] = [false, false, false, false]
 var _group_position: Array[Vector2i] = [Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO]
 var _next_group := 0
+# pr6b : après la réussite I + II, le combat se joue 16 pixels plus bas
+# (0x822c = 232, modules à y = 208 et 216). Après l'expiration I + II → III
+# (pr7, reprise 16775), 0x822c = 216 et les modules reviennent à 192 et 200.
+var assembly_y_offset := 0
 
 
 func _init(module_number := 1, start_x := START_X, attached_modules := 0) -> void:
 	module = module_number
 	ship_x = start_x
 	attached = attached_modules if attached_modules != 0 else 1 << (module_number - 1)
+	if is_i_and_ii():
+		assembly_y_offset = 16
 
 
 func has_module(number: int) -> bool:

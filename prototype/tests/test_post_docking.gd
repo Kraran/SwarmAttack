@@ -30,6 +30,9 @@ func _initialize() -> void:
 	_check_module_one_docks_with_two()
 	_check_module_one_capture_from_pr5c()
 	_check_success_resumes_as_one_and_two()
+	_check_i_ii_to_iii_intro()
+	_check_timeout_resumes_as_i_and_ii()
+	_check_idle_i_ii_from_the_right_times_out()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -43,7 +46,7 @@ func _start_docking(attached: int) -> ArcadeRun:
 	run.attached = attached
 	run.wave_number = 4
 	run.phase = ArcadeRun.Phase.DOCKING
-	run.docking = Docking.new(run.front_module(), Pilot.START_X, false)
+	run.docking = Docking.new(run.front_module(), Pilot.START_X, false, attached)
 	run._docking_life_taken = false
 	return run
 
@@ -327,3 +330,74 @@ func _check_life_lost_after_i_and_ii() -> void:
 	_expect(run.lives == 2, "Vies 3 → 2 à la baisse du compteur, obtenu %d" % run.lives)
 	_expect(run.attached == 1, "Le module I seul succède au vaisseau I + II, masque=%d" % run.attached)
 	print("OK perte du I + II : vies 3 → 2, puis module I")
+
+
+func _check_i_ii_to_iii_intro() -> void:
+	# pr7 : vague 4 terminée avec le I + II, intro depuis 0x822c = 232
+	# (position logique y = 224), à l'abscisse courante.
+	var run := ArcadeRun.new()
+	run.attached = 3
+	run.wave_number = 4
+	run.combat = CombatRound.new(4, 1, Pilot.MAX_X, 255, 3)
+	run.combat.outcome = CombatRound.Outcome.CLEARED
+	run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.DOCKING, "Après la vague 4, le I + II doit amarrer le III")
+	_expect(run.docking_target() == 3, "La cible est le module III, obtenu %d" % run.docking_target())
+	_expect(run.docking.is_i_and_ii(), "L'approche est celle de l'assemblage I + II")
+	_expect(run.docking.position == Vector2i(Pilot.MAX_X + 8, Docking.I_II_START_Y), "Départ d'intro à (208, 224), obtenu %s" % str(run.docking.position))
+	# La zone de capture du module I ne doit pas conclure cet amarrage non relevé.
+	run.docking.stage = Docking.Stage.APPROACH
+	run.docking.position = Docking.TARGET + Vector2i(14, -7)
+	run.docking._resolve_contact()
+	_expect(run.docking.stage == Docking.Stage.APPROACH, "Sans relevé de contact, (14, -7) ne doit pas accrocher le I + II → III")
+	print("OK vague 4 avec le I + II : intro depuis y = 224, contact non inventé")
+
+
+func _check_timeout_resumes_as_i_and_ii() -> void:
+	# pr7 : expiration à 16592, écran 183 images, reprise à 16775 en I + II
+	# à x = 112, 0x822c = 216 (offset 0), vies 3, score inchangé.
+	var run := _start_docking(3)
+	run.docking.stage = Docking.Stage.TIMED_OUT
+	_hold_until_resume(run, Docking.TIMEOUT_HOLD)
+	if run.phase != ArcadeRun.Phase.COMBAT:
+		return
+	_expect(run.attached == 3, "Après expiration, le I + II continue, masque=%d" % run.attached)
+	_expect(run.ship_label() == "I + II", "Libellé inattendu : %s" % run.ship_label())
+	_expect(run.score() == 0, "Pas de bonus si le chrono expire")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "L'expiration ne consomme pas de vie")
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise recentrée à x = 112, obtenu %d" % run.combat.pilot.ship_x)
+	_expect(run.combat.pilot.assembly_y_offset == 0, "pr7 : 0x822c = 216, offset 0 après expiration")
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
+	print("OK chrono écoulé I + II → III : reprise I + II à x = 112, offset 0, sans bonus")
+
+
+func _check_idle_i_ii_from_the_right_times_out() -> void:
+	# pr7 : après l'intro, le I + II part de la butée droite (0x822b = 216,
+	# 0x822c = 156) et, avec le pilotage en boucle ouverte, touche la butée
+	# basse (0x822c = 240) puis expire. Écran de 183 images, reprise du
+	# I + II à x = 112, vies inchangées, 0x822c = 216.
+	var run := ArcadeRun.new()
+	run.attached = 3
+	run.wave_number = 4
+	run.phase = ArcadeRun.Phase.DOCKING
+	run.docking = Docking.new(1, Pilot.MAX_X, false, 3)
+	run._docking_life_taken = false
+	_expect(run.docking.position == Vector2i(Pilot.MAX_X + 8, Docking.I_II_START_Y - Docking.LIFT_HEIGHT), "Départ après la montée : %s" % str(run.docking.position))
+	var hit_floor := false
+	var steps := 0
+	while run.docking.stage == Docking.Stage.APPROACH and steps < 5000:
+		run.step(0)
+		steps += 1
+		if run.docking.position.y >= 232:
+			hit_floor = true
+	_expect(run.docking.stage == Docking.Stage.TIMED_OUT, "L'approche sans commande doit expirer, stage=%s" % Docking.Stage.keys()[run.docking.stage])
+	_expect(hit_floor, "pr7 : le I + II atteint la butée basse avant l'expiration")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "Les vies restent à 3 pendant l'approche et l'écran")
+	_hold_until_resume(run, Docking.TIMEOUT_HOLD)
+	if run.phase != ArcadeRun.Phase.COMBAT:
+		return
+	_expect(run.attached == 3, "Reprise du I + II, masque=%d" % run.attached)
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise recentrée à x = 112")
+	_expect(run.combat.pilot.assembly_y_offset == 0, "Altitude de combat 0x822c = 216")
+	_expect(run.score() == 0, "Pas de bonus")
+	print("OK approche I + II à l'inertie depuis la droite : butée basse, expiration, reprise du I + II")

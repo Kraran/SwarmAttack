@@ -123,18 +123,25 @@ func hits_ship(ship_x: int, module := 1) -> bool:
 # Relevé pr3-hitbox, vaisseau immobile à x = 114 (0x822b = 130) : le sprite 7 à
 # (141, 204) aux frames 8233–8234 (0x8004 = 0) est un raté ; à (140, 208) à 8235
 # (0x8004 = 1) c'est un contact. La zone du module III seul est inchangée.
-func hits_attached(ship_x: int, attached: int) -> bool:
+# I + II (pr6b-hitbox-i-ii) : après la réussite I + II, les boîtes I et II sont
+# abaissées de 16 (y = 208 et 216, 0x822c = 232). Vaisseau immobile à x = 114 :
+# l'ennemi à (123, 231) aux frames 11492–11493 (0x8004 = 0) est un raté ; à
+# (120, 226) à 11494 (0x8004 = 1) c'est un contact, identifié visuellement sur
+# le bas du module II (table d'objets 0x81e9–0x81ea). Après l'expiration
+# I + II → III (pr7, 0x822c = 216), l'offset revient à 0 (y = 192 et 200).
+func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 	for module in range(1, 4):
 		if not (attached & (1 << (module - 1))):
 			continue
 		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
-		if _hits_module_box(ship_x, module, top):
+		if _hits_module_box(ship_x, module, top, y_offset if attached == 3 else 0):
 			return true
 	return false
 
 
-func _hits_module_box(ship_x: int, module: int, top: int) -> bool:
+func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool:
 	var raw_position := Vector2i(ship_x + 8, 192) if module == 1 else Vector2i(ship_x, 192 + (module - 1) * 8)
+	raw_position.y += y_offset
 	const LEFT_LIMITS := [-9, -5, -10]
 	const RIGHT_LIMITS := [11, 23, 28]
 	for enemy in enemies:

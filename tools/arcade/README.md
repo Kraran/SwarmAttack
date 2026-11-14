@@ -112,15 +112,15 @@ git pull
 python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-hitbox.csv --frames 13000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 2 --output .reference\pr6b-hitbox-i-ii
 ```
 
-À relever : `0x8004`, `0x822b` / `0x822c` stables au moment du contact, le sprite toucheur (un seul, avec sa position brute), `0x8005` et les vies `0x8097`.
+Relevé `pr6b-hitbox-i-ii` : la butée gauche `0x822b` = 30 (x = 14) est tenue de 11157 à 11203. Le vaisseau revient au centre (`0x822b` = 130) à 11253 et reste immobile. Contact à 11494 (`0x8004` = 1, `0x822c` = 232, vies encore à 3). Aux frames 11492–11493, l’ennemi de la table d’objets (`0x81e9` = 231, `0x81ea` = 123) est un raté ; à 11494 il est à (120, 226) et touche le bas du module II, ce que confirme l’image. Les boîtes I et II du I + II, pour ce combat à `0x822c` = 232, sont donc celles des modules I et II abaissées de 16 (y = 208 et 216). Le drapeau tombe à 11655 (161 images) ; les vies passent de 3 à 2 à 11783 (289 images de boucle).
 
-Le replay [solo-docking-i-ii-iii.csv](replays/solo-docking-i-ii-iii.csv) reprend le même préfixe, relâche à 10904, puis, à partir de 11020 (entrée large déjà remontée), enchaîne des cycles de 100 images : deux taps de 5 images (paire puis tir central) et une traversée latérale alternée, pour traverser la vague 3, la vague 4 et arriver à l’amarrage I + II vers le III. C’est un pilotage en boucle ouverte : la survie jusqu’à l’amarrage n’est pas garantie, et si l’approche commence pendant un cycle le tir devient une poussée. La fenêtre de la vague 4 et celle de l’intro ne sont pas encore mesurées ; la capture va jusqu’à 24 000 images pour les laisser de la marge.
+Le replay [solo-docking-i-ii-iii.csv](replays/solo-docking-i-ii-iii.csv) reprend le même préfixe, relâche à 10904, puis, à partir de 11020, enchaîne des cycles de 100 images pour traverser les vagues 3 et 4. Relevé `pr7-amarrage-i-ii-iii` : le I + II survit jusqu’à l’amarrage avec le III. `0x8224` passe à 8 à 14853 (`0x822c` = 232, butée droite `0x822b` = 216). Premier pas de montée à 14873, dernier à 15173 (`0x822c` = 156, soit 76 pixels, chrono `30:10`). Le premier cran `30:09` tombe à 15325 (152 images au rythme de `0x8005`). L’approche, encore pilotée par les cycles de combat (le tir devient une poussée), touche la butée basse (`0x822c` = 240) à 15757 et expire à 16592 (`00:00`, vies 3, score inchangé, `0x8232` reste à `0x17` héritée du bonus I + II). Écran « DOMMAGE !! » de 183 images, reprise à 16775 : le I + II continue (`0x814a` = 3) à x = 112 (`0x822b` = 128, `0x822c` = 216, modules à y = 192 et 200). La zone de capture I + II → III n’a pas été vue. Le module III cible est bien à (112, 216) dès 15332.
+
+Le replay [solo-docking-i-ii-iii-approche.csv](replays/solo-docking-i-ii-iii-approche.csv) reprend le même préfixe jusqu’à 15325, puis dirige l’assemblage vers la cible (112, 216) : gauche en descendant, poussée pour ne pas retomber au plancher, freinage, puis maintien du tir vers (130, 207). C’est encore un pilotage en boucle ouverte, destiné à observer un contact. Instantanés toutes les 2 images sur la fenêtre d’intro et d’approche.
 
 ```powershell
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii.csv --frames 24000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 10 --output .reference\pr7-amarrage-i-ii-iii
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-approche.csv --frames 18000 --probe 8000-83ff --probe-from 14800 --snap-from 14800 --snap-every 2 --output .reference\pr8-amarrage-i-ii-iii-approche
 ```
-
-À relever : la fin des vagues 3 et 4, le début d’intro (`0x8224` / `0x8226`), le chrono, le contact ou l’échec (`0x8004`, `0x8232`, `0x822b`, `0x822c`), le bonus et l’écran, le vaisseau repris. Si l’amarrage est atteint, une reprise plus serrée (instantanés toutes les 2 images sur la seule fenêtre d’approche) pourra suivre.
 
 ## Sonde de RAM
 

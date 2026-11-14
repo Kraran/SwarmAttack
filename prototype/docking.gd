@@ -13,6 +13,13 @@ const BONUS_HOLD := 305
 const COLLISION_HOLD := 466
 # 8125 − 7942 : du chrono à 00:0 jusqu'à la reprise avec le module en approche.
 const TIMEOUT_HOLD := 183
+# pr7 : après la montée I + II → III (chrono à 15173, 0x822c = 156), le premier
+# cran 30:09 tombe à 15325, soit 152 images au rythme de 0x8005. pr5c I + II
+# donne le même écart en 0x8005 (le 168 mural de 9904 à 10072 inclut 16 figées).
+const I_II_III_POST_LIFT := 152
+# Altitude de combat du I + II après la réussite I + II (0x822c = 232) : la
+# position logique d'approche vaut 0x822c − 8, comme le module I.
+const I_II_START_Y := 224
 
 enum Stage { INTRO, APPROACH, SUCCESS, COLLISION, TIMED_OUT }
 
@@ -33,6 +40,7 @@ class Axis:
 		return 1 if velocity < 128 else -1
 
 var module: int
+var attached: int
 var position: Vector2i
 var target_y := 256
 var stage := Stage.INTRO
@@ -44,12 +52,22 @@ var _horizontal := Axis.new(128)
 var _vertical := Axis.new(120)
 
 
-func _init(approaching_module: int, ship_x: int, show_intro := true) -> void:
+func _init(approaching_module: int, ship_x: int, show_intro := true, attached_modules := 0) -> void:
 	module = approaching_module
-	position = Vector2i(ship_x + (8 if module == 1 else 0), 192 if module == 1 else 200)
+	attached = attached_modules if attached_modules != 0 else 1 << (approaching_module - 1)
+	if is_i_and_ii():
+		# pr7 : l'intro part de 0x822c = 232 (0x8143 = 208, 0x8148 = 216),
+		# à l'abscisse courante (butée droite 0x822b = 216, x = 200).
+		position = Vector2i(ship_x + 8, I_II_START_Y)
+	else:
+		position = Vector2i(ship_x + (8 if module == 1 else 0), 192 if module == 1 else 200)
 	if not show_intro:
 		position.y -= LIFT_HEIGHT
 		_release()
+
+
+func is_i_and_ii() -> bool:
+	return bool(attached & 1) and bool(attached & 2) and not bool(attached & 4)
 
 
 func display_position() -> Vector2:
@@ -102,12 +120,13 @@ func step(input_mask: int) -> void:
 func _advance_intro() -> void:
 	_elapsed += 1
 	var lift_end := LIFT_WAIT + LIFT_HEIGHT * BOARD_FRAMES_PER_CONTROL
+	var arrival := I_II_III_POST_LIFT if is_i_and_ii() else TARGET_ARRIVAL
 	if _elapsed <= lift_end:
 		if _elapsed > LIFT_WAIT and _elapsed % BOARD_FRAMES_PER_CONTROL == 0:
 			position.y -= 1
 	else:
 		target_y = maxi(TARGET.y, 256 - ((_elapsed - lift_end) >> 2))
-		if _elapsed >= lift_end + TARGET_ARRIVAL:
+		if _elapsed >= lift_end + arrival:
 			_release()
 
 
@@ -127,7 +146,7 @@ func _advance_approach(input_mask: int) -> void:
 		steer = 1
 	elif input_mask & Pilot.RIGHT:
 		steer = -1
-	var bounds_offset := 8 if module == 1 else 16
+	var bounds_offset := 8 if module == 1 or is_i_and_ii() else 16
 	position.x = clampi(position.x + _horizontal.step(steer), 31 - bounds_offset, 216 - bounds_offset)
 	var thrust := 1 if input_mask & Pilot.FIRE else -1
 	position.y = clampi(position.y + _vertical.step(thrust), 47 - bounds_offset, 240 - bounds_offset)
@@ -146,6 +165,10 @@ func _in_capture_area(offset: Vector2i) -> bool:
 
 
 func _resolve_contact() -> void:
+	# pr7 n'a vu que l'expiration : la zone de capture et de collision
+	# I + II → III n'est pas relevée, on ne reprend pas celles du module I.
+	if is_i_and_ii():
+		return
 	var offset := position - TARGET
 	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)
 	if crash_area.has_point(offset):

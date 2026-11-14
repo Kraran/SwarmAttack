@@ -19,6 +19,7 @@ func _expect(condition: bool, message: String) -> void:
 func _initialize() -> void:
 	_check_assembled_limits()
 	_check_assembled_hitbox()
+	_check_i_ii_hitbox()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -67,3 +68,18 @@ func _check_assembled_hitbox() -> void:
 	_expect(early.hits_ship(114, 3), "Le module III seul conserve son plafond à dy = -11")
 	_expect(not early.hits_attached(114, 6), "L'assemblage ne reprend pas le plafond solo du III")
 	print("OK hitbox II + III : raté à (141, 204), contact à (140, 208)")
+
+
+func _check_i_ii_hitbox() -> void:
+	# pr6b-hitbox-i-ii, vaisseau I + II immobile à x = 114 (0x822b = 130,
+	# 0x822c = 232). Coordonnées de la table d'objets (0x81e9, 0x81ea).
+	var miss := _enemy_at(Vector2i(123, 231))
+	_expect(not miss.hits_attached(114, 3, 16), "Frames 11492–11493 : (123, 231) ne touche pas le I + II")
+	var hit := _enemy_at(Vector2i(120, 226))
+	_expect(hit.hits_attached(114, 3, 16), "Frame 11494 : (120, 226) touche le I + II")
+	# Sans le décalage de 16, le contact mesuré resterait hors des boîtes 192/200.
+	_expect(not hit.hits_attached(114, 3, 0), "Sans offset, (120, 226) ne doit pas toucher les boîtes à y = 192/200")
+	# pr7 : après l'expiration I + II → III, 0x822c = 216, offset 0.
+	var low := _enemy_at(Vector2i(120, 210))
+	_expect(low.hits_attached(114, 3, 0), "Après expiration, le I + II reprend les boîtes à y = 192/200")
+	print("OK hitbox I + II : raté à (123, 231), contact à (120, 226), offset 16")
