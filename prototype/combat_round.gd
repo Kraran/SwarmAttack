@@ -30,16 +30,28 @@ func step(input_mask: int) -> void:
 		score += wave.points_per_hit
 	if outcome != Outcome.PLAYING:
 		return
+	# Fin de vague : le moteur de tir Jeutel s'arrête (0x8226 à 0 vers 6185)
+	# sans vider les créneaux logiciels. Les projectiles restent figés.
+	if wave.remaining == 0:
+		if _pending_points.is_empty():
+			outcome = Outcome.CLEARED
+		return
 	var next_frame := pilot.frame + 1
 	pilot.step(input_mask, next_frame not in CombatWave.OPENING_CLOCK_HOLDS)
 	wave.advance(pilot.frame, pilot.ship_x)
 	var shots := pilot.active_shots()
+	var hits: Array[int] = []
 	for index in range(shots.size() - 1, -1, -1):
 		if _try_hit(shots[index]):
+			hits.append(index)
+	# La volée qui termine la vague n'est pas désactivée : pr1 fige
+	# 0x8161–0x8168 (drapeau 0x8163 encore à 1, x = 0x40/0x50, y = 0xa7).
+	if wave.remaining > 0:
+		for index in hits:
 			pilot.deactivate_shot(index)
-	if wave.remaining == 0 and _pending_points.is_empty():
-		outcome = Outcome.CLEARED
-		pilot.clear_shots()
+	if wave.remaining == 0:
+		if _pending_points.is_empty():
+			outcome = Outcome.CLEARED
 	elif wave.hits_attached(pilot.ship_x, pilot.attached):
 		outcome = Outcome.MODULE_LOST
 		pilot.clear_shots()
