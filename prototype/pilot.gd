@@ -116,6 +116,9 @@ func step(input_mask: int, accept_input := true) -> void:
 		ship_x = mini(MAX_X, ship_x + MOVE_STEP)
 
 	var fire := bool(input_mask & FIRE)
+	# Relevé pr2-held-fire : un maintien commencé pendant le vol d'un groupe
+	# et poursuivi après sa disparition ne déclenche pas de volée différée.
+	# Un nouvel front d'appui est nécessaire, comme pour le module I (fire_busy).
 	if fire and not _fire_held:
 		if is_assembled():
 			if not group_busy[_next_group]:

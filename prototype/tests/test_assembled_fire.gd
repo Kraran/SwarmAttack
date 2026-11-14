@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_check_refused_press_keeps_group()
 	_check_lifetimes()
 	_check_tap_does_not_repeat()
+	_check_hold_does_not_queue()
 	_check_resume_starts_with_first_group()
 	if failures:
 		printerr("%d échecs" % failures)
@@ -141,6 +142,32 @@ func _check_tap_does_not_repeat() -> void:
 	_expect(pilot.active_shots().size() == 2, "Un appui maintenu 5 images ne déclenche qu'une volée")
 	print("OK maintien de 5 images : une seule volée")
 
+
+
+func _check_hold_does_not_queue() -> void:
+	var pilot := _assembled()
+	pilot.step(Pilot.FIRE)
+	pilot.step(0)
+	pilot.step(Pilot.FIRE)
+	_expect(pilot.active_shots().size() == 4, "Les deux groupes doivent être en vol au début du maintien")
+	# Le groupe 0 disparaît après 54 images, le groupe 1 après 49 : on maintient
+	# bien au-delà, comme les 120 images de pr2-held-fire.
+	var saw_empty := false
+	var respawned := false
+	for index in range(80):
+		pilot.step(Pilot.FIRE)
+		var shots := pilot.active_shots()
+		if shots.is_empty():
+			saw_empty = true
+		elif saw_empty:
+			respawned = true
+	_expect(saw_empty, "Les deux groupes doivent disparaître pendant le maintien")
+	_expect(not respawned, "Le maintien ne doit pas lancer de volée différée")
+	_expect(pilot.active_shots().is_empty(), "Aucune volée ne doit rester ni renaître avant le relâchement")
+	pilot.step(0)
+	pilot.step(Pilot.FIRE)
+	_expect_pair(pilot.active_shots(), 12, 212, Pilot.START_X, "Après relâchement, le groupe 0 repart")
+	print("OK maintien : pas de tir différé, nouvel appui nécessaire")
 
 func _check_resume_starts_with_first_group() -> void:
 	# Après un amarrage, ArcadeRun crée un nouveau Pilot : le prochain groupe est le 0.
