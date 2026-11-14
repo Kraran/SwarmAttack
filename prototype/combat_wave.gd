@@ -114,24 +114,34 @@ func hit_by(shot: Vector2i) -> Enemy:
 
 
 func hits_ship(ship_x: int, module := 1) -> bool:
-	var raw_position := Vector2i(ship_x + 8, 192) if module == 1 else Vector2i(ship_x, 192 + (module - 1) * 8)
-	const LEFT_LIMITS := [-9, -5, -10]
-	const RIGHT_LIMITS := [11, 23, 28]
 	var top := -11 if module == 3 else -3
-	for enemy in enemies:
-		if enemy.alive:
-			var delta := enemy.position - raw_position
-			if delta.x >= LEFT_LIMITS[module - 1] and delta.x <= RIGHT_LIMITS[module - 1] and delta.y >= top and delta.y <= 12:
-				return true
+	return _hits_module_box(ship_x, module, top)
+
+
+# Union des hitboxes des modules assemblés. Pour le vaisseau II + III, le module III
+# contribue avec le même plafond que le II (dy >= -3), et non le plafond solo -11.
+# Relevé pr3-hitbox, vaisseau immobile à x = 114 (0x822b = 130) : le sprite 7 à
+# (141, 204) aux frames 8233–8234 (0x8004 = 0) est un raté ; à (140, 208) à 8235
+# (0x8004 = 1) c'est un contact. La zone du module III seul est inchangée.
+func hits_attached(ship_x: int, attached: int) -> bool:
+	for module in range(1, 4):
+		if not (attached & (1 << (module - 1))):
+			continue
+		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
+		if _hits_module_box(ship_x, module, top):
+			return true
 	return false
 
 
-# Union des hitboxes des modules assemblés. La zone combinée II + III n'est pas relevée :
-# la seule destruction observée (pr1-suite, frame 8090, x = 192) ne permet pas de caler
-# les bords, car le drapeau 0x8004 bascule avec un décalage par rapport aux sprites.
-func hits_attached(ship_x: int, attached: int) -> bool:
-	for module in range(1, 4):
-		if attached & (1 << (module - 1)) and hits_ship(ship_x, module):
+func _hits_module_box(ship_x: int, module: int, top: int) -> bool:
+	var raw_position := Vector2i(ship_x + 8, 192) if module == 1 else Vector2i(ship_x, 192 + (module - 1) * 8)
+	const LEFT_LIMITS := [-9, -5, -10]
+	const RIGHT_LIMITS := [11, 23, 28]
+	for enemy in enemies:
+		if not enemy.alive:
+			continue
+		var delta := enemy.position - raw_position
+		if delta.x >= LEFT_LIMITS[module - 1] and delta.x <= RIGHT_LIMITS[module - 1] and delta.y >= top and delta.y <= 12:
 			return true
 	return false
 

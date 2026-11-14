@@ -153,6 +153,10 @@ Le replay [solo-docking-hitbox.csv](replays/solo-docking-hitbox.csv) reprend `so
 python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-hitbox.csv --frames 9000 --probe 8000-83ff --probe-from 7760 --snap-from 7764 --snap-every 2 --output .reference\pr3-hitbox
 ```
 
-À relever : le palier de `0x822b` à droite pendant que la commande reste enfoncée et que `0x8004` vaut 0 ; le palier gauche déjà connu à 30 ; le premier frame où `0x8004` passe à 1, avec les sprites et `0x822b` des deux images précédentes.
+La capture `pr3-hitbox` est complète (9000 images, sonde 7760–8999, une image sur deux à partir de 7764, même empreinte ROM et même replay que `solo-docking-hitbox.csv`). La reprise est déjà en cours à 7760 (`0x822b` = 128, `0x8004` = 0, vies à 2).
+
+La butée droite est confirmée : `0x822b` atteint 216 (x = 200) à 7810 et reste à cette valeur jusqu’à 7879, la droite toujours enfoncée et `0x8004` à 0 (70 images). La butée gauche se reconfirme à 30 (x = 14) de 7974 à 8019, la gauche enfoncée (46 images). Après le retour vers le centre, le vaisseau s’immobilise à `0x822b` = 130 (x = 114).
+
+Le contact a lieu à la frame 8235 : `0x8004` passe à 1, le vaisseau est toujours à x = 114, et le sprite 7 vaut (140, 208) en coordonnées brutes. Aux deux images précédentes (8233–8234, `0x8005` = 62 puis 63), le même sprite vaut (141, 204) et `0x8004` reste à 0. L’union des zones solo II + III, avec le plafond du III à dy = −11, aurait déjà touché à 8228 (sprite 7 à (141, 198)). Pour le vaisseau assemblé, le module III contribue donc avec le même plafond que le II (dy ≥ −3). La zone du module III seul n’est pas modifiée. Les bords gauche et inférieur de l’assemblage, et le bord droit au-delà de dx = 26, ne sont pas contraints par ce seul contact.
 
 À la reprise d’un amarrage réussi ou d’une expiration, deux projectiles apparaissent aux abscisses `0x40` et `0x50` sans appui sur le bouton. Ils naissent à cet instant : ils sont absents pendant l’écran de résultat, et absents aussi après une collision. L’ordonnée de registre vaut 96 à la frame 7723 (reprise réussie) et 92 à la frame 8125 (expiration). Ils montent de 4 par image jusqu’à disparaître. Leur mécanisme exact reste à expliquer ; le prototype ne les reproduit pas encore.
