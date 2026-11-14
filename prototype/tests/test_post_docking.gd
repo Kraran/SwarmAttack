@@ -77,7 +77,9 @@ func _check_success_resumes_as_two_and_three() -> void:
 	run.step(Pilot.FIRE)
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat doit continuer après la reprise")
 	_expect(run.frame == frame + 1, "L'horloge avance pendant le combat repris")
-	_expect(run.combat.pilot.shot_active and run.combat.pilot.second_shot_active, "Le tir double actuel du module II est inchangé")
+	var shots := run.combat.pilot.active_shots()
+	_expect(shots.size() == 2, "Le premier appui du II + III tire le groupe à écart 12, obtenu %d" % shots.size())
+	_expect(shots[0] == Vector2i(99, 212) and shots[1] == Vector2i(123, 212), "Positions du premier groupe inattendues : %s" % str(shots))
 	print("OK réussite : bonus 2600, reprise II + III, vague 3, combat continué")
 
 

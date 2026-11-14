@@ -33,10 +33,10 @@ func step(input_mask: int) -> void:
 	var next_frame := pilot.frame + 1
 	pilot.step(input_mask, next_frame not in CombatWave.OPENING_CLOCK_HOLDS)
 	wave.advance(pilot.frame, pilot.ship_x)
-	if pilot.shot_active and _try_hit(pilot.shot_position):
-		pilot.shot_active = false
-	if pilot.second_shot_active and _try_hit(pilot.second_shot_position):
-		pilot.second_shot_active = false
+	var shots := pilot.active_shots()
+	for index in range(shots.size() - 1, -1, -1):
+		if _try_hit(shots[index]):
+			pilot.deactivate_shot(index)
 	if wave.remaining == 0 and _pending_points.is_empty():
 		outcome = Outcome.CLEARED
 		pilot.clear_shots()

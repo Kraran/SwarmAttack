@@ -18,7 +18,8 @@ Le prototype démarre aux commandes du module I sur le terrain de 224 × 256 uni
 | Vagues 1 et 2 | Quatre paires entrent en formation. Chaque moitié détruite rapporte 50 points. Les survivants se séparent et plongent. | Module I et première vague, voir ci-dessous. |
 | Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. | Aucune pour l’instant. |
 | Perte d’un module | Le compteur de vies (`0x8097`, départ à 3) baisse d’une unité après 289 images de boucle (161 + 127 + 1). Le module suivant monte en 378 images (25 caché, 136 de montée de y = 255 à 120, 137 d’arrêt à mi-hauteur, 80 de descente jusqu’à y = 200). Après la perte du module I, le II prend le relais. Après celle du vaisseau II + III, le II seul repart. La perte du II seul, dans le relevé, ramène le compteur à 0. | Recoupé sur les traces `pr1-suite` au rythme de `0x8005`. Les 292 images murales de la dernière perte viennent de 3 frames figées. |
-| Modules II et III | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. Le vaisseau assemblé II + III conserve ce tir pour l’instant. | Aucune pour l’instant. Le tir alterné relevé sur II + III sera aligné plus tard. |
+| Modules II et III seuls | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. | Inchangé. |
+| Vaisseau II + III | Tir alterné de deux paires, les deux pouvant voler ensemble. Premier appui : écart 12, y = 212. Appui suivant : écart 8, y = 195. Après une reprise, le premier groupe part. Un appui est refusé tant que son groupe est en vol. | `pr1-suite`, frames 7776–8040, au rythme de `0x8005`. Le maintien jusqu’à la libération d’un groupe n’est pas relevé : le prototype reprend `fire_busy` du module I (provisoire). Les projectiles `0x40` / `0x50` ne sont pas reproduits. |
 | Amarrage | Après la vague 4, le module monte, le suivant arrive, puis l’approche se pilote avec inertie sous un chrono de 30 secondes. Réussite, collision ou temps écoulé, puis le combat reprend. | Approche du module II, voir ci-dessous. Reprise après amarrage recoupée sur `pr1-bonus`, `pr1-collision` et `pr1-timeout`. |
 
 | Issue de l’amarrage II → III | Comportement du prototype | Source |
@@ -31,7 +32,7 @@ Le prototype démarre aux commandes du module I sur le terrain de 224 × 256 uni
 | Limites de déplacement II + III | Conservées à x = 14 et x = 200. | La ligne 26 va de `0x0e` à `0xc0` : le report en unités logiques reste à caler. |
 | Amarrage I + II, puis I + II vers III | Le modèle d’approche du module supérieur est réutilisé. Après une perte d’assemblage autre que II + III, seul le module supérieur repart. | Non relevé : provisoire. |
 | Écran de fin | 31 images après la baisse à 0, puis 30 images de « JEU 1 TERMINE / ESSAYEZ A NOUVEAU / JEU TERMINE ». La démo n’est pas reproduite. | `pr1-suite` : 9313 → 9344 (31), 9344 → 9374 (30), puis 869 images de texte d’attract jusqu’à la démo à 10246 (932 images de boucle au total). |
-| Projectiles 0x40 / 0x50 | Non reproduits (hors périmètre du tir assemblé). | Ils naissent à la reprise, ils ne sont pas des tirs résiduels : présents à 7723 (y = 96) et 8125 (y = 92), absents pendant l’écran de résultat et après une collision. |
+| Projectiles 0x40 / 0x50 | Non reproduits. | Ils naissent à la reprise, ils ne sont pas des tirs résiduels : présents à 7723 (y = 96) et 8125 (y = 92), absents pendant l’écran de résultat et après une collision. Leur mécanisme exact reste à expliquer. |
 
 La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
 
