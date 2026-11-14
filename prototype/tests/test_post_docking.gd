@@ -22,6 +22,8 @@ func _initialize() -> void:
 	_check_success_resumes_as_two_and_three()
 	_check_collision_resumes_as_three()
 	_check_timeout_resumes_as_two()
+	_check_timeout_resumes_as_one()
+	_check_idle_i_from_the_right_times_out()
 	_check_life_lost_after_assembled_ship()
 	_check_cycle_continues_without_partner()
 	_check_module_one_docks_with_two()
@@ -181,10 +183,59 @@ func _check_cycle_continues_without_partner() -> void:
 	print("OK cycle suivant : combat poursuivi sans nouvel amarrage")
 
 
+func _check_timeout_resumes_as_one() -> void:
+	# pr5b-amarrage-i-ii : expiration I + II à 11343, reprise à 11526.
+	var run := _start_docking(1)
+	run.docking.stage = Docking.Stage.TIMED_OUT
+	_hold_until_resume(run, Docking.TIMEOUT_HOLD)
+	if run.phase != ArcadeRun.Phase.COMBAT:
+		return
+	_expect(run.attached == 1, "Après expiration, le module I seul continue, masque=%d" % run.attached)
+	_expect(run.front_module() == 1, "Le module repris est le I")
+	_expect(run.score() == 0, "Pas de bonus si le chrono expire")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "L'expiration ne consomme pas de vie")
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise recentrée à x = 112, obtenu %d" % run.combat.pilot.ship_x)
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
+	_expect(run.combat.wave.wide_entry, "La vague de reprise doit être une entrée large")
+	_expect(run.combat.pilot.active_shots().is_empty(), "pr5b : aucun projectile figé à la reprise")
+	print("OK chrono écoulé I + II : reprise module I seul à x = 112, sans bonus")
+
+
+func _check_idle_i_from_the_right_times_out() -> void:
+	# pr5b : après l'intro, le module I part de x = 180 (0x822b = 196, y = 124)
+	# sans commande, touche la butée basse (0x822c = 240) et expire. Écran de
+	# 183 images, puis reprise du I seul à x = 112, vies inchangées.
+	var run := ArcadeRun.new()
+	run.attached = 1
+	run.wave_number = 4
+	run.phase = ArcadeRun.Phase.DOCKING
+	run.docking = Docking.new(1, 180, false)
+	run._docking_life_taken = false
+	_expect(run.docking.position == Vector2i(188, 116), "Départ après la montée : %s" % str(run.docking.position))
+	var hit_floor := false
+	var steps := 0
+	while run.docking.stage == Docking.Stage.APPROACH and steps < 5000:
+		run.step(0)
+		steps += 1
+		if run.docking.position.y >= 232:
+			hit_floor = true
+	_expect(run.docking.stage == Docking.Stage.TIMED_OUT, "L'approche sans commande doit expirer, stage=%s" % Docking.Stage.keys()[run.docking.stage])
+	_expect(hit_floor, "pr5b : le module I atteint la butée basse avant l'expiration")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "Les vies restent à 3 pendant l'approche et l'écran")
+	_hold_until_resume(run, Docking.TIMEOUT_HOLD)
+	if run.phase != ArcadeRun.Phase.COMBAT:
+		return
+	_expect(run.attached == 1, "Reprise du module I seul, masque=%d" % run.attached)
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise recentrée à x = 112")
+	_expect(run.score() == 0, "Pas de bonus")
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Vague à entrée large")
+	print("OK approche I à l'inertie depuis la droite : butée basse, expiration, reprise du I")
+
+
 func _check_module_one_docks_with_two() -> void:
 	# Règle relevée : l'amarrage I + II n'a lieu que si le module I est encore
-	# là après la vague 4. Les seuils, la reprise et le tir de l'assemblage
-	# I + II restent à mesurer (replay solo-docking-i-ii.csv).
+	# là après la vague 4. L'expiration est calée sur pr5b. Les seuils de
+	# contact, le bonus et le tir de l'assemblage I + II restent à mesurer.
 	var run := ArcadeRun.new()
 	run.attached = 1
 	run.wave_number = 4

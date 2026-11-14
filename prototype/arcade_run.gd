@@ -201,8 +201,9 @@ func _resume_from_docking() -> void:
 		attached = 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	else:
-		# Temps écoulé : le module en approche poursuit seul, recentré à x = 112
-		# (registre 0x822b passé de 31 à 128 à la frame 8125).
+		# Temps écoulé : le module en approche poursuit seul, recentré à x = 112.
+		# II → III : 0x822b passe de 31 à 128 à la frame 8125 (pr1-timeout).
+		# I + II : 0x822b passe de 96 à 128 à la frame 11526 (pr5b), vies inchangées.
 		resume_x = Pilot.START_X
 	_previous_score += combat.score + docking.credited_bonus()
 	combat.score = 0

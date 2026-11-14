@@ -74,16 +74,22 @@ Le module I survit : à 5215, `0x8004` reste à 0, `0x8097` reste à 3, et le va
 
 La montée reprend le calendrier du II → III, depuis l’altitude de combat du module I : `0x822c` va de 200 à 124, la coordonnée logique `0x8143` de 192 à 116 (76 pixels, premier pas à +53 / 9604, dernier à +353 / 9904). Le chrono `0x8230–0x8231` apparaît à 9904 (`30:10`, affiché `30:0`). Pendant toute l’intro, `0x822b` reste à 196 (sprite 0 à x = `0xbc`). À 9998, le module II cible arrive par le bas (sprites 1 et 2 à y = 236, sprite 5 à y = 252) et le chrono est encore figé. L’approche jouable n’a pas commencé : par analogie avec `pr1-suite`, le chrono devrait commencer à décompter à 9551 + 516 = 10067, et le pilotage à 9551 + 524 = 10075, soit 76 images après la fin de `pr5`.
 
-Le replay n’est pas modifié : le trajet qui a gardé le module I est conservé. Après la frame 9700, toutes les commandes sont relâchées, donc l’approche partira de la droite, sans direction ni tir. Une seconde capture plus longue, avec le même replay, doit couvrir l’approche, le contact ou l’expiration, l’écran de résultat et le début de la reprise.
+Le replay `solo-docking-i-ii.csv` n’a pas été modifié. La capture `pr5b-amarrage-i-ii` (13 000 images, sonde `8000-83ff` depuis 9500, instantanés toutes les 2 images depuis 9500) est complète, reprend exactement les entrées, et coïncide avec `pr5` sur le chevauchement 9500–9999.
+
+L’approche jouable commence comme prévu : le chrono passe à `30:09` à 10072, le premier pas à 10112 (`0x822b` 196→195, `0x822c` 124→125). Sans commande, le modèle d’inertie du module II s’applique au I (butée basse `0x822c` = 240, soit y logique 232). Le module I touche cette butée à 10620 (chrono `17:2`, `0x822b` = 153), glisse vers la gauche le long du bas, et expire à 11343 (`0x8004` = 1, chrono `00:0`, écran « DOMMAGE !! », `0x822b` = 96, `0x822c` = 240, `0x8232` = 0). Les vies restent à 3. Les créneaux `0x8161–0x8168` restent vides.
+
+L’écran d’expiration dure 183 images, sans aucune frame figée (`0x8005` avance de 37 à 220). À 11526, le module I seul reprend, recentré (`0x822b` = 128, `0x822c` = 216, score toujours 1280, pas de bonus). La vague à entrée large apparaît vers 11560. Un ennemi détruit ensuite le module I (explosion à 11759, baisse des vies 3→2 à 12051, 292 images murales), puis le module II entre en remplacement : même logique que les pertes déjà relevées.
+
+Les seuils de contact I + II, le bonus et le tir du vaisseau assemblé restent à mesurer. Le replay [solo-docking-i-ii-success.csv](replays/solo-docking-i-ii-success.csv) reprend le trajet jusqu’à 9700, puis, à partir du premier pas (10112), tient gauche 53 ticks d’approche, freine à droite, et maintient le tir à partir du 60e tick, pour viser la zone de capture provisoire du module I (en recouvrement avec celle du II). C’est un premier essai calé sur le modèle d’inertie relevé, pas encore un contact mesuré.
 
 ```powershell
 git fetch origin
 git checkout amarrage-i-ii
 git pull
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii.csv --frames 13000 --probe 8000-83ff --probe-from 9500 --snap-from 9500 --snap-every 2 --output .reference\pr5b-amarrage-i-ii
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-success.csv --frames 13000 --probe 8000-83ff --probe-from 9500 --snap-from 9500 --snap-every 2 --output .reference\pr5c-amarrage-i-ii-succes
 ```
 
-À relever : le début de l’approche vers 10075 (`0x822c` / `0x822b`, vitesses `0x8222–0x8223`) ; au contact, le basculement de `0x8004` / `0x8232` et le chrono `0x8230–0x8231` ; le bonus et la durée de l’écran de résultat, ou une collision / expiration ; le vaisseau repris (I + II attendu), ses vies et son premier tir. L’amarrage I + II vers le III n’est pas visé par ce passage.
+À relever : le contact (`0x8004` / `0x8232`, chrono `0x8230–0x8231`, positions `0x822b,0x822c`) ; le montant et la durée de l’écran bonus, ou une collision ; le vaisseau repris (I + II attendu), ses vies, son tir et, si visible, sa hitbox. L’amarrage I + II vers le III n’est pas visé par ce passage.
 
 ## Sonde de RAM
 
