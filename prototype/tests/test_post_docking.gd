@@ -406,16 +406,22 @@ func _check_idle_i_ii_from_the_right_times_out() -> void:
 
 func _check_i_ii_to_iii_collision_from_pr8() -> void:
 	# pr8 : au cran 15669, l'offset (32, -4) n'accroche pas ; au cran 15673,
-	# (31, -3) est une collision. La capture n'est pas relevée.
+	# (31, -3) est une collision. pr8b : (28, -4) à 16361 sans contact,
+	# (29, -3) à 16369 en collision. (25, -7), (26, -6) et (27, -5) restent
+	# sans contact. La capture n'est pas relevée.
 	var dock := Docking.new(1, Pilot.MAX_X, false, 3)
-	dock.position = Docking.TARGET + Vector2i(32, -4)
-	dock._resolve_contact()
-	_expect(dock.stage == Docking.Stage.APPROACH, "pr8 frame 15669 : (32, -4) ne doit pas accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
-	dock.position = Docking.TARGET + Vector2i(31, -3)
-	dock._resolve_contact()
-	_expect(dock.stage == Docking.Stage.COLLISION, "pr8 frame 15673 : (31, -3) doit entrer en collision, stage=%s" % Docking.Stage.keys()[dock.stage])
-	_expect(dock.bonus == 0, "Pas de bonus en cas de collision")
-	print("OK collision I + II → III : (32, -4) raté, (31, -3) collision")
+	for miss in [Vector2i(32, -4), Vector2i(28, -4), Vector2i(25, -7), Vector2i(26, -6), Vector2i(27, -5)]:
+		dock.stage = Docking.Stage.APPROACH
+		dock.position = Docking.TARGET + miss
+		dock._resolve_contact()
+		_expect(dock.stage == Docking.Stage.APPROACH, "pr8/pr8b : %s ne doit pas accrocher, stage=%s" % [miss, Docking.Stage.keys()[dock.stage]])
+	for hit in [Vector2i(31, -3), Vector2i(29, -3)]:
+		dock.stage = Docking.Stage.APPROACH
+		dock.position = Docking.TARGET + hit
+		dock._resolve_contact()
+		_expect(dock.stage == Docking.Stage.COLLISION, "pr8/pr8b : %s doit entrer en collision, stage=%s" % [hit, Docking.Stage.keys()[dock.stage]])
+		_expect(dock.bonus == 0, "Pas de bonus en cas de collision")
+	print("OK collision I + II → III : (32, -4) et (28, -4) ratés, (31, -3) et (29, -3) collisions")
 
 
 func _check_collision_resumes_as_three_from_i_ii() -> void:

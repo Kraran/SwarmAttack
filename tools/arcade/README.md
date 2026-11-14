@@ -124,10 +124,18 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii
 
 Relevé `pr8-amarrage-i-ii-iii-approche` : l’intro est identique à `pr7`. L’approche dirigée heurte le module III à 15673 (`0x8004` = 1, chrono `22:02`, `0x822b` = 151, `0x822c` = 221). Au cran précédent (15669), l’offset de la position logique (32, −4) reste sans contact ; à 15673, (31, −3) est une collision. Vies `0x8097` 3 → 1 dès l’explosion, score inchangé (pas de bonus), `0x8232` reste à `0x17`. Écran d’explosion 466 images, reprise à 16139 : le module III seul continue à x = 112 (`0x822b` = 128, `0x822c` = 232). La butée gauche du III est x = 14 (`0x822b` = 30, tenue jusqu’au contact de vague à 16231). La zone de capture n’a pas été vue.
 
-Le replay [solo-docking-i-ii-iii-approche-b.csv](replays/solo-docking-i-ii-iii-approche-b.csv) reprend le même préfixe jusqu’à 15325, puis monte vers la gauche (gauche + tir), freine et redescend (droite sans tir), et passe au-dessus de la cible vers 16196 (offset simulé ≈ (4, −7)), plus à gauche que la collision (31, −3).
+Le replay [solo-docking-i-ii-iii-approche-b.csv](replays/solo-docking-i-ii-iii-approche-b.csv) reprend le même préfixe jusqu’à 15325, puis monte vers la gauche (gauche + tir), freine et redescend (droite sans tir).
 
 ```powershell
 python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-approche-b.csv --frames 18000 --probe 8000-83ff --probe-from 14800 --snap-from 14800 --snap-every 2 --output .reference\pr8b-amarrage-i-ii-iii-approche
+```
+
+Relevé `pr8b-amarrage-i-ii-iii-approche` : l’intro est identique à `pr7` et `pr8`. L’approche recentrée dérive encore vers la droite : à 16361, l’offset (28, −4) reste sans contact (`0x8004` = 0) ; à 16369, (29, −3) est une collision (`0x8004` = 1, chrono `04:08`, `0x822b` = 149, `0x822c` = 221). Plus tôt, (25, −7), (26, −6) et (27, −5) n’accrochent pas. Vies `0x8097` 3 → 1 dès l’explosion, score inchangé (pas de bonus), `0x8232` reste à `0x17`. Écran d’explosion 466 images, reprise à 16835 : le module III seul continue à x = 112 (`0x822b` = 128, `0x822c` = 232, `0x814a` = 1). Destruction en vague à 17422 (vies 1 → 0). La zone de capture n’a pas été vue.
+
+Le replay [solo-docking-i-ii-iii-approche-c.csv](replays/solo-docking-i-ii-iii-approche-c.csv) reprend le même préfixe jusqu’à 15832, puis recentre l’assemblage vers `0x822b` = 128 et freine la descente pour passer au voisinage de l’offset (8, −6) vers 16357, sans descendre à y = −3.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-approche-c.csv --frames 18000 --probe 8000-83ff --probe-from 14800 --snap-from 14800 --snap-every 2 --output .reference\pr8c-amarrage-i-ii-iii-approche
 ```
 
 ## Sonde de RAM
