@@ -86,6 +86,23 @@ Le contact réussit à 10599 : `0x8004` passe à 1, chrono `17:10` (affiché `17
 
 La droite reste enfoncée : `0x822b` avance de 2 par image jusqu’à 216 à 10948 (x = 200) et y reste à cette butée jusqu’à la destruction. Le tir, maintenu depuis l’approche jusqu’à 10999, ne produit aucune volée à la reprise ; le motif de tir du I + II n’est donc pas observé. Un ennemi détruit le vaisseau à 12290 (`0x8004` = 1, toujours à la butée droite), les vies passent de 3 à 2 à 12579 (289 images de boucle). Le module I reprend ensuite l’entrée (`0x822c` vers 200, sprite `0x78`, visible à 12968). La capture s’arrête à 12999, pendant cette entrée. La hitbox du I + II et sa butée gauche ne sont pas calées sur ce seul contact. L’amarrage I + II vers le III n’est pas visé par ce passage.
 
+Le replay [solo-docking-i-ii-fire.csv](replays/solo-docking-i-ii-fire.csv) reprend `solo-docking-i-ii-success.csv` à l’identique jusqu’à l’amarrage réussi (10352). À la reprise (10904), il relâche le tir et la droite pour laisser le vaisseau I + II à x = 112. Les essais de tir commencent à 11020, une fois l’entrée large remontée (sur `pr5c`, les ordonnées ennemies sont ≤ 86 à 11030). Deux taps de 5 images (11020 et 11035, écartés de 15 images) visent l’alternance et la superposition des volées. Un troisième tap à 11090, après une pause de 50 images, doit partir sur un créneau libre si une volée dure environ 54 images comme le II + III. Un nouvel appui à 11100, pendant que cette volée vole encore, puis un maintien de 120 images à partir de 11170, reprennent le protocole de `pr2-held-fire`. À 11300 le vaisseau pousse vers la butée gauche (arrivée attendue à 11349 si le pas est de 2, soit x = 14 / `0x822b` = 30), tient le palier jusqu’à 11419, revient au centre vers 11469, et reste immobile à partir de 11470 pour un contact contrôlé, comme `solo-docking-hitbox.csv`.
+
+```powershell
+git fetch origin
+git checkout tir-i-ii
+git pull
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-fire.csv --frames 13000 --probe 8000-83ff --probe-from 10900 --snap-from 10900 --snap-every 2 --output .reference\pr6-tir-i-ii
+```
+
+La capture `pr6-tir-i-ii` est complète (13 000 images, sonde `8000-83ff` depuis 10900, instantanés toutes les 2 images depuis 10900, même empreinte de replay). À la reprise (10904), le tir est relâché ; `0x822b` passe de 128 à 130 dès 10905 sans commande, puis reste à 130 jusqu’au déplacement. La vague apparaît à 10935.
+
+Le premier appui (11020) fait apparaître à 11021 une paire, registres matériels x = 122 et 138 (logique 105 et 121, soit x vaisseau − 1 ± 8 pour `0x822b` = 130), y matériel = 40 (logique 211). Le deuxième appui (11035), alors que la paire vole encore, fait apparaître à 11036 un projectile central (x matériel 130, logique 113, y matériel 52, logique 199). Les deux volées coexistent (3 projectiles). Les premières volées rencontrent des ennemis et sont interrompues ; le tap 11090, les créneaux étant libres, relance la paire, et l’appui 11100, pendant que cette paire vole encore, relance le projectile central. Le maintien commencé à 11170 fait apparaître la paire à 11171 (y = 211) ; elle reste visible jusqu’à 11223 (y = 3) et disparaît à 11224, soit 53 images, sans aucune volée différée jusqu’au relâchement à 11290. Un nouvel front d’appui est nécessaire. Le projectile central, lancé à y = 199, dure 50 images s’il n’est pas interrompu.
+
+À 11300 le vaisseau pousse à gauche (premier pas à 11302). La butée gauche est `0x822b` = 30 (x = 14), tenue de 11353 à 11421 avec la gauche enfoncée et `0x8004` = 0. Le retour au centre aboutit à `0x822b` = 130 à 11471, où le vaisseau reste immobile.
+
+Un contact a lieu à 11889 (`0x8004` = 1, vaisseau toujours à `0x822b` = 130, `0x822c` = 232). Les vies passent de 3 à 2 à 12185 (289 images de boucle, y compris des frames figées). Les tuiles d’explosion apparaissent à y = 208 et 224. Les ennemis encore visibles à l’écran sont trop hauts ; le sprite toucheur n’est pas identifié de façon univoque, donc la hitbox du I + II n’est pas recalée sur ce contact.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.

@@ -21,6 +21,12 @@ const SHOT_LENGTH := 4
 # (registre 0x38), écart 8. L'abscisse logique vaut le registre de projectile moins 17.
 const ASSEMBLED_START_Y := [212, 195]
 const ASSEMBLED_SPREADS := [12, 8]
+# Vaisseau I + II, relevé sur pr6-tir-i-ii au rythme de 0x8005, vaisseau à
+# 0x822b = 130 (x = 114). Groupe 0 : paire à y = 211 (registre matériel 40),
+# écart 8. Groupe 1 : un projectile central à y = 199 (registre 52).
+const I_II_PAIR_START_Y := 211
+const I_II_SINGLE_START_Y := 199
+const I_II_PAIR_SPREAD := 8
 
 var frame := 0
 var ship_x := START_X
@@ -55,6 +61,14 @@ func absorb_held_fire() -> void:
 
 func is_assembled() -> bool:
 	return has_module(2) and has_module(3)
+
+
+func is_i_and_ii() -> bool:
+	return has_module(1) and has_module(2) and not has_module(3)
+
+
+func uses_fire_groups() -> bool:
+	return is_assembled() or is_i_and_ii()
 
 
 func module_y(number: int) -> int:
@@ -104,7 +118,7 @@ func advance_shots_only() -> void:
 
 func active_shots() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	if is_assembled():
+	if uses_fire_groups():
 		for index in range(_group_active.size()):
 			if _group_active[index]:
 				result.append(_group_position[index])
@@ -118,7 +132,7 @@ func active_shots() -> Array[Vector2i]:
 
 func deactivate_shot(index: int) -> void:
 	var current := 0
-	if is_assembled():
+	if uses_fire_groups():
 		for slot in range(_group_active.size()):
 			if not _group_active[slot]:
 				continue
@@ -159,9 +173,12 @@ func step(input_mask: int, accept_input := true) -> void:
 	# et poursuivi après sa disparition ne déclenche pas de volée différée.
 	# Un nouvel front d'appui est nécessaire, comme pour le module I (fire_busy).
 	if fire and not _fire_held:
-		if is_assembled():
+		if uses_fire_groups():
 			if not group_busy[_next_group]:
-				_fire_assembled_group(_next_group)
+				if is_assembled():
+					_fire_assembled_group(_next_group)
+				else:
+					_fire_i_ii_group(_next_group)
 				_next_group = 1 - _next_group
 		elif not slot_was_busy:
 			var spread := 4 * module if module > 1 else 0
@@ -185,6 +202,17 @@ func _advance_assembled_shots() -> void:
 			continue
 		_group_position[index].y -= SHOT_STEP
 		_group_active[index] = _group_position[index].y >= 0
+
+
+func _fire_i_ii_group(group: int) -> void:
+	if group == 0:
+		_group_position[0] = Vector2i(ship_x - 1 - I_II_PAIR_SPREAD, I_II_PAIR_START_Y)
+		_group_position[1] = Vector2i(ship_x - 1 + I_II_PAIR_SPREAD, I_II_PAIR_START_Y)
+		_group_active[0] = true
+		_group_active[1] = true
+	else:
+		_group_position[2] = Vector2i(ship_x - 1, I_II_SINGLE_START_Y)
+		_group_active[2] = true
 
 
 func _fire_assembled_group(group: int) -> void:
