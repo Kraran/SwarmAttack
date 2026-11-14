@@ -123,7 +123,7 @@ Le module suivant apparaît 25 images après la baisse, monte de y = 255 à y = 
 
 ### Vaisseau II + III
 
-Les lignes de défilement 26 à 28 portent la position et les lignes 29 et 30 la même valeur plus 8. La ligne 26 va de `0x0e` à `0xc0` entre les deux butées.
+Les lignes de défilement 26 à 28 portent la position et les lignes 29 et 30 la même valeur plus 8. La ligne 26 va de `0x0e` à `0xc0` entre les deux butées. Dans les traces de combat du vaisseau assemblé, ces lignes restent inertes ; la position se lit dans `0x822b` (128 au centre, soit x = 112). La butée gauche est confirmée : `0x822b` atteint 30 (x = 14) et y reste pendant que la gauche est maintenue (`pr1-suite` 7850–7859, `pr2-held-fire`). La butée droite n’est pas relevée. Sur `pr1-suite`, le vaisseau vaut `0x822b` = 208 (x = 192) à la destruction 8090, alors qu’il avançait encore de 2 par image ; le palier à 208 après `0x8004` = 1 n’est pas une butée. La mention `0x0e`–`0xc0` ne suffit pas à caler ce maximum.
 
 Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Relevé sur `pr1-suite` aux frames 7776–8040, au rythme de `0x8005` :
 
@@ -145,5 +145,18 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held
 La capture `pr2-held-fire` est complète (8200 images, sonde 7760–8199, une image sur deux à partir de 7770). La reprise a lieu à 7723, `0x8097` reste à 2, sans destruction. Le tap de 7775 fait apparaître le groupe 0 à 7776. Le nouveau front d’appui à 7790, alors que le groupe 0 vole encore, déclenche le groupe 1 à 7791 (le groupe suivant était libre). Le groupe 0 disparaît à 7830 (dernière image à 7829), le groupe 1 à 7840 (dernière image à 7839) : aucune nouvelle volée pendant le maintien jusqu’à 7910. Après le relâchement, le tap de 7940 relance le groupe 0 à 7941 (à x = 14) : l’alternance n’a pas avancé pendant le maintien. Le second cycle se répète : front à 7955, groupe 1 à 7956, disparition du groupe 0 à 7995 et du groupe 1 à 8005, aucune volée différée jusqu’au relâchement à 8075. Une frame figée de `0x8005` apparaît à 8098, après l’essai.
 
 Les lignes de défilement 26 à 30 de `0x9800`, dans ces captures, restent inertes pendant le combat du vaisseau assemblé. La position du vaisseau se lit dans `0x822b` (128 au centre, 30 à gauche). L’ancienne description d’un projectile central à « la ligne 26 plus 4 » puis d’une paire à « la ligne 29 et la ligne 29 plus 16 » ne correspond pas à ces traces : chaque groupe tire deux projectiles.
+
+
+Le replay [solo-docking-hitbox.csv](replays/solo-docking-hitbox.csv) reprend `solo-docking-suite.csv` à l’identique jusqu’après la reprise (7723), sans tirer. Il pousse d’abord le vaisseau à droite dès 7765 (vague encore haute, ordonnées ennemies ≤ 122 jusqu’à 7873 sur `pr1-suite`), tient la trajectoire jusqu’à 7879, revient à gauche de 7880 à 8019, puis rejoint le centre vers 8070 et attend un contact.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-hitbox.csv --frames 9000 --probe 8000-83ff --probe-from 7760 --snap-from 7764 --snap-every 2 --output .reference\pr3-hitbox
+```
+
+La capture `pr3-hitbox` est complète (9000 images, sonde 7760–8999, une image sur deux à partir de 7764, même empreinte ROM et même replay que `solo-docking-hitbox.csv`). La reprise est déjà en cours à 7760 (`0x822b` = 128, `0x8004` = 0, vies à 2).
+
+La butée droite est confirmée : `0x822b` atteint 216 (x = 200) à 7810 et reste à cette valeur jusqu’à 7879, la droite toujours enfoncée et `0x8004` à 0 (70 images). La butée gauche se reconfirme à 30 (x = 14) de 7974 à 8019, la gauche enfoncée (46 images). Après le retour vers le centre, le vaisseau s’immobilise à `0x822b` = 130 (x = 114).
+
+Le contact a lieu à la frame 8235 : `0x8004` passe à 1, le vaisseau est toujours à x = 114, et le sprite 7 vaut (140, 208) en coordonnées brutes. Aux deux images précédentes (8233–8234, `0x8005` = 62 puis 63), le même sprite vaut (141, 204) et `0x8004` reste à 0. L’union des zones solo II + III, avec le plafond du III à dy = −11, aurait déjà touché à 8228 (sprite 7 à (141, 198)). Pour le vaisseau assemblé, le module III contribue donc avec le même plafond que le II (dy ≥ −3). La zone du module III seul n’est pas modifiée. Les bords gauche et inférieur de l’assemblage, et le bord droit au-delà de dx = 26, ne sont pas contraints par ce seul contact.
 
 À la reprise d’un amarrage réussi ou d’une expiration, deux projectiles apparaissent aux abscisses `0x40` et `0x50` sans appui sur le bouton. Ils naissent à cet instant : ils sont absents pendant l’écran de résultat, et absents aussi après une collision. L’ordonnée de registre vaut 96 à la frame 7723 (reprise réussie) et 92 à la frame 8125 (expiration). Ils montent de 4 par image jusqu’à disparaître. Leur mécanisme exact reste à expliquer ; le prototype ne les reproduit pas encore.

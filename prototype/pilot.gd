@@ -8,6 +8,9 @@ const FIELD_SIZE := Vector2i(224, 256)
 const START_X := 112
 const MIN_X := 14
 const MAX_X := 200
+# Vaisseau II + III : butées confirmées sur pr3-hitbox, tenues avec la commande
+# enfoncée et 0x8004 = 0. Gauche : MIN_X, 0x822b = 30 aux frames 7974–8019.
+# Droite : MAX_X, 0x822b = 216 aux frames 7810–7879.
 const SHIP_Y := 200
 const MOVE_STEP := 2
 const SHOT_START_Y := 183
