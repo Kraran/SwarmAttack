@@ -165,14 +165,20 @@ func _in_capture_area(offset: Vector2i) -> bool:
 
 
 func _resolve_contact() -> void:
-	# pr8 : I + II → III, cran 15669 offset (32, -4) sans contact (0x8004 = 0) ;
-	# cran 15673 offset (31, -3) collision (0x8004 = 1).
-	# pr8b : cran 16361 offset (28, -4) sans contact ; cran 16369 offset (29, -3)
-	# collision. (25, -7), (26, -6) et (27, -5) restent sans contact. La zone
-	# de capture n'est pas relevée, on ne reprend pas celle du module I.
+	# pr8 / pr8b : collisions I + II → III aux offsets (31, -3) et (29, -3) ;
+	# (32, -4) et (28, -4) restent sans contact.
+	# pr8c : cran 16353 offset (7, -7) sans contact ; cran 16357 offset (8, -6)
+	# capture (0x8004 = 1, chrono 05:01). On n'ajoute que ce point, sans
+	# reprendre la zone du module I ni élargir la rangée y = -6.
 	if is_i_and_ii():
-		if position - TARGET in [Vector2i(31, -3), Vector2i(29, -3)]:
+		var offset := position - TARGET
+		if offset in [Vector2i(31, -3), Vector2i(29, -3)]:
 			stage = Stage.COLLISION
+		elif offset == Vector2i(8, -6):
+			# Pendant l'écran bonus, 0x822c reste à 218 (offset (8, -6)).
+			# Le bonus affiché est 05 × 300 = 1500.
+			bonus = ((remaining_tenths - 1) / 10) * 300
+			stage = Stage.SUCCESS
 		return
 	var offset := position - TARGET
 	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)

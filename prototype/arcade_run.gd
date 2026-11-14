@@ -183,6 +183,11 @@ func _next_attached_after_loss() -> int:
 		# La perte du module II seul, dans le relevé, ramène le compteur à 0 et termine
 		# la partie. Une succession II → III avec des vies restantes reste provisoire.
 		return 4
+	if attached == 7:
+		# pr8c : destruction du I + II + III à la butée gauche (16754), vies
+		# 3 → 2 à 17073, puis entrée du II + III (modules à y = 200 et 216,
+		# visibles à 17451).
+		return 6
 	# Vaisseau assemblé : ne garder que le module supérieur (mesuré pour II + III).
 	return 1 << (front_module() - 1)
 
@@ -205,6 +210,9 @@ func _resume_from_docking(input_mask: int) -> void:
 		# I + II à x = 112 (0x822b = 128, 0x822c = 232), vies = 3, pas de
 		# tir figé, vague à entrée large vers 10935. Un maintien du tir
 		# commencé pendant l'approche et poursuivi à la reprise ne tire pas.
+		# pr8c : contact à 16357, bonus 05 × 300 = 1500 pendant 305 images
+		# (16357–16661), crédit et reprise à 16662 : I + II + III à x = 112
+		# (0x822b = 128, 0x822c = 216), vies = 3, butée gauche x = 14.
 		attached |= 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	elif stage == Docking.Stage.COLLISION:

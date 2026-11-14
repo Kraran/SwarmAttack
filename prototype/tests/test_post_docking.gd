@@ -35,6 +35,9 @@ func _initialize() -> void:
 	_check_idle_i_ii_from_the_right_times_out()
 	_check_i_ii_to_iii_collision_from_pr8()
 	_check_collision_resumes_as_three_from_i_ii()
+	_check_i_ii_to_iii_capture_from_pr8c()
+	_check_success_resumes_as_one_two_and_three()
+	_check_life_lost_after_i_ii_and_iii()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -347,12 +350,12 @@ func _check_i_ii_to_iii_intro() -> void:
 	_expect(run.docking_target() == 3, "La cible est le module III, obtenu %d" % run.docking_target())
 	_expect(run.docking.is_i_and_ii(), "L'approche est celle de l'assemblage I + II")
 	_expect(run.docking.position == Vector2i(Pilot.MAX_X + 8, Docking.I_II_START_Y), "Départ d'intro à (208, 224), obtenu %s" % str(run.docking.position))
-	# La zone de capture du module I ne doit pas conclure cet amarrage non relevé.
+	# pr8c accroche à (8, -6) seulement : (14, -7), réussi pour le module I, ne suffit pas ici.
 	run.docking.stage = Docking.Stage.APPROACH
 	run.docking.position = Docking.TARGET + Vector2i(14, -7)
 	run.docking._resolve_contact()
-	_expect(run.docking.stage == Docking.Stage.APPROACH, "Sans relevé de contact, (14, -7) ne doit pas accrocher le I + II → III")
-	print("OK vague 4 avec le I + II : intro depuis y = 224, contact non inventé")
+	_expect(run.docking.stage == Docking.Stage.APPROACH, "(14, -7) ne doit pas accrocher le I + II → III")
+	print("OK vague 4 avec le I + II : intro depuis y = 224, (14, -7) sans contact")
 
 
 func _check_timeout_resumes_as_i_and_ii() -> void:
@@ -446,3 +449,73 @@ func _check_collision_resumes_as_three_from_i_ii() -> void:
 	_expect(run.combat.pilot.ship_x == Docking.TARGET.x, "Reprise du module III à x = 112")
 	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
 	print("OK collision I + II → III : vies 3 → 1, reprise module III seul, sans bonus")
+
+func _check_i_ii_to_iii_capture_from_pr8c() -> void:
+	# pr8c : au cran 16353, l'offset (7, -7) n'accroche pas ; au cran 16357,
+	# (8, -6) réussit. Le chrono affiché est 05:01, le bonus 05 × 300 = 1500.
+	# Pendant l'écran, 0x822c reste à 218 : on ne replace pas le vaisseau.
+	var dock := Docking.new(1, Pilot.START_X, false, 3)
+	dock.remaining_tenths = 51
+	dock.position = Docking.TARGET + Vector2i(7, -7)
+	dock._resolve_contact()
+	_expect(dock.stage == Docking.Stage.APPROACH, "pr8c frame 16353 : (7, -7) ne doit pas accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
+	dock.position = Docking.TARGET + Vector2i(8, -6)
+	dock._resolve_contact()
+	_expect(dock.stage == Docking.Stage.SUCCESS, "pr8c frame 16357 : (8, -6) doit accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
+	_expect(dock.bonus == 1500, "Bonus 05 × 300 = 1500, obtenu %d" % dock.bonus)
+	_expect(dock.position == Docking.TARGET + Vector2i(8, -6), "Le contact reste à (120, 210), obtenu %s" % str(dock.position))
+	print("OK contact I + II → III : (7, -7) raté, (8, -6) réussi, bonus 1500")
+
+
+func _check_success_resumes_as_one_two_and_three() -> void:
+	# pr8c : contact 16357, écran BRAVO 305 images, crédit et reprise à 16662
+	# en I + II + III à x = 112 (0x822b = 128, 0x822c = 216), vies 3,
+	# score +1500, butée gauche x = 14 (0x822b = 30).
+	var run := _start_docking(3)
+	run.docking.stage = Docking.Stage.SUCCESS
+	run.docking.bonus = 1500
+	_expect(run.score() == 0, "Le bonus ne doit pas être crédité avant la fin de l'écran")
+	for index in range(Docking.BONUS_HOLD - 1):
+		run.step(Pilot.LEFT)
+	_expect(run.phase == ArcadeRun.Phase.DOCKING, "Le bonus de 305 images n'est pas encore écoulé")
+	_expect(run.score() == 0, "Le bonus est crédité seulement à la 305e image")
+	run.step(Pilot.LEFT)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT, "La réussite doit enchaîner sur le combat")
+	_expect(run.attached == 7, "Le vaisseau repris doit être I + II + III, masque=%d" % run.attached)
+	_expect(run.ship_label() == "I + II + III", "Libellé inattendu : %s" % run.ship_label())
+	_expect(run.front_module() == 1, "Le module supérieur reste le I")
+	_expect(run.combat.pilot.has_module(1) and run.combat.pilot.has_module(2) and run.combat.pilot.has_module(3), "Le pilote doit porter les trois modules")
+	_expect(run.combat.pilot.assembly_y_offset == 0, "pr8c : 0x822c = 216, offset 0 après la réussite")
+	_expect(run.score() == 1500, "Score attendu 1500 après le bonus, obtenu %d" % run.score())
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large (vague %d)" % ArcadeRun.WAVE_AFTER_DOCK)
+	_expect(run.combat.pilot.ship_x == Docking.TARGET.x, "Reprise alignée sur la cible")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "L'amarrage réussi ne consomme pas de vie")
+	var start_x := run.combat.pilot.ship_x
+	run.step(Pilot.LEFT)
+	_expect(run.combat.pilot.ship_x == start_x - Pilot.MOVE_STEP, "La gauche déplace le I + II + III dès la reprise")
+	for index in range(80):
+		run.step(Pilot.LEFT)
+	_expect(run.combat.pilot.ship_x == Pilot.MIN_X, "La butée gauche du I + II + III est x = 14, obtenu %d" % run.combat.pilot.ship_x)
+	run.step(Pilot.LEFT)
+	_expect(run.combat.pilot.ship_x == Pilot.MIN_X, "La butée gauche tient tant que la gauche reste enfoncée")
+	print("OK réussite I + II → III : bonus 1500, 305 images, reprise à x = 112, vies 3, butée 14")
+
+
+func _check_life_lost_after_i_ii_and_iii() -> void:
+	# pr8c : destruction du I + II + III à la butée gauche (16754), vies 3 → 2
+	# à 17073, puis entrée du II + III (modules à y = 200 et 216, à 17451).
+	var run := ArcadeRun.new()
+	run.attached = 7
+	run.lives = 3
+	run.combat = CombatRound.new(3, 1, Pilot.MIN_X, 255, 7)
+	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "La perte du I + II + III ouvre le remplacement")
+	for index in range(ArcadeRun.COUNTER_DROP_FRAMES - 1):
+		run.step(0)
+	_expect(run.lives == 3, "Vies encore inchangées à l'image %d" % (ArcadeRun.COUNTER_DROP_FRAMES - 1))
+	_expect(run.attached == 7, "Le masque reste I + II + III tant que le compteur n'a pas baissé")
+	run.step(0)
+	_expect(run.lives == 2, "Vies 3 → 2 à la baisse du compteur, obtenu %d" % run.lives)
+	_expect(run.attached == 6, "Le vaisseau II + III succède au I + II + III, masque=%d" % run.attached)
+	print("OK perte du I + II + III : vies 3 → 2, puis II + III")
