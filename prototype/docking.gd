@@ -165,9 +165,12 @@ func _in_capture_area(offset: Vector2i) -> bool:
 
 
 func _resolve_contact() -> void:
-	# pr7 n'a vu que l'expiration : la zone de capture et de collision
-	# I + II → III n'est pas relevée, on ne reprend pas celles du module I.
+	# pr8 : I + II → III, cran 15669 offset (32, -4) sans contact (0x8004 = 0) ;
+	# cran 15673 offset (31, -3) collision (0x8004 = 1). La zone de capture
+	# n'est pas relevée, on ne reprend pas celle du module I.
 	if is_i_and_ii():
+		if position - TARGET == Vector2i(31, -3):
+			stage = Stage.COLLISION
 		return
 	var offset := position - TARGET
 	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)

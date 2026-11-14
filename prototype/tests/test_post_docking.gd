@@ -33,6 +33,8 @@ func _initialize() -> void:
 	_check_i_ii_to_iii_intro()
 	_check_timeout_resumes_as_i_and_ii()
 	_check_idle_i_ii_from_the_right_times_out()
+	_check_i_ii_to_iii_collision_from_pr8()
+	_check_collision_resumes_as_three_from_i_ii()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -401,3 +403,40 @@ func _check_idle_i_ii_from_the_right_times_out() -> void:
 	_expect(run.combat.pilot.assembly_y_offset == 0, "Altitude de combat 0x822c = 216")
 	_expect(run.score() == 0, "Pas de bonus")
 	print("OK approche I + II à l'inertie depuis la droite : butée basse, expiration, reprise du I + II")
+
+func _check_i_ii_to_iii_collision_from_pr8() -> void:
+	# pr8 : au cran 15669, l'offset (32, -4) n'accroche pas ; au cran 15673,
+	# (31, -3) est une collision. La capture n'est pas relevée.
+	var dock := Docking.new(1, Pilot.MAX_X, false, 3)
+	dock.position = Docking.TARGET + Vector2i(32, -4)
+	dock._resolve_contact()
+	_expect(dock.stage == Docking.Stage.APPROACH, "pr8 frame 15669 : (32, -4) ne doit pas accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
+	dock.position = Docking.TARGET + Vector2i(31, -3)
+	dock._resolve_contact()
+	_expect(dock.stage == Docking.Stage.COLLISION, "pr8 frame 15673 : (31, -3) doit entrer en collision, stage=%s" % Docking.Stage.keys()[dock.stage])
+	_expect(dock.bonus == 0, "Pas de bonus en cas de collision")
+	print("OK collision I + II → III : (32, -4) raté, (31, -3) collision")
+
+
+func _check_collision_resumes_as_three_from_i_ii() -> void:
+	# pr8 : explosion 15673, vies 3 → 1, écran 466 images, reprise 16139
+	# du module III seul à x = 112, score inchangé.
+	var run := _start_docking(3)
+	run.docking.stage = Docking.Stage.COLLISION
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "Les vies ne baissent qu'au pas de collision")
+	run.step(0)
+	_expect(run.lives == 1, "pr8 : vies 3 → 1 dès l'explosion, obtenu %d" % run.lives)
+	_expect(run.phase == ArcadeRun.Phase.DOCKING, "L'écran de collision doit durer 466 images")
+	for index in range(Docking.COLLISION_HOLD - 1):
+		if run.phase != ArcadeRun.Phase.DOCKING:
+			_fail("Reprise anticipée pendant la collision à l'image %d" % (index + 1))
+			return
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après 466 images")
+	_expect(run.attached == 4, "Après collision, le module III seul continue, masque=%d" % run.attached)
+	_expect(run.front_module() == 3, "Le module repris est le III")
+	_expect(run.score() == 0, "Pas de bonus en cas de collision")
+	_expect(run.lives == 1, "Les vies restent à 1 à la reprise")
+	_expect(run.combat.pilot.ship_x == Docking.TARGET.x, "Reprise du module III à x = 112")
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
+	print("OK collision I + II → III : vies 3 → 1, reprise module III seul, sans bonus")

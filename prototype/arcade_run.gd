@@ -125,7 +125,9 @@ func step(input_mask: int) -> void:
 			docking.step(input_mask)
 			# Relevé : 0x8097 baisse dès l'explosion (frame 7452), pas après 161 + 127 images.
 			if docking.stage == Docking.Stage.COLLISION and not _docking_life_taken:
-				lives -= 1
+				# pr8-amarrage-i-ii-iii-approche, frame 15673 : le I + II entre
+				# en collision avec le III, 0x8097 passe de 3 à 1 dès l'explosion.
+				lives -= 2 if attached == 3 else 1
 				_docking_life_taken = true
 				# pr1-collision, frame 7452 : le drapeau 0x8163 passe de 1 à 0.
 				combat.pilot.clear_shots()
@@ -206,7 +208,9 @@ func _resume_from_docking(input_mask: int) -> void:
 		attached |= 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	elif stage == Docking.Stage.COLLISION:
-		# Relevé pour II → III : le module cible poursuit seul, déjà aligné à x = 112.
+		# II → III : le module cible poursuit seul, déjà aligné à x = 112.
+		# I + II → III (pr8, 16139) : le module III seul reprend à x = 112
+		# (0x822b = 128, 0x822c = 232), vies 1, sans bonus.
 		attached = 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	else:
