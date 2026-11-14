@@ -68,16 +68,22 @@ La tolérance de 6 unités est vérifiée pour ce contact entre les modules II e
 
 Le jeu n’amarre le module I avec le II que si le module I est encore là après la vague 4. Les captures `pr1-*`, `pr2-held-fire` et `pr3-hitbox` suivent toutes le parcours solo qui perd le module I à la frame 5215, puis amarrent le II sur le III. La démonstration, elle, réussit un I + II (chrono `10:7` à 2685, bonus `10 × 100 = 1000` à 2686–2687) mais ce n’est pas une approche jouée, et les traces de cette démo ne sont pas dans le dépôt.
 
-Le replay [solo-docking-i-ii.csv](replays/solo-docking-i-ii.csv) reprend `solo-docking.csv` à l’identique jusqu’à la frame 5159, alors que le module I vient d’aller à droite (x ≈ 150). Au lieu de revenir au centre et d’y zigzager — ce qui le fait détruire à 5215 par un plongeon (sprite 3, x ≈ 121, y montant vers 188) — il poursuit vers la butée droite, tisse dans la moitié droite et tire toutes les 60 images, puis, à partir de 6400, enchaîne des maintiens de tir de 180 images avec de petites corrections latérales, pour tenter l’approche si elle a déjà commencé. Ce n’est qu’un premier essai : le moment exact du début d’approche I + II n’est pas connu.
+Le replay [solo-docking-i-ii.csv](replays/solo-docking-i-ii.csv) reprend `solo-docking.csv` à l’identique jusqu’à la frame 5159, alors que le module I vient d’aller à droite (x ≈ 150). Au lieu de revenir au centre et d’y zigzager — ce qui le fait détruire à 5215 par un plongeon (sprite 3, x ≈ 121, y montant vers 188) — il poursuit vers la butée droite, tisse dans la moitié droite et tire toutes les 60 images, puis, à partir de 6400, enchaîne des maintiens de tir de 180 images avec de petites corrections latérales. La capture `pr5-amarrage-i-ii` (10 000 images, sonde `8000-83ff` depuis 5100, instantanés toutes les 2 images depuis 6000) est complète et en reproduit exactement les entrées.
+
+Le module I survit : à 5215, `0x8004` reste à 0, `0x8097` reste à 3, et le vaisseau est sur la droite (`0x822b` = 208, abscisse de défilement = 190). Les vies restent à 3 jusqu’à la fin de la capture. Le combat se poursuit jusqu’à 9551, où `0x8226` passe à 0. Le dernier projectile matériel disparaît à 9541 ; les créneaux `0x8161–0x8168` sont déjà vides, donc cette fin de vague ne laisse pas de tir figé. 33 images plus tard (9584), `0x8224` passe à 8 : l’intro d’amarrage I + II commence, avec le même délai que le II → III (`6185` → `6218` sur `pr1-suite`).
+
+La montée reprend le calendrier du II → III, depuis l’altitude de combat du module I : `0x822c` va de 200 à 124, la coordonnée logique `0x8143` de 192 à 116 (76 pixels, premier pas à +53 / 9604, dernier à +353 / 9904). Le chrono `0x8230–0x8231` apparaît à 9904 (`30:10`, affiché `30:0`). Pendant toute l’intro, `0x822b` reste à 196 (sprite 0 à x = `0xbc`). À 9998, le module II cible arrive par le bas (sprites 1 et 2 à y = 236, sprite 5 à y = 252) et le chrono est encore figé. L’approche jouable n’a pas commencé : par analogie avec `pr1-suite`, le chrono devrait commencer à décompter à 9551 + 516 = 10067, et le pilotage à 9551 + 524 = 10075, soit 76 images après la fin de `pr5`.
+
+Le replay n’est pas modifié : le trajet qui a gardé le module I est conservé. Après la frame 9700, toutes les commandes sont relâchées, donc l’approche partira de la droite, sans direction ni tir. Une seconde capture plus longue, avec le même replay, doit couvrir l’approche, le contact ou l’expiration, l’écran de résultat et le début de la reprise.
 
 ```powershell
 git fetch origin
 git checkout amarrage-i-ii
 git pull
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii.csv --frames 10000 --probe 8000-83ff --probe-from 5100 --snap-from 6000 --snap-every 2 --output .reference\pr5-amarrage-i-ii
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii.csv --frames 13000 --probe 8000-83ff --probe-from 9500 --snap-from 9500 --snap-every 2 --output .reference\pr5b-amarrage-i-ii
 ```
 
-À relever : à 5215, `0x8004` doit rester à 0 et `0x8097` à 3 (le module I a survécu). Ensuite, le basculement de `0x8004` / `0x8232` et le chrono `0x8230–0x8231` au contact ; les positions `0x822b,0x822c` pendant l’approche ; le bonus et la durée de l’écran de résultat ; le vaisseau repris (I + II attendu) et son premier tir ; une collision ou une expiration, le cas échéant. L’amarrage I + II vers le III n’est pas visé par ce premier passage.
+À relever : le début de l’approche vers 10075 (`0x822c` / `0x822b`, vitesses `0x8222–0x8223`) ; au contact, le basculement de `0x8004` / `0x8232` et le chrono `0x8230–0x8231` ; le bonus et la durée de l’écran de résultat, ou une collision / expiration ; le vaisseau repris (I + II attendu), ses vies et son premier tir. L’amarrage I + II vers le III n’est pas visé par ce passage.
 
 ## Sonde de RAM
 
