@@ -17,8 +17,8 @@ var _elapsed_frames := 0
 var _pending_points: Array[int] = []
 
 
-func _init(wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255) -> void:
-	pilot = Pilot.new(module, start_x)
+func _init(wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255, attached := 0) -> void:
+	pilot = Pilot.new(module, start_x, attached)
 	wave = CombatWave.new(wave_number, alive_mask)
 
 
@@ -40,7 +40,7 @@ func step(input_mask: int) -> void:
 	if wave.remaining == 0 and _pending_points.is_empty():
 		outcome = Outcome.CLEARED
 		pilot.clear_shots()
-	elif wave.hits_ship(pilot.ship_x, pilot.module):
+	elif wave.hits_attached(pilot.ship_x, pilot.attached):
 		outcome = Outcome.MODULE_LOST
 		pilot.clear_shots()
 		impact_position = Vector2(pilot.ship_x, pilot.ship_y() + 6)

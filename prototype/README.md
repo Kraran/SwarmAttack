@@ -1,4 +1,4 @@
-# SwarmAttack — Prototype du parcours jusqu’à l’amarrage
+# SwarmAttack — Prototype jusqu’à la reprise après amarrage
 
 Sous Windows, ouvrir [Lancer le prototype.cmd](../Lancer%20le%20prototype.cmd). Le lanceur utilise l’installation portable de Godot dans `.tools`. Le projet Godot s’ouvre avec [project.godot](project.godot).
 
@@ -17,11 +17,29 @@ Le prototype démarre aux commandes du module I sur le terrain de 224 × 256 uni
 | --- | --- | --- |
 | Vagues 1 et 2 | Quatre paires entrent en formation. Chaque moitié détruite rapporte 50 points. Les survivants se séparent et plongent. | Module I et première vague, voir ci-dessous. |
 | Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. | Aucune pour l’instant. |
-| Perte d’un module | Le module suivant prend le relais après 120 images, face aux cibles restantes. La perte du module III termine la partie. | Aucune pour l’instant. |
-| Modules II et III | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. | Aucune pour l’instant. |
-| Amarrage | Après la vague 4, le module monte, le suivant arrive, puis l’approche se pilote avec inertie sous un chrono de 30 secondes. Réussite, collision ou temps écoulé. | Approche du module II, voir ci-dessous. |
+| Perte d’un module | Le compteur de vies (`0x8097`, départ à 3) baisse d’une unité après 288 images (161 + 127). L’animation d’entrée qui suit n’est pas encore relevée : la reprise est immédiate (`ENTRANCE_FRAMES = 0`, provisoire). Après la perte du module I, le II prend le relais. Après celle du vaisseau II + III, le II seul repart. À zéro, la partie se termine. | Délai avant la baisse du compteur et succession I → II, II + III → II : voir le [carnet](../tools/arcade/README.md). Les autres successions et l’entrée du module restent à valider. |
+| Modules II et III | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. Le vaisseau assemblé II + III conserve ce tir pour l’instant. | Aucune pour l’instant. Le tir alterné relevé sur II + III sera aligné plus tard. |
+| Amarrage | Après la vague 4, le module monte, le suivant arrive, puis l’approche se pilote avec inertie sous un chrono de 30 secondes. Réussite, collision ou temps écoulé, puis le combat reprend. | Approche du module II, voir ci-dessous. Reprise après amarrage : durées d’écran relevées, à recouper avec une trace complète. |
 
-La vue affiche le score, la vague et le nombre de cibles. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic. Le prototype s’arrête après le premier amarrage.
+| Issue de l’amarrage II → III | Comportement du prototype | Source |
+| --- | --- | --- |
+| Réussite | Écran bonus 305 images, crédit du bonus, reprise en vaisseau II + III aligné à x = 112. | Relevés : contact 7417, reprise 7723, bonus 2 600. |
+| Collision | Attente 466 images, pas de bonus, reprise avec le module III seul. Les vies sont inchangées. | Relevés : explosion 7452, reprise 7918. À confirmer si l’explosion coïncide avec le début de l’étape collision. |
+| Chrono écoulé | Attente 183 images, pas de bonus, reprise avec le module II seul à son abscisse d’affichage (position provisoire). Les vies sont inchangées. | Relevés : chrono 00:0 à 7942, reprise 8125. |
+| Cycle suivant | Sans partenaire restant, un nouveau cycle des quatre vagues reprend. Après un amarrage, le prototype reprend aussi à la vague 1. | Composition des vagues après amarrage non relevée : provisoire. |
+| Hitbox II + III | Union des zones des modules II et III. | Non relevée : provisoire. |
+| Limites de déplacement II + III | Conservées à x = 14 et x = 200. | La ligne 26 va de `0x0e` à `0xc0` : le report en unités logiques reste à caler. |
+| Amarrage I + II, puis I + II vers III | Le modèle d’approche du module supérieur est réutilisé. Après une perte d’assemblage autre que II + III, seul le module supérieur repart. | Non relevé : provisoire. |
+| Écran de fin | Passage immédiat à « partie terminée » quand le compteur tombe à 0. | La durée de `JEU 1 TERMINE` / `ESSAYEZ A NOUVEAU` n’est pas relevée. |
+
+La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
+
+Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 :
+
+```powershell
+& $godot --headless --path prototype --script res://tests/smoke.gd
+& $godot --headless --path prototype --script res://tests/test_post_docking.gd
+```
 
 ## Comparaison avec Jeutel
 
@@ -60,3 +78,5 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held
 Le comparateur avance le prototype d’un pas à chaque incrément du compteur de boucle Jeutel. Dans ces conditions, la position, les deux vitesses et le chrono du module II sont identiques à Jeutel sur 660 images pour l’amarrage réussi et 701 images avec le bouton maintenu. L’amarrage se produit à la frame 7417 avec un bonus de 2 600 points, comme sur la carte.
 
 La boucle Jeutel saute certaines frames, 17 sur 750 dans le relevé réussi et 9 sur 750 avec le bouton maintenu, à des intervalles qui dépendent de la situation. Le [carnet de relevés](../tools/arcade/README.md) en décrit le mécanisme. Le prototype en temps réel ne reproduit pas ces sauts, par choix, et avance donc un peu plus vite que la carte. Restent à comparer la montée du module et l’arrivée du module cible avant la frame 6700, ainsi que l’amarrage des modules I et II.
+
+La reprise après amarrage (écrans de résultat, vaisseau II + III, collision, expiration, baisse des vies) est codée d’après le [carnet de relevés](../tools/arcade/README.md). Elle n’est pas encore rejouée par un comparateur sur une trace `.reference`. Les constantes provisoires et les points à recouper sont listés dans le tableau ci-dessus.

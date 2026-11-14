@@ -6,7 +6,13 @@ const LIFT_WAIT := 48
 const LIFT_HEIGHT := 76
 const TARGET_ARRIVAL := 200
 const BOARD_FRAMES_PER_CONTROL := 4
+# Écran bonus relevé : 305 images entre le contact (frame 7417) et la reprise (7723).
 const BONUS_HOLD := 305
+# 7918 − 7452 : de l'explosion relevée à la reprise. À confirmer si l'explosion
+# coïncide avec le début de l'étape COLLISION.
+const COLLISION_HOLD := 466
+# 8125 − 7942 : du chrono à 00:0 jusqu'à la reprise avec le module en approche.
+const TIMEOUT_HOLD := 183
 
 enum Stage { INTRO, APPROACH, SUCCESS, COLLISION, TIMED_OUT }
 
@@ -59,6 +65,23 @@ func display_clock() -> String:
 
 func credited_bonus() -> int:
 	return bonus if _result_frames >= BONUS_HOLD else 0
+
+
+func result_hold() -> int:
+	match stage:
+		Stage.SUCCESS:
+			return BONUS_HOLD
+		Stage.COLLISION:
+			return COLLISION_HOLD
+		Stage.TIMED_OUT:
+			return TIMEOUT_HOLD
+		_:
+			return 0
+
+
+func is_ready_to_resume() -> bool:
+	var hold := result_hold()
+	return hold > 0 and _result_frames >= hold
 
 
 func step(input_mask: int) -> void:
