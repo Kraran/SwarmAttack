@@ -130,7 +130,7 @@ func step(input_mask: int) -> void:
 				# pr1-collision, frame 7452 : le drapeau 0x8163 passe de 1 à 0.
 				combat.pilot.clear_shots()
 			if docking.is_ready_to_resume():
-				_resume_from_docking()
+				_resume_from_docking(input_mask)
 		Phase.GAME_OVER:
 			_game_over_elapsed += 1
 
@@ -173,6 +173,11 @@ func _next_attached_after_loss() -> int:
 	if attached == 6:
 		# Relevé : après la destruction du vaisseau II + III, le module II seul repart.
 		return 2
+	if attached == 3:
+		# pr5c : après la destruction du I + II à la butée droite (frame 12290,
+		# vies 3 → 2 à 12579), le module I reprend l'entrée (0x822c vers 200,
+		# sprite 0x78, visible à 12968).
+		return 1
 	if attached == 2:
 		# La perte du module II seul, dans le relevé, ramène le compteur à 0 et termine
 		# la partie. Une succession II → III avec des vies restantes reste provisoire.
@@ -181,7 +186,7 @@ func _next_attached_after_loss() -> int:
 	return 1 << (front_module() - 1)
 
 
-func _resume_from_docking() -> void:
+func _resume_from_docking(input_mask: int) -> void:
 	var stage := docking.stage
 	var resume_x := Pilot.START_X
 	# Créneaux encore actifs : la routine de reprise ne les efface pas
@@ -194,6 +199,11 @@ func _resume_from_docking() -> void:
 	# correspondent à 251 − registre, soit 155 et 159 depuis un gel à 163.
 	var resume_ticks := 2 if stage == Docking.Stage.SUCCESS else 1
 	if stage == Docking.Stage.SUCCESS:
+		# pr5c : contact à 10599, écran « BRAVO !! » / bonus 17 × 100 = 1700
+		# pendant 305 images (10599–10903), crédit et reprise à 10904 :
+		# I + II à x = 112 (0x822b = 128, 0x822c = 232), vies = 3, pas de
+		# tir figé, vague à entrée large vers 10935. Un maintien du tir
+		# commencé pendant l'approche et poursuivi à la reprise ne tire pas.
 		attached |= 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
 	elif stage == Docking.Stage.COLLISION:
@@ -215,6 +225,8 @@ func _resume_from_docking() -> void:
 		return
 	wave_number = WAVE_AFTER_DOCK
 	_begin_combat(resume_x, 255)
+	if input_mask & Pilot.FIRE:
+		combat.pilot.absorb_held_fire()
 	if not leftover.is_empty():
 		combat.pilot.restore_shots(leftover)
 		for _tick in range(resume_ticks):

@@ -134,13 +134,23 @@ func _advance_approach(input_mask: int) -> void:
 	_resolve_contact()
 
 
+func _in_capture_area(offset: Vector2i) -> bool:
+	var capture_area := Rect2i(3, -6, 12, 8) if module == 1 else Rect2i(-5, -14, 12, 16)
+	if capture_area.has_point(offset):
+		return true
+	# pr5c-amarrage-i-ii-succes, frame 10599 : contact à l'offset (14, -7),
+	# juste au-dessus de la bande y = [-6, 2). Au cran de contrôle précédent
+	# (10595), (13, -7) n'a pas accroché. On ajoute ce point seulement, sans
+	# élargir toute la rangée y = -7.
+	return module == 1 and offset == Vector2i(14, -7)
+
+
 func _resolve_contact() -> void:
 	var offset := position - TARGET
 	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)
-	var capture_area := Rect2i(3, -6, 12, 8) if module == 1 else Rect2i(-5, -14, 12, 16)
 	if crash_area.has_point(offset):
 		stage = Stage.COLLISION
-	elif capture_area.has_point(offset):
+	elif _in_capture_area(offset):
 		position = TARGET + (Vector2i(8, -8) if module == 1 else Vector2i(0, -16))
 		bonus = ((remaining_tenths - 1) / 10) * module * 100
 		stage = Stage.SUCCESS

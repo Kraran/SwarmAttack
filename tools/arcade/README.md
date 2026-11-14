@@ -64,7 +64,7 @@ Les variantes suivantes se reproduisent en copiant le replay et en remplaçant l
 | 6946 | x = 118 à y = 201, soit 6 unités à droite | Amarrage. |
 | 6948 | x = 119 à y = 201, soit 7 unités à droite | Collision. |
 
-La tolérance de 6 unités est vérifiée pour ce contact entre les modules II et III. Les seuils de l’assemblage I et II en partie et les effets d’autres vitesses d’approche restent à mesurer.
+La tolérance de 6 unités est vérifiée pour ce contact entre les modules II et III. Pour l’assemblage I et II en partie, un contact réussi est relevé à l’offset (14, −7) sur `pr5c-amarrage-i-ii-succes` ; (13, −7) au cran précédent n’accroche pas. Les autres bords de la fenêtre et les effets d’autres vitesses d’approche restent à mesurer.
 
 Le jeu n’amarre le module I avec le II que si le module I est encore là après la vague 4. Les captures `pr1-*`, `pr2-held-fire` et `pr3-hitbox` suivent toutes le parcours solo qui perd le module I à la frame 5215, puis amarrent le II sur le III. La démonstration, elle, réussit un I + II (chrono `10:7` à 2685, bonus `10 × 100 = 1000` à 2686–2687) mais ce n’est pas une approche jouée, et les traces de cette démo ne sont pas dans le dépôt.
 
@@ -80,16 +80,11 @@ L’approche jouable commence comme prévu : le chrono passe à `30:09` à 10072
 
 L’écran d’expiration dure 183 images, sans aucune frame figée (`0x8005` avance de 37 à 220). À 11526, le module I seul reprend, recentré (`0x822b` = 128, `0x822c` = 216, score toujours 1280, pas de bonus). La vague à entrée large apparaît vers 11560. Un ennemi détruit ensuite le module I (explosion à 11759, baisse des vies 3→2 à 12051, 292 images murales), puis le module II entre en remplacement : même logique que les pertes déjà relevées.
 
-Les seuils de contact I + II, le bonus et le tir du vaisseau assemblé restent à mesurer. Le replay [solo-docking-i-ii-success.csv](replays/solo-docking-i-ii-success.csv) reprend le trajet jusqu’à 9700, puis, à partir du premier pas (10112), tient gauche 53 ticks d’approche, freine à droite, et maintient le tir à partir du 60e tick, pour viser la zone de capture provisoire du module I (en recouvrement avec celle du II). C’est un premier essai calé sur le modèle d’inertie relevé, pas encore un contact mesuré.
+Le replay [solo-docking-i-ii-success.csv](replays/solo-docking-i-ii-success.csv) reprend le trajet jusqu’à 9700, puis, à partir du premier pas (10112), tient gauche 53 ticks d’approche, freine à droite, et maintient le tir à partir du 60e tick. La capture `pr5c-amarrage-i-ii-succes` (13 000 images, sonde `8000-83ff` depuis 9500, instantanés toutes les 2 images depuis 9500) est complète, reprend exactement ces entrées, et coïncide avec `pr5b` jusqu’au début du pilotage (10112).
 
-```powershell
-git fetch origin
-git checkout amarrage-i-ii
-git pull
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-success.csv --frames 13000 --probe 8000-83ff --probe-from 9500 --snap-from 9500 --snap-every 2 --output .reference\pr5c-amarrage-i-ii-succes
-```
+Le contact réussit à 10599 : `0x8004` passe à 1, chrono `17:10` (affiché `17:0`), `0x822b` = 134, `0x822c` = 217, soit l’offset (14, −7) par rapport à la cible (112, 216). Au cran de contrôle précédent (10595), l’offset (13, −7) n’a pas accroché. L’objet `0x8140` se cale sur (120, 208). L’écran « BRAVO !! » affiche `BONUS 17 × 100 = 1700` pendant 305 images, sans frame figée (10599–10903). À 10904, le score passe de 1280 à 2980 et le vaisseau I + II reprend, recentré (`0x822b` = 128, `0x822c` = 232), vies toujours à 3, créneaux `0x8161–0x8168` vides. La vague à entrée large apparaît vers 10935.
 
-À relever : le contact (`0x8004` / `0x8232`, chrono `0x8230–0x8231`, positions `0x822b,0x822c`) ; le montant et la durée de l’écran bonus, ou une collision ; le vaisseau repris (I + II attendu), ses vies, son tir et, si visible, sa hitbox. L’amarrage I + II vers le III n’est pas visé par ce passage.
+La droite reste enfoncée : `0x822b` avance de 2 par image jusqu’à 216 à 10948 (x = 200) et y reste à cette butée jusqu’à la destruction. Le tir, maintenu depuis l’approche jusqu’à 10999, ne produit aucune volée à la reprise ; le motif de tir du I + II n’est donc pas observé. Un ennemi détruit le vaisseau à 12290 (`0x8004` = 1, toujours à la butée droite), les vies passent de 3 à 2 à 12579 (289 images de boucle). Le module I reprend ensuite l’entrée (`0x822c` vers 200, sprite `0x78`, visible à 12968). La capture s’arrête à 12999, pendant cette entrée. La hitbox du I + II et sa butée gauche ne sont pas calées sur ce seul contact. L’amarrage I + II vers le III n’est pas visé par ce passage.
 
 ## Sonde de RAM
 
@@ -142,7 +137,7 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held
 
 Après une destruction en combat, `0x8004` reste à 1 pendant 161 images, puis 127 images s’écoulent, puis une impulsion d’une image précède la baisse du compteur, soit 289 images de boucle. Sur la perte du module II, l’écart mural vaut 292 images à cause de 3 frames figées (`0x8005` immobile). Le prototype, qui avance à pas régulier, retient 289.
 
-Le module suivant apparaît 25 images après la baisse, monte de y = 255 à y = 120 en 136 images, s’arrête 137 images de boucle à mi-hauteur, puis redescend à y = 200 en 80 images. La reprise du combat a lieu 378 images de boucle après la baisse (380 ou 382 images murales selon les frames figées). Après la destruction du vaisseau II + III, c’est le module II seul qui repart.
+Le module suivant apparaît 25 images après la baisse, monte de y = 255 à y = 120 en 136 images, s’arrête 137 images de boucle à mi-hauteur, puis redescend à y = 200 en 80 images. La reprise du combat a lieu 378 images de boucle après la baisse (380 ou 382 images murales selon les frames figées). Après la destruction du vaisseau II + III, c’est le module II seul qui repart. Après celle du vaisseau I + II, c’est le module I seul qui reprend l’entrée (`pr5c`, à partir de 12579).
 
 À zéro, 31 images s’écoulent, puis la carte affiche `JEU 1 TERMINE`, `ESSAYEZ A NOUVEAU` et `JEU TERMINE` pendant 30 images. Suivent 869 images de boucle de texte d’attract, puis la démonstration reprend à la frame 10246, où `0x8097` remonte à 3 (932 images de boucle depuis la baisse à 0).
 

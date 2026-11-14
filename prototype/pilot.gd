@@ -47,6 +47,12 @@ func has_module(number: int) -> bool:
 	return bool(attached & (1 << (number - 1)))
 
 
+# pr5c : un maintien commencé pendant l'amarrage I + II et poursuivi à la
+# reprise ne déclenche pas de volée. Un nouvel front d'appui est nécessaire.
+func absorb_held_fire() -> void:
+	_fire_held = true
+
+
 func is_assembled() -> bool:
 	return has_module(2) and has_module(3)
 
