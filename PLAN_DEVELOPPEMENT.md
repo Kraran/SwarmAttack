@@ -26,7 +26,7 @@ Le XML local de MAME indique **60,606061 Hz** et une rotation de **90°** pour J
 Les mesures et la procédure de capture sont dans le [carnet de relevés Jeutel](tools/arcade/README.md).
 Le [replay solo](tools/arcade/replays/solo-docking.csv) fixe un parcours du démarrage à l’amarrage réussi des modules II et III, après la perte du module I. La démo fournit la séquence d’assemblage des modules I et II.
 
-Le [prototype Godot](prototype/README.md) enchaîne quatre vagues, le remplacement des modules perdus, le premier amarrage et la reprise du combat (réussite, collision ou temps écoulé). Le module I en première vague et l’approche d’amarrage du module II sont comparés à Jeutel. La boucle d’après amarrage reprend les durées et successions déjà relevées ; elle reste à valider sur une trace complète. Le jalon 1 se poursuit avec la cadence de la boucle Jeutel, le tir du vaisseau assemblé et la validation des vagues suivantes.
+Le [prototype Godot](prototype/README.md) enchaîne quatre vagues, le remplacement des modules perdus, le premier amarrage et la reprise du combat (réussite, collision ou temps écoulé). Le module I en première vague et l’approche d’amarrage du module II sont comparés à Jeutel. La boucle d’après amarrage a été recoupée sur les traces `pr1-*` (durées d’écran, vies, entrée du module, vague à entrée large). Le jalon 1 se poursuit avec le tir du vaisseau assemblé, les hitboxes II + III et la validation des vagues suivantes.
 
 ## Architecture
 

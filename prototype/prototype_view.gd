@@ -163,7 +163,13 @@ func _draw_combat() -> void:
 	var combat := _run.combat
 	_draw_enemies()
 	var pilot := combat.pilot
-	if _run.phase != ArcadeRun.Phase.REPLACEMENT and _run.phase != ArcadeRun.Phase.GAME_OVER:
+	if _run.phase == ArcadeRun.Phase.REPLACEMENT:
+		var entrance_y := _run.entrance_ship_y()
+		if entrance_y >= 0:
+			for module in range(3, 0, -1):
+				if _run.attached & (1 << (module - 1)):
+					_draw_module(Vector2(Pilot.START_X, entrance_y + (module - 1) * 8), module, SHIP)
+	elif _run.phase != ArcadeRun.Phase.GAME_OVER:
 		# Dessiner la base d'abord, puis les modules supérieurs.
 		for module in range(3, 0, -1):
 			if pilot.has_module(module):
@@ -237,7 +243,11 @@ func _draw_panel() -> void:
 		ArcadeRun.Phase.REPLACEMENT:
 			_text(425, "Vaisseau perdu", 20, SHOT)
 		ArcadeRun.Phase.GAME_OVER:
-			_text(425, "Partie terminée", 20, SHOT)
+			if _run.game_over_shows_message():
+				_text(425, "JEU 1 TERMINE", 20, SHOT)
+				_text(448, "ESSAYEZ A NOUVEAU", 17, SHOT)
+			else:
+				_text(425, "Vaisseau perdu", 20, SHOT)
 		_:
 			_text(425, "Vague %d / %d" % [_run.wave_number, ArcadeRun.WAVES_BEFORE_DOCK], 20, PRIMARY)
 	_text(463, "%03d points   ·   %d cibles   ·   Vies %d" % [

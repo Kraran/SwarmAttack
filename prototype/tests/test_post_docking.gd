@@ -38,6 +38,7 @@ func _start_docking(attached: int) -> ArcadeRun:
 	run.wave_number = 4
 	run.phase = ArcadeRun.Phase.DOCKING
 	run.docking = Docking.new(run.front_module(), Pilot.START_X, false)
+	run._docking_life_taken = false
 	return run
 
 
@@ -68,7 +69,8 @@ func _check_success_resumes_as_two_and_three() -> void:
 	_expect(run.front_module() == 2, "Le module supérieur reste le II")
 	_expect(run.combat.pilot.has_module(2) and run.combat.pilot.has_module(3), "Le pilote doit porter les modules II et III")
 	_expect(run.score() == 2600, "Score attendu 2600 après le bonus, obtenu %d" % run.score())
-	_expect(run.wave_number == 1, "Reprise sur un nouveau cycle de vagues")
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large (vague %d)" % ArcadeRun.WAVE_AFTER_DOCK)
+	_expect(run.combat.wave.wide_entry, "La vague de reprise doit être une entrée large")
 	_expect(run.combat.pilot.ship_x == Docking.TARGET.x, "Reprise alignée sur la cible")
 	_expect(run.lives == ArcadeRun.STARTING_LIVES, "L'amarrage réussi ne consomme pas de vie")
 	var frame := run.frame
@@ -76,22 +78,31 @@ func _check_success_resumes_as_two_and_three() -> void:
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat doit continuer après la reprise")
 	_expect(run.frame == frame + 1, "L'horloge avance pendant le combat repris")
 	_expect(run.combat.pilot.shot_active and run.combat.pilot.second_shot_active, "Le tir double actuel du module II est inchangé")
-	print("OK réussite : bonus 2600, reprise II + III, combat continué")
+	print("OK réussite : bonus 2600, reprise II + III, vague 3, combat continué")
 
 
 func _check_collision_resumes_as_three() -> void:
 	var run := _start_docking(2)
 	run.docking.stage = Docking.Stage.COLLISION
-	_hold_until_resume(run, Docking.COLLISION_HOLD)
-	if run.phase != ArcadeRun.Phase.COMBAT:
-		return
+	_expect(run.lives == ArcadeRun.STARTING_LIVES, "Les vies ne baissent qu'au pas de collision")
+	run.step(0)
+	_expect(run.lives == ArcadeRun.STARTING_LIVES - 1, "La collision baisse le compteur dès l'explosion, obtenu %d" % run.lives)
+	_expect(run.phase == ArcadeRun.Phase.DOCKING, "L'écran de collision doit durer 466 images")
+	for index in range(Docking.COLLISION_HOLD - 1):
+		if run.phase != ArcadeRun.Phase.DOCKING:
+			_fail("Reprise anticipée pendant la collision à l'image %d" % (index + 1))
+			return
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après 466 images")
 	_expect(run.attached == 4, "Après collision, le module III seul continue, masque=%d" % run.attached)
 	_expect(run.front_module() == 3, "Le module repris est le III")
 	_expect(run.score() == 0, "Pas de bonus en cas de collision")
-	_expect(run.lives == ArcadeRun.STARTING_LIVES, "La collision d'amarrage ne consomme pas de vie")
+	_expect(run.lives == ArcadeRun.STARTING_LIVES - 1, "Les vies restent baissées à la reprise")
+	_expect(run.combat.pilot.ship_x == Docking.TARGET.x, "Reprise du module III à x = 112")
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat continue avec le module III")
-	print("OK collision : reprise module III seul, sans bonus")
+	print("OK collision : vies 3 → 2, reprise module III seul, sans bonus")
 
 
 func _check_timeout_resumes_as_two() -> void:
@@ -104,9 +115,11 @@ func _check_timeout_resumes_as_two() -> void:
 	_expect(run.front_module() == 2, "Le module repris est le II")
 	_expect(run.score() == 0, "Pas de bonus si le chrono expire")
 	_expect(run.lives == ArcadeRun.STARTING_LIVES, "L'expiration ne consomme pas de vie")
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise recentrée à x = 112, obtenu %d" % run.combat.pilot.ship_x)
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large")
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat continue avec le module II")
-	print("OK chrono écoulé : reprise module II seul, sans bonus")
+	print("OK chrono écoulé : reprise module II seul à x = 112, sans bonus")
 
 
 func _check_life_lost_after_assembled_ship() -> void:
@@ -125,15 +138,17 @@ func _check_life_lost_after_assembled_ship() -> void:
 	run.step(0)
 	_expect(run.lives == 1, "Vies 2 → 1 à la baisse du compteur, obtenu %d" % run.lives)
 	_expect(run.attached == 2, "Le module II seul succède au vaisseau II + III, masque=%d" % run.attached)
-	if ArcadeRun.ENTRANCE_FRAMES == 0:
-		_expect(run.phase == ArcadeRun.Phase.COMBAT, "Sans animation d'entrée, le combat reprend au moment de la baisse")
-		_expect(run.combat.pilot.attached == 2, "Le nouveau combat se joue avec le module II")
-		_expect(run.combat.pilot.module == 2, "Le module supérieur est le II")
-	else:
-		_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "L'entrée provisoire n'est pas terminée")
-		for index in range(ArcadeRun.ENTRANCE_FRAMES):
-			run.step(0)
-		_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après l'entrée provisoire")
+	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "L'entrée suit la baisse du compteur")
+	_expect(run.entrance_ship_y() < 0, "Le module reste caché pendant les 25 premières images")
+	for index in range(ArcadeRun.ENTRANCE_HIDDEN + ArcadeRun.ENTRANCE_RISE - 1):
+		run.step(0)
+	_expect(run.entrance_ship_y() == ArcadeRun.ENTRANCE_MID_Y, "Le module s'arrête à y = 120, obtenu %d" % run.entrance_ship_y())
+	for index in range(ArcadeRun.ENTRANCE_PAUSE + ArcadeRun.ENTRANCE_DESCENT + 1):
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après 378 images d'entrée")
+	_expect(run.combat.pilot.attached == 2, "Le nouveau combat se joue avec le module II")
+	_expect(run.combat.pilot.module == 2, "Le module supérieur est le II")
+	_expect(run.combat.pilot.ship_x == Pilot.START_X, "Reprise d'entrée à x = 112")
 	# Une dernière vie perdue termine la partie à la baisse du compteur.
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
 	run.step(0)
@@ -143,6 +158,10 @@ func _check_life_lost_after_assembled_ship() -> void:
 		run.step(0)
 	_expect(run.lives == 0, "Vies 1 → 0, obtenu %d" % run.lives)
 	_expect(run.phase == ArcadeRun.Phase.GAME_OVER, "Plus aucune vie : partie terminée")
+	_expect(not run.game_over_shows_message(), "Le message de fin n'apparaît qu'après 31 images")
+	for index in range(ArcadeRun.GAME_OVER_CLEAR):
+		run.step(0)
+	_expect(run.game_over_shows_message(), "JEU 1 TERMINE s'affiche après 31 images")
 	print("OK perte de vie : 2 → 1 puis module II, ensuite fin de partie")
 
 

@@ -103,11 +103,11 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held
 
 | Cas | Déroulement observé |
 | --- | --- |
-| Amarrage réussi | Contact à la frame 7417. Écran `BONUS 13 × 200 = 2600` et `BRAVO !!` pendant 305 frames. Le combat reprend à la frame 7723 avec le module II posé sur le module III, et le score passe à 3 880. |
-| Collision | Le module II explose à la frame 7452. `SORRY NO BONUS` s’affiche, puis le combat reprend à la frame 7918 avec le module III seul. |
-| Chrono écoulé | Le chrono atteint `00:0` à la frame 7942. Le combat reprend à la frame 8125 avec le module II seul. |
+| Amarrage réussi | Contact à la frame 7417 (`0x8004` et `0x8232` basculent). Écran `BONUS 13 × 200 = 2600` et `BRAVO !!` pendant 305 images, sans frame figée. `0x8004` retombe à 7722. Le combat reprend à 7723 avec le module II posé sur le module III, recentré à x = 112, et le score passe de 1 280 à 3 880. Une vague à entrée large apparaît à 7753. |
+| Collision | Le module II explose à la frame 7452. Au même instant, `0x8097` passe de 2 à 1. `SORRY NO BONUS` s’affiche, puis le combat reprend à 7918 avec le module III seul à x = 112 (466 images, sans frame figée). Une vague à entrée large apparaît à 7950. |
+| Chrono écoulé | Le chrono atteint `00:0` à la frame 7942 (`0x8004` passe à 1, `0x822b,0x822c` = 31,47). Les vies restent à 2. À 8125, le combat reprend avec le module II seul recentré (`0x822b,0x822c` = 128,216, soit x = 112). Délai de 183 images, sans frame figée dans l’intervalle. Une vague à entrée large apparaît à 8157. |
 
-`0x8097` compte les modules restants. Il vaut 3 au départ et baisse d’une unité par vaisseau détruit, quel que soit le nombre de modules assemblés.
+`0x8097` compte les vaisseaux restants. Il vaut 3 au départ et baisse d’une unité par vaisseau détruit en combat, et aussi dès l’explosion d’une collision d’amarrage. L’expiration du chrono ne le fait pas baisser.
 
 | Événement du replay de suite | Frame | `0x8097` |
 | --- | --- | --- |
@@ -115,7 +115,11 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held
 | Vaisseau II + III détruit | 8090 | 2 → 1 à la frame 8379 |
 | Module II seul détruit | 9021 | 1 → 0 à la frame 9313 |
 
-Après une destruction, `0x8004` reste à 1 pendant 161 frames, puis 127 frames s’écoulent avant la baisse du compteur. Le module suivant monte alors du bas de l’écran, s’immobilise à mi-hauteur et redescend à sa place avant la reprise. Après la destruction du vaisseau II + III, c’est le module II seul qui repart. À zéro, la carte affiche `JEU 1 TERMINE`, `ESSAYEZ A NOUVEAU` et `JEU TERMINE`, puis revient à la démonstration.
+Après une destruction en combat, `0x8004` reste à 1 pendant 161 images, puis 127 images s’écoulent, puis une impulsion d’une image précède la baisse du compteur, soit 289 images de boucle. Sur la perte du module II, l’écart mural vaut 292 images à cause de 3 frames figées (`0x8005` immobile). Le prototype, qui avance à pas régulier, retient 289.
+
+Le module suivant apparaît 25 images après la baisse, monte de y = 255 à y = 120 en 136 images, s’arrête 137 images de boucle à mi-hauteur, puis redescend à y = 200 en 80 images. La reprise du combat a lieu 378 images de boucle après la baisse (380 ou 382 images murales selon les frames figées). Après la destruction du vaisseau II + III, c’est le module II seul qui repart.
+
+À zéro, 31 images s’écoulent, puis la carte affiche `JEU 1 TERMINE`, `ESSAYEZ A NOUVEAU` et `JEU TERMINE` pendant 30 images. Suivent 869 images de boucle de texte d’attract, puis la démonstration reprend à la frame 10246, où `0x8097` remonte à 3 (932 images de boucle depuis la baisse à 0).
 
 ### Vaisseau II + III
 
@@ -123,4 +127,4 @@ Les lignes de défilement 26 à 28 portent la position et les lignes 29 et 30 la
 
 Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Un appui tire un projectile central à l’abscisse de la ligne 26 plus 4, depuis l’ordonnée de registre `0x27`. L’appui suivant tire une paire aux abscisses de la ligne 29 et de la ligne 29 plus 16, depuis `0x38`. Tous montent de 4 par frame.
 
-À la reprise de la première capture, deux projectiles sont apparus aux abscisses `0x40` et `0x50` sans appui sur le bouton. Leur origine reste à expliquer.
+À la reprise d’un amarrage réussi ou d’une expiration, deux projectiles apparaissent aux abscisses `0x40` et `0x50` sans appui sur le bouton. Ils naissent à cet instant : ils sont absents pendant l’écran de résultat, et absents aussi après une collision. L’ordonnée de registre vaut 96 à la frame 7723 (reprise réussie) et 92 à la frame 8125 (expiration). Ils montent de 4 par image jusqu’à disparaître. Leur mécanisme exact reste à expliquer ; le prototype ne les reproduit pas encore.
