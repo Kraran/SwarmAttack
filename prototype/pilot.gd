@@ -13,6 +13,11 @@ const MOVE_STEP := 2
 const SHOT_START_Y := 183
 const SHOT_STEP := 4
 const SHOT_LENGTH := 4
+# Vaisseau II + III, relevé sur pr1-suite au rythme de 0x8005.
+# Groupe 0 : paire à y = 212 (registre 0x27), écart 12. Groupe 1 : paire à y = 195
+# (registre 0x38), écart 8. L'abscisse logique vaut le registre de projectile moins 17.
+const ASSEMBLED_START_Y := [212, 195]
+const ASSEMBLED_SPREADS := [12, 8]
 
 var frame := 0
 var ship_x := START_X
@@ -23,6 +28,10 @@ var shot_position := Vector2i.ZERO
 var second_shot_active := false
 var second_shot_position := Vector2i.ZERO
 var _fire_held := false
+# Deux groupes de deux projectiles pour le vaisseau assemblé.
+var _group_active: Array[bool] = [false, false, false, false]
+var _group_position: Array[Vector2i] = [Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO]
+var _next_group := 0
 
 
 func _init(module_number := 1, start_x := START_X, attached_modules := 0) -> void:
@@ -33,6 +42,10 @@ func _init(module_number := 1, start_x := START_X, attached_modules := 0) -> voi
 
 func has_module(number: int) -> bool:
 	return bool(attached & (1 << (number - 1)))
+
+
+func is_assembled() -> bool:
+	return has_module(2) and has_module(3)
 
 
 func module_y(number: int) -> int:
@@ -46,11 +59,49 @@ func ship_y() -> int:
 func clear_shots() -> void:
 	shot_active = false
 	second_shot_active = false
+	for index in range(_group_active.size()):
+		_group_active[index] = false
+
+
+func active_shots() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if is_assembled():
+		for index in range(_group_active.size()):
+			if _group_active[index]:
+				result.append(_group_position[index])
+		return result
+	if shot_active:
+		result.append(shot_position)
+	if second_shot_active:
+		result.append(second_shot_position)
+	return result
+
+
+func deactivate_shot(index: int) -> void:
+	var current := 0
+	if is_assembled():
+		for slot in range(_group_active.size()):
+			if not _group_active[slot]:
+				continue
+			if current == index:
+				_group_active[slot] = false
+				return
+			current += 1
+		return
+	if shot_active:
+		if current == index:
+			shot_active = false
+			return
+		current += 1
+	if second_shot_active and current == index:
+		second_shot_active = false
 
 
 func step(input_mask: int, accept_input := true) -> void:
 	frame += 1
+	var group_busy := [_group_is_busy(0), _group_is_busy(1)]
 	var slot_was_busy := shot_active or second_shot_active
+	_advance_assembled_shots()
 	if shot_active:
 		shot_position.y -= SHOT_STEP
 		shot_active = shot_position.y >= 0
@@ -65,12 +116,40 @@ func step(input_mask: int, accept_input := true) -> void:
 		ship_x = mini(MAX_X, ship_x + MOVE_STEP)
 
 	var fire := bool(input_mask & FIRE)
-	if fire and not _fire_held and not slot_was_busy:
-		var spread := 4 * module if module > 1 else 0
-		const START_HEIGHTS := [SHOT_START_Y, 195, 204]
-		shot_position = Vector2i(ship_x - 1 - spread, START_HEIGHTS[module - 1])
-		shot_active = true
-		if spread:
-			second_shot_position = Vector2i(ship_x - 1 + spread, shot_position.y)
-			second_shot_active = true
+	if fire and not _fire_held:
+		if is_assembled():
+			if not group_busy[_next_group]:
+				_fire_assembled_group(_next_group)
+				_next_group = 1 - _next_group
+		elif not slot_was_busy:
+			var spread := 4 * module if module > 1 else 0
+			const START_HEIGHTS := [SHOT_START_Y, 195, 204]
+			shot_position = Vector2i(ship_x - 1 - spread, START_HEIGHTS[module - 1])
+			shot_active = true
+			if spread:
+				second_shot_position = Vector2i(ship_x - 1 + spread, shot_position.y)
+				second_shot_active = true
 	_fire_held = fire
+
+
+func _group_is_busy(group: int) -> bool:
+	var base := group * 2
+	return _group_active[base] or _group_active[base + 1]
+
+
+func _advance_assembled_shots() -> void:
+	for index in range(_group_active.size()):
+		if not _group_active[index]:
+			continue
+		_group_position[index].y -= SHOT_STEP
+		_group_active[index] = _group_position[index].y >= 0
+
+
+func _fire_assembled_group(group: int) -> void:
+	var spread: int = ASSEMBLED_SPREADS[group]
+	var height: int = ASSEMBLED_START_Y[group]
+	var base := group * 2
+	_group_position[base] = Vector2i(ship_x - 1 - spread, height)
+	_group_position[base + 1] = Vector2i(ship_x - 1 + spread, height)
+	_group_active[base] = true
+	_group_active[base + 1] = true

@@ -174,10 +174,8 @@ func _draw_combat() -> void:
 		for module in range(3, 0, -1):
 			if pilot.has_module(module):
 				_draw_module(Vector2(pilot.ship_x, pilot.module_y(module)), module, SHIP)
-	if pilot.shot_active:
-		draw_rect(Rect2(Vector2(pilot.shot_position), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
-	if pilot.second_shot_active:
-		draw_rect(Rect2(Vector2(pilot.second_shot_position), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
+	for point in pilot.active_shots():
+		draw_rect(Rect2(Vector2(point), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
 	_draw_impact(combat)
 
 
@@ -282,11 +280,13 @@ func _draw_readout() -> void:
 	_text(543, "Vaisseau %s    x %d    y %d" % [
 		_run.ship_label(), pilot.ship_x, pilot.ship_y()
 	], 17, SHIP)
-	if pilot.shot_active:
-		var point := pilot.shot_position
-		_text(576, "Projectile    x %d    y %d" % [point.x, point.y], 17, SHOT)
-	else:
+	var shots := pilot.active_shots()
+	if shots.is_empty():
 		_text(576, "Projectile    prêt", 17, MUTED)
+	else:
+		var point: Vector2i = shots[0]
+		var suffix := "" if shots.size() == 1 else "    +%d" % (shots.size() - 1)
+		_text(576, "Projectile    x %d    y %d%s" % [point.x, point.y, suffix], 17, SHOT)
 	var commands := PackedStringArray()
 	if _last_input & Pilot.LEFT:
 		commands.append("gauche")

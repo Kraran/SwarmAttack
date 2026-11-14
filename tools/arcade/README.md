@@ -125,6 +125,17 @@ Le module suivant apparaît 25 images après la baisse, monte de y = 255 à y = 
 
 Les lignes de défilement 26 à 28 portent la position et les lignes 29 et 30 la même valeur plus 8. La ligne 26 va de `0x0e` à `0xc0` entre les deux butées.
 
-Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Un appui tire un projectile central à l’abscisse de la ligne 26 plus 4, depuis l’ordonnée de registre `0x27`. L’appui suivant tire une paire aux abscisses de la ligne 29 et de la ligne 29 plus 16, depuis `0x38`. Tous montent de 4 par frame.
+Le tir alterne entre deux groupes, et les deux peuvent être en vol ensemble. Relevé sur `pr1-suite` aux frames 7776–8040, au rythme de `0x8005` :
+
+| Groupe | Appui | Projectiles | y logique (registre) | Écart | Durée |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Premier, puis un sur deux | Paire, x logique = `ship_x − 1 ± 12` (registre = logique + 17) | 212 (`0x27`) | 12 | 54 images, dernière à y = 0 |
+| 1 | Deuxième, puis un sur deux | Paire, x logique = `ship_x − 1 ± 8` | 195 (`0x38`) | 8 | 49 images, dernière à y = 3 |
+
+Tous montent de 4 par image. L’abscisse suit le même report que le module I (`x_registre − 17`, `y_logique = 251 − y_registre`). À la reprise après amarrage, le prochain appui forme le groupe 0 (frame 7776, vaisseau à x = 112, projectiles à 99 et 123). Après un déplacement à la butée gauche (`0x822b` = 30, soit x = 14), le groupe 0 part à 1 et 25, le groupe 1 à 5 et 21.
+
+Un appui est refusé tant que le groupe qui devrait partir est encore en vol : l’appui 7940–7944 n’ajoute rien, l’alternance reste sur le groupe 0, et le nouvel appui 7965 le déclenche une fois le groupe libre. Les appuis observés durent 5 images et ne produisent qu’une volée. Un maintien qui commencerait pendant l’occupation d’un groupe et se poursuivrait après sa disparition n’est pas relevé ; le prototype reprend le comportement `fire_busy` du module I (pas de tir différé, nouvel front d’appui nécessaire).
+
+Les lignes de défilement 26 à 30 de `0x9800`, dans ces captures, restent inertes pendant le combat du vaisseau assemblé. La position du vaisseau se lit dans `0x822b` (128 au centre, 30 à gauche). L’ancienne description d’un projectile central à « la ligne 26 plus 4 » puis d’une paire à « la ligne 29 et la ligne 29 plus 16 » ne correspond pas à ces traces : chaque groupe tire deux projectiles.
 
 À la reprise d’un amarrage réussi ou d’une expiration, deux projectiles apparaissent aux abscisses `0x40` et `0x50` sans appui sur le bouton. Ils naissent à cet instant : ils sont absents pendant l’écran de résultat, et absents aussi après une collision. L’ordonnée de registre vaut 96 à la frame 7723 (reprise réussie) et 92 à la frame 8125 (expiration). Ils montent de 4 par image jusqu’à disparaître. Leur mécanisme exact reste à expliquer ; le prototype ne les reproduit pas encore.
