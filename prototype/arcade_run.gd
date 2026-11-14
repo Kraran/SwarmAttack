@@ -127,6 +127,8 @@ func step(input_mask: int) -> void:
 			if docking.stage == Docking.Stage.COLLISION and not _docking_life_taken:
 				lives -= 1
 				_docking_life_taken = true
+				# pr1-collision, frame 7452 : le drapeau 0x8163 passe de 1 à 0.
+				combat.pilot.clear_shots()
 			if docking.is_ready_to_resume():
 				_resume_from_docking()
 		Phase.GAME_OVER:
@@ -182,6 +184,15 @@ func _next_attached_after_loss() -> int:
 func _resume_from_docking() -> void:
 	var stage := docking.stage
 	var resume_x := Pilot.START_X
+	# Créneaux encore actifs : la routine de reprise ne les efface pas
+	# (succès et expiration). La collision les a déjà vidés à l'explosion.
+	var leftover: Array[Vector2i] = []
+	if stage != Docking.Stage.COLLISION:
+		leftover = combat.pilot.active_shots()
+	# Première image visible : deux pas après un bonus (7723, y registre 96),
+	# un seul après une expiration (8125, y registre 92). Les valeurs logiques
+	# correspondent à 251 − registre, soit 155 et 159 depuis un gel à 163.
+	var resume_ticks := 2 if stage == Docking.Stage.SUCCESS else 1
 	if stage == Docking.Stage.SUCCESS:
 		attached |= 1 << (docking_target() - 1)
 		resume_x = Docking.TARGET.x
@@ -203,6 +214,10 @@ func _resume_from_docking() -> void:
 		return
 	wave_number = WAVE_AFTER_DOCK
 	_begin_combat(resume_x, 255)
+	if not leftover.is_empty():
+		combat.pilot.restore_shots(leftover)
+		for _tick in range(resume_ticks):
+			combat.pilot.advance_shots_only()
 
 
 func _begin_combat(ship_x: int, alive_mask: int) -> void:

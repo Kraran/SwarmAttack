@@ -19,7 +19,7 @@ Le prototype démarre aux commandes du module I sur le terrain de 224 × 256 uni
 | Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. | Aucune pour l’instant. |
 | Perte d’un module | Le compteur de vies (`0x8097`, départ à 3) baisse d’une unité après 289 images de boucle (161 + 127 + 1). Le module suivant monte en 378 images (25 caché, 136 de montée de y = 255 à 120, 137 d’arrêt à mi-hauteur, 80 de descente jusqu’à y = 200). Après la perte du module I, le II prend le relais. Après celle du vaisseau II + III, le II seul repart. La perte du II seul, dans le relevé, ramène le compteur à 0. | Recoupé sur les traces `pr1-suite` au rythme de `0x8005`. Les 292 images murales de la dernière perte viennent de 3 frames figées. |
 | Modules II et III seuls | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. | Inchangé. |
-| Vaisseau II + III | Tir alterné de deux paires, les deux pouvant voler ensemble. Premier appui : écart 12, y = 212. Appui suivant : écart 8, y = 195. Après une reprise, le premier groupe part. Un appui est refusé tant que son groupe est en vol. Un maintien commencé pendant le vol et poursuivi après la disparition ne déclenche pas de volée différée : un nouvel front d’appui est nécessaire. | `pr1-suite` (motif) et `pr2-held-fire` (maintien), au rythme de `0x8005`. Les projectiles `0x40` / `0x50` ne sont pas reproduits. |
+| Vaisseau II + III | Tir alterné de deux paires, les deux pouvant voler ensemble. Premier appui : écart 12, y = 212. Appui suivant : écart 8, y = 195. Après une reprise, le premier groupe part (le groupe 1 peut déjà être occupé par les projectiles figés avant l’amarrage). Un appui est refusé tant que son groupe est en vol. Un maintien commencé pendant le vol et poursuivi après la disparition ne déclenche pas de volée différée : un nouvel front d’appui est nécessaire. | `pr1-suite` (motif) et `pr2-held-fire` (maintien), au rythme de `0x8005`. |
 | Amarrage | Après la vague 4, le module monte, le suivant arrive, puis l’approche se pilote avec inertie sous un chrono de 30 secondes. Réussite, collision ou temps écoulé, puis le combat reprend. | Approche du module II, voir ci-dessous. Reprise après amarrage recoupée sur `pr1-bonus`, `pr1-collision` et `pr1-timeout`. |
 
 | Issue de l’amarrage II → III | Comportement du prototype | Source |
@@ -32,7 +32,7 @@ Le prototype démarre aux commandes du module I sur le terrain de 224 × 256 uni
 | Limites de déplacement II + III | Butée gauche à x = 14 (`0x822b` = 30). Butée droite à x = 200 (`0x822b` = 216). | `pr3-hitbox` : palier droit tenu 70 images (7810–7879) avec la droite enfoncée et `0x8004` = 0 ; palier gauche tenu 46 images (7974–8019). |
 | Amarrage I + II, puis I + II vers III | Le modèle d’approche du module supérieur est réutilisé. Après une perte d’assemblage autre que II + III, seul le module supérieur repart. | Non relevé : provisoire. |
 | Écran de fin | 31 images après la baisse à 0, puis 30 images de « JEU 1 TERMINE / ESSAYEZ A NOUVEAU / JEU TERMINE ». La démo n’est pas reproduite. | `pr1-suite` : 9313 → 9344 (31), 9344 → 9374 (30), puis 869 images de texte d’attract jusqu’à la démo à 10246 (932 images de boucle au total). |
-| Projectiles 0x40 / 0x50 | Non reproduits. | Ils naissent à la reprise, ils ne sont pas des tirs résiduels : présents à 7723 (y = 96) et 8125 (y = 92), absents pendant l’écran de résultat et après une collision. Leur mécanisme exact reste à expliquer. |
+| Projectiles 0x40 / 0x50 | Reproduits : la dernière volée du module II reste figée dans les créneaux logiciels, invisible pendant l’écran de résultat, puis reprend après une réussite ou une expiration. Une collision efface le drapeau à l’explosion. | `pr1-*` : dernière volée à 6177 (registres 0x40/0x50), gel à 6185 (y = 88, logiciel y = 0xa7, drapeau 0x8163 = 1). Reprise à y = 96 (7723, deux pas) ou y = 92 (8125, un pas). Collision : 0x8163 passe à 0 dès 7452. |
 
 La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
 
@@ -43,6 +43,7 @@ Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 
 & $godot --headless --path prototype --script res://tests/test_post_docking.gd
 & $godot --headless --path prototype --script res://tests/test_assembled_fire.gd
 & $godot --headless --path prototype --script res://tests/test_assembled_limits.gd
+& $godot --headless --path prototype --script res://tests/test_tirs_fantomes.gd
 ```
 
 ## Comparaison avec Jeutel

@@ -66,6 +66,36 @@ func clear_shots() -> void:
 		_group_active[index] = false
 
 
+# Reprend des projectiles figés dans les créneaux logiciels 0x8161–0x8168.
+# Après amarrage réussi, le vaisseau assemblé les replace dans le groupe 1
+# (même paire que le module II, écart 8, registres 0x40/0x50 sur pr1).
+func restore_shots(shots: Array[Vector2i]) -> void:
+	clear_shots()
+	if shots.is_empty():
+		return
+	if is_assembled():
+		var base := 2
+		for index in range(mini(shots.size(), 2)):
+			_group_position[base + index] = shots[index]
+			_group_active[base + index] = true
+	else:
+		shot_position = shots[0]
+		shot_active = true
+		if shots.size() > 1:
+			second_shot_position = shots[1]
+			second_shot_active = true
+
+
+func advance_shots_only() -> void:
+	_advance_assembled_shots()
+	if shot_active:
+		shot_position.y -= SHOT_STEP
+		shot_active = shot_position.y >= 0
+	if second_shot_active:
+		second_shot_position.y -= SHOT_STEP
+		second_shot_active = second_shot_position.y >= 0
+
+
 func active_shots() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if is_assembled():
