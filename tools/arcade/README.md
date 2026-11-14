@@ -140,6 +140,12 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii
 
 Relevé `pr8c-amarrage-i-ii-iii-approche` : l’intro est identique à `pr7`. Au cran 16353, l’offset (7, −7) reste sans contact ; à 16357, (8, −6) est une capture (`0x8004` = 1, chrono `05:01`, `0x822b` = 128, `0x822c` = 218, `0x8232` = 15). L’écran « BRAVO !! » affiche `05 × 300 = 1500` pendant 305 images (score encore à 4940). Reprise à 16662 : le I + II + III continue à x = 112 (`0x822b` = 128, `0x822c` = 216, sprites à y = 192, 200 et 216), vies 3, score 6440. La butée gauche `0x822b` = 30 (x = 14) est tenue de 16753 au contact 16754. Destruction en vague, vies 3 → 2 à 17073, entrée du II + III (modules à y = 200 et 216 à 17451). Le tir, la hitbox et la butée droite du I + II + III n’ont pas été isolés (la gauche restait enfoncée dès la reprise).
 
+Le replay [solo-docking-i-ii-iii-tir.csv](replays/solo-docking-i-ii-iii-tir.csv) reprend `solo-docking-i-ii-iii-approche-c.csv` à l’identique jusqu’à l’amarrage réussi (16357) et la reprise (16662). À 16662, il relâche la gauche pour laisser le I + II + III à x = 112 et éviter le contact de 16754 à la butée gauche. Les essais de tir commencent à 16778, une fois l’entrée large remontée (sur `pr8c`, la vague apparaît à 16693). Deux taps de 5 images (16778 et 16793, écartés de 15 images) visent l’alternance et la superposition des volées. Un troisième tap à 16848, après une pause de 50 images, puis un appui à 16858 pendant que cette volée vole encore, et un maintien de 120 images à partir de 16928, reprennent le protocole de `pr6-tir-i-ii`. À 17058 le vaisseau pousse vers la butée droite (arrivée attendue à 17102 si le pas est de 2, soit x = 200 / `0x822b` = 216), tient le palier jusqu’à 17177, revient au centre à 17222, et reste immobile pour un contact contrôlé.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-tir.csv --frames 20000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 2 --output .reference\pr9-tir-i-ii-iii
+```
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.
