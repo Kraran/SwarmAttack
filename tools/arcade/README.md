@@ -156,6 +156,33 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii
 
 Relevé `pr9b-tir-i-ii-iii` : à 16664, `0x822b` passe encore de 128 à 126 sans commande, puis la droite le ramène et l’amène à `0x822b` = 216 (x = 200) à 16711. La butée tient tant que la droite reste enfoncée, et le vaisseau y reste après le relâchement de 17150. Le premier appui (16840, projectiles à 16841) lance la paire du groupe 1 : y = 195, écart 8, abscisses 191 et 207. C’est le même premier groupe qu’à x = 110 sur `pr9` : l’index est celui laissé par le I + II (dernier groupe 0 à 14721, même préfixe, sondé sur `pr7`). Le second appui (16855, projectiles à 16856) ajoute la paire du groupe 0 : y = 212, écart 12, abscisses 187 et 211, les deux volées en vol. L’appui de 16910, à l’image où le dernier créneau se vide, ne déclenche pas de volée ; celui de 16920 relance le groupe 1 à 16921. Le maintien de 16990 lance le groupe 0 à 16991, sans seconde volée tant que cette paire vole. Le maintien n’est pas suivi jusqu’à la disparition : contact à 17008. L’ennemi identifié en `0x8210`–`0x8212` (y, x) avance à x = 192 constant, +4 par image ; à 17007, (192, 208) reste à préfixe `0x60` (`0x8004` = 0) ; à 17008, (192, 212) passe à préfixe `0x00` (`0x8004` = 1, vies encore à 3). C’est un contact sur le flanc du module III (boîte ancrée à y = 208, dx = −8, dy = 4). `0x8004` reste à 1 jusqu’à 17169 (161 images) ; vies 3 → 2 à 17319, comme la baisse de compteur de `pr9` (17252), pas un second contact.
 
+## Captures finales
+
+Ces cinq captures visent les dernières constantes encore provisoires : les bords de la zone de capture I + II → III au-delà du point (8, −6), la hitbox du I + II au-delà du contact de `pr6b`, et la démonstration d’attraction. Les offsets sont ceux des relevés `pr8*` : (`0x822b` − 120, `0x822c` − 224), relevés au cran de contrôle.
+
+Pendant l’approche I + II → III, `pr8`, `pr8b` et `pr8c` ne présentent aucune frame figée : un cran tous les 4 images, à partir de 15332. Le modèle d’inertie du prototype (`docking.gd`, classe `Axis`), appliqué aux vitesses `0x8222`–`0x8223` et aux attentes `0x8224`–`0x8225`, reproduit image par image `0x822b`, `0x822c`, vitesses et attentes sur les trois relevés jusqu’au contact, avec les entrées du replay lues 1 à 4 images avant le cran (même résultat pour ces quatre décalages ; les nouveaux replays ne changent d’entrée que sur une frame de cran). Les deux replays d’approche ci-dessous reprennent `solo-docking-i-ii-iii-approche-c.csv` jusqu’à 15325, puis suivent une trajectoire calculée avec ce modèle. Les positions indiquées sont des prévisions, pas des mesures ; seule la capture fera foi.
+
+| Replay | Trajectoire prévue | Ce qu’elle mesure |
+| --- | --- | --- |
+| [solo-docking-i-ii-iii-capture-droite.csv](replays/solo-docking-i-ii-iii-capture-droite.csv) | Descente à droite (x ≥ 33 tant que y > −14), entrée dans la bande y ∈ [−6, −4] à x = 33–34 (points sans contact de `pr8`), puis balayage vers la gauche d’une unité tous les deux crans, y alternant entre −5 et −6 : x = 24 vers 15896, x = 8 vers 16024, x = 0 vers 16088. | Bord droit de la zone de capture (ou de la zone de collision) sur les rangées −5 et −6 : premier contact. |
+| [solo-docking-i-ii-iii-capture-gauche.csv](replays/solo-docking-i-ii-iii-capture-gauche.csv) | Passage au-dessus de la cible à y ≤ −14, descente à gauche (x ≤ −30 tant que y > −14), puis balayage vers la droite d’une unité tous les deux crans sur les mêmes rangées : x = −30 vers 16050, x = −10 vers 16228, x = 0 vers 16308, x = 8 vers 16372. | Bord gauche de la zone de capture (ou de la zone de collision) : premier contact. |
+| [solo-docking-i-ii-hitbox-gauche.csv](replays/solo-docking-i-ii-hitbox-gauche.csv) | `solo-docking-i-ii-hitbox.csv` à l’identique, puis gauche 11466–11469 : le vaisseau passe de `0x822b` = 130 à environ 122 avant l’arrivée de l’ennemi de `0x81e9`–`0x81ea`, qui balaie le bas de l’écran de droite à gauche. | Contact (ou raté) de cet ennemi sur un autre point du I + II que sur `pr6b`, si sa trajectoire ne dépend pas du déplacement tardif du vaisseau. |
+| [solo-docking-i-ii-hitbox-droite.csv](replays/solo-docking-i-ii-hitbox-droite.csv) | Idem avec droite 11466–11469 : `0x822b` vers 138, au-devant de l’ennemi. | Même ennemi, rencontré plus tôt et plus bas sur sa courbe. |
+| Scénario `attract` | Mise sous tension sans aucune entrée, 20 000 images. | Démonstration complète (enchaînement, durée, retour au titre) pour la reproduire. |
+
+```powershell
+git fetch origin
+git checkout captures-finales
+git pull
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-capture-droite.csv --frames 17000 --probe 8000-83ff --probe-from 15300 --snap-from 15300 --snap-every 2 --output .reference\pr10a-capture-i-ii-iii-droite
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-capture-gauche.csv --frames 17200 --probe 8000-83ff --probe-from 15300 --snap-from 15300 --snap-every 2 --output .reference\pr10b-capture-i-ii-iii-gauche
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-hitbox-gauche.csv --frames 13000 --probe 8000-83ff --probe-from 11400 --snap-from 11400 --snap-every 2 --output .reference\pr10c-hitbox-i-ii-gauche
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-hitbox-droite.csv --frames 13000 --probe 8000-83ff --probe-from 11400 --snap-from 11400 --snap-every 2 --output .reference\pr10d-hitbox-i-ii-droite
+python .\tools\arcade\capture.py --scenario attract --frames 20000 --probe 8000-83ff --snap-every 10 --output .reference\pr10e-attract
+```
+
+Restent hors de ce lot : le bord bas de la zone de capture I + II → III (il faudrait passer sous la cible), les bords de la zone de capture du module I vers le II (l’approche de `pr5c` présente des frames figées, 8 entre 10120 et 10215, absentes de `pr5b` : la cadence des crans dépend des entrées et ne se prévoit pas encore), et le cycle suivant après la vague 4 sans partenaire.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.
