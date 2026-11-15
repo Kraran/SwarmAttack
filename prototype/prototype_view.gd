@@ -3,6 +3,7 @@ extends Node2D
 const Pilot = preload("res://pilot.gd")
 const ArcadeRun = preload("res://arcade_run.gd")
 const Docking = preload("res://docking.gd")
+const Attract = preload("res://attract.gd")
 const MAX_CATCHUP_USEC := 8 * Pilot.FRAME_USEC
 const FIELD := Rect2(28, 24, 504, 672)
 const BACKGROUND := Color("#080f1c")
@@ -17,6 +18,8 @@ const ENEMY_CORE := Color("#b7e9ff")
 const LABEL_X := 568
 
 var _run := ArcadeRun.new()
+var _attract := Attract.new()
+var _attract_active := true
 var _last_usec := 0
 var _elapsed_usec := 0
 var _held := 0
@@ -80,6 +83,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _restart(practice: bool) -> void:
+	_attract_active = false
 	_run = ArcadeRun.new()
 	if practice:
 		_run.practice_docking()
@@ -118,14 +122,29 @@ func _process(_delta: float) -> void:
 	while _elapsed_usec >= Pilot.FRAME_USEC:
 		_last_input = _held | _pressed
 		_pressed = 0
-		_run.step(_last_input)
 		_elapsed_usec -= Pilot.FRAME_USEC
+		if _attract_active:
+			if _last_input & Pilot.FIRE:
+				_restart(false)
+				break
+			_attract.step()
+			continue
+		_run.step(_last_input)
+		if _run.game_over_finished():
+			_attract = Attract.new()
+			_attract_active = true
 	queue_redraw()
 
 
 func _draw() -> void:
 	draw_rect(FIELD, BACKGROUND)
 	draw_set_transform(FIELD.position, 0.0, FIELD.size / Vector2(Pilot.FIELD_SIZE))
+	if _attract_active:
+		_draw_attract()
+		draw_set_transform(Vector2.ZERO)
+		draw_rect(FIELD, BORDER, false, 1.0)
+		_draw_panel()
+		return
 	if _diagnostics:
 		_draw_grid()
 	if _run.phase == ArcadeRun.Phase.DOCKING:
@@ -234,6 +253,9 @@ func _draw_panel() -> void:
 	if not _focused:
 		_text(425, "En pause", 20, SHOT)
 		return
+	if _attract_active:
+		_draw_attract_panel()
+		return
 	if _run.phase == ArcadeRun.Phase.DOCKING:
 		_draw_docking_panel()
 		return
@@ -295,6 +317,83 @@ func _draw_readout() -> void:
 	if _last_input & Pilot.FIRE:
 		commands.append("tir")
 	_text(609, "Entrées    %s" % (" + ".join(commands) if not commands.is_empty() else "—"), 17, MUTED)
+
+
+func _field_text(center_x: float, y: float, label: String, color: Color, size := 8) -> void:
+	var width := ThemeDB.fallback_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
+	draw_string(ThemeDB.fallback_font, Vector2(center_x - width / 2.0, y), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, color)
+
+
+# Cycle d'attraction relevé sur pr10e. La démo rejoue les positions et les
+# états de la carte (attract_demo_data.gd) ; les ennemis ne sont pas reproduits.
+func _draw_attract() -> void:
+	match _attract.screen():
+		Attract.Screen.TITLE_TEXT:
+			var rows := [40, 56, 80, 96, 106]
+			for index in range(Attract.TITLE_LINES.size()):
+				var progress := _attract.title_line_progress(index)
+				if progress <= 0.0:
+					continue
+				var label: String = Attract.TITLE_LINES[index][0]
+				_field_text(112, rows[index], label.substr(0, ceili(label.length() * progress)), SHIP if index < 2 else SHOT)
+		Attract.Screen.SCORE_TABLE:
+			for index in range(Attract.SCORE_LINES.size()):
+				_field_text(112, 40 + index * 12, Attract.SCORE_LINES[index], PRIMARY if index == 0 else SHOT)
+		Attract.Screen.DEMO:
+			_draw_demo()
+
+
+func _draw_demo() -> void:
+	var screen_code := _attract.demo_value(Attract.Column.SCREEN)
+	var step := _attract.demo_value(Attract.Column.STEP)
+	var x := _attract.demo_value(Attract.Column.X)
+	var y := _attract.demo_value(Attract.Column.Y)
+	var docking := (step == 2 or step == 5) and screen_code == Attract.SCREEN_PLAY and _attract.demo_value(Attract.Column.CLOCK) != 0
+	if docking:
+		# Position d'approche : 0x822b − 16, 0x822c (comme Docking.display_position).
+		_draw_module(Vector2(Docking.TARGET.x, Docking.TARGET.y + 8), 2 if step == 2 else 3, ENEMY_CORE)
+		_draw_module(Vector2(x - 16, y), 1, SHIP)
+		if step == 5:
+			_draw_module(Vector2(x - 16, y + 8), 2, SHIP)
+		_field_text(112, 40, "CHRONO", SHOT)
+		_field_text(112, 52, _attract.demo_clock(), PRIMARY)
+	elif x != 0 and y != 0:
+		var attached := _attract.demo_attached()
+		var count := 0
+		for module in range(3):
+			if attached & (1 << module):
+				count += 1
+		# Affichage approché : nez du module supérieur à 0x822c − 24 pour un
+		# assemblage (192 et 208 relevés pour le I + II), 0x822c sinon.
+		var top := y - (24 if count > 1 else 0)
+		var row := 0
+		for module in range(1, 4):
+			if attached & (1 << (module - 1)):
+				_draw_module(Vector2(x - 16, top + row * 8), module, SHIP)
+				row += 1
+	if _attract.demo_volley():
+		draw_circle(Vector2(x - 16, y - 30), 2.0, SHOT)
+	match screen_code:
+		Attract.SCREEN_RESULT:
+			if step == 2:
+				_field_text(112, 60, "BONUS", SHIP)
+				_field_text(112, 72, "10 x 100 = 1000", SHIP)
+				_field_text(112, 150, "BRAVO !!", SHOT)
+			else:
+				draw_arc(Vector2(x - 16, y - 8), 10.0, 0.0, TAU, 16, SHOT, 1.0, true)
+		Attract.SCREEN_TIMEOUT, Attract.SCREEN_TIMEOUT_TEXT:
+			_field_text(112, 60, "DOMMAGE !!", SHIP)
+			_field_text(112, 72, "00:0", PRIMARY)
+
+
+func _draw_attract_panel() -> void:
+	const LABELS := ["Présentation", "Tableau des scores", "Démo"]
+	_text(425, "Attraction · %s" % LABELS[_attract.screen()], 20, PRIMARY)
+	_text(463, "Espace   Jouer", 17, SHOT)
+	if _attract.screen() == Attract.Screen.DEMO:
+		_text(510, "Vies %d   ·   étape %d" % [_attract.demo_value(Attract.Column.LIVES), _attract.demo_value(Attract.Column.STEP)], 17, MUTED)
+	if _diagnostics:
+		_text(543, "Image %d / %d" % [_attract.frame, _attract.cycle_length()], 17, MUTED)
 
 
 func _text(y: float, label: String, size: int, color: Color) -> void:

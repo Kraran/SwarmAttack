@@ -258,25 +258,44 @@ func _check_module_one_docks_with_two() -> void:
 	_expect(run.front_module() == 1, "Le module supérieur reste le I tant que l'amarrage n'est pas conclu")
 	print("OK vague 4 avec le module I : approche vers le module II")
 
+func _approach_tick(dock: Docking, offset: Vector2i, velocity: Vector2i, wait: Vector2i, input_mask: int) -> void:
+	dock.stage = Docking.Stage.APPROACH
+	dock.position = Docking.TARGET + offset
+	dock._horizontal.velocity = velocity.x
+	dock._horizontal.wait = wait.x
+	dock._vertical.velocity = velocity.y
+	dock._vertical.wait = wait.y
+	dock._advance_approach(input_mask)
+
+
 func _check_module_one_capture_from_pr5c() -> void:
-	# pr5c : au cran 10595, l'offset (13, -7) n'accroche pas ; au cran 10599,
-	# (14, -7) réussit. Le chrono affiché est 17:0, le bonus 17 × 100 = 1700.
+	# pr5c : au cran 10595, l'offset (13, -7) n'accroche pas. Au cran 10599,
+	# l'affichage reste à (14, -7) mais le cran porte le module à (14, -6)
+	# (vitesses 111/125, attentes 1/0, droite + tir) : contact. Le chrono
+	# affiché est 17:0, le bonus 17 × 100 = 1700.
+	var miss := Docking.new(1, Pilot.START_X, false)
+	miss.remaining_tenths = 172
+	miss.position = Docking.TARGET + Vector2i(13, -7)
+	miss._resolve_contact()
+	_expect(miss.stage == Docking.Stage.APPROACH, "pr5c frame 10595 : (13, -7) ne doit pas accrocher, stage=%s" % Docking.Stage.keys()[miss.stage])
+	var shown := Docking.new(1, Pilot.START_X, false)
+	shown.position = Docking.TARGET + Vector2i(14, -7)
+	shown._resolve_contact()
+	_expect(shown.stage == Docking.Stage.APPROACH, "La position affichée (14, -7) n'est pas celle du contact")
 	var dock := Docking.new(1, Pilot.START_X, false)
 	dock.remaining_tenths = 171
-	dock.position = Docking.TARGET + Vector2i(13, -7)
-	dock._resolve_contact()
-	_expect(dock.stage == Docking.Stage.APPROACH, "pr5c frame 10595 : (13, -7) ne doit pas accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
-	dock.position = Docking.TARGET + Vector2i(14, -7)
-	dock._resolve_contact()
-	_expect(dock.stage == Docking.Stage.SUCCESS, "pr5c frame 10599 : (14, -7) doit accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
+	_approach_tick(dock, Vector2i(14, -7), Vector2i(111, 125), Vector2i(1, 0), Pilot.RIGHT | Pilot.FIRE)
+	_expect(dock.stage == Docking.Stage.SUCCESS, "pr5c frame 10599 : le cran vers (14, -6) doit accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
 	_expect(dock.bonus == 1700, "Bonus 17 × 100 = 1700, obtenu %d" % dock.bonus)
 	_expect(dock.position == Docking.TARGET + Vector2i(8, -8), "Accrochage à (120, 208), obtenu %s" % str(dock.position))
-	var above := Docking.new(1, Pilot.START_X, false)
-	above.remaining_tenths = 171
-	above.position = Docking.TARGET + Vector2i(14, -8)
-	above._resolve_contact()
-	_expect(above.stage == Docking.Stage.APPROACH, "(14, -8) reste hors de la zone mesurée, stage=%s" % Docking.Stage.keys()[above.stage])
-	print("OK contact I + II : (13, -7) raté, (14, -7) réussi, bonus 1700")
+	# pr10e (démo), frame 2686 : affiché (6, -7), vitesses 171/64, attentes 0 :
+	# le cran donne (5, -6), contact, chrono 10:7, bonus 10 × 100 = 1000.
+	var demo := Docking.new(1, Pilot.START_X, false)
+	demo.remaining_tenths = 107
+	_approach_tick(demo, Vector2i(6, -7), Vector2i(171, 64), Vector2i(0, 0), Pilot.RIGHT)
+	_expect(demo.stage == Docking.Stage.SUCCESS, "Démo frame 2686 : le cran vers (5, -6) doit accrocher, stage=%s" % Docking.Stage.keys()[demo.stage])
+	_expect(demo.bonus == 1000, "Bonus de la démo 10 × 100 = 1000, obtenu %d" % demo.bonus)
+	print("OK contact I + II : (13, -7) raté, cran vers (14, -6) réussi (bonus 1700), démo (5, -6) (bonus 1000)")
 
 
 func _check_success_resumes_as_one_and_two() -> void:
@@ -464,7 +483,29 @@ func _check_i_ii_to_iii_capture_from_pr8c() -> void:
 	_expect(dock.stage == Docking.Stage.SUCCESS, "pr8c frame 16357 : (8, -6) doit accrocher, stage=%s" % Docking.Stage.keys()[dock.stage])
 	_expect(dock.bonus == 1500, "Bonus 05 × 300 = 1500, obtenu %d" % dock.bonus)
 	_expect(dock.position == Docking.TARGET + Vector2i(8, -6), "Le contact reste à (120, 210), obtenu %s" % str(dock.position))
-	print("OK contact I + II → III : (7, -7) raté, (8, -6) réussi, bonus 1500")
+	# pr10a : balayage vers la gauche sur les rangées -5 / -6, (15, -5) et
+	# (15, -6) ratés, (14, -6) contact à 15977, chrono 14:06, bonus 14 × 300.
+	# pr10b : balayage vers la droite, (1, -6) et (2, -5) ratés, (3, -6)
+	# contact à 16333, chrono 05:07, bonus 05 × 300.
+	for miss in [Vector2i(15, -5), Vector2i(15, -6), Vector2i(1, -6), Vector2i(2, -5), Vector2i(6, -8)]:
+		var outside := Docking.new(1, Pilot.START_X, false, 3)
+		outside.position = Docking.TARGET + miss
+		outside._resolve_contact()
+		_expect(outside.stage == Docking.Stage.APPROACH, "%s ne doit pas accrocher le I + II → III" % str(miss))
+	var right := Docking.new(1, Pilot.START_X, false, 3)
+	right.remaining_tenths = 146
+	right.position = Docking.TARGET + Vector2i(14, -6)
+	right._resolve_contact()
+	_expect(right.stage == Docking.Stage.SUCCESS, "pr10a frame 15977 : (14, -6) doit accrocher")
+	_expect(right.display_clock() == "14:6", "Chrono 14:6, obtenu %s" % right.display_clock())
+	_expect(right.bonus == 4200, "Bonus 14 × 300 = 4200, obtenu %d" % right.bonus)
+	var left := Docking.new(1, Pilot.START_X, false, 3)
+	left.remaining_tenths = 57
+	left.position = Docking.TARGET + Vector2i(3, -6)
+	left._resolve_contact()
+	_expect(left.stage == Docking.Stage.SUCCESS, "pr10b frame 16333 : (3, -6) doit accrocher")
+	_expect(left.bonus == 1500, "Bonus 05 × 300 = 1500, obtenu %d" % left.bonus)
+	print("OK contact I + II → III : rangée y = -6 de x = 3 à x = 14, (1, -6), (15, -6), (2, -5), (15, -5) ratés")
 
 
 func _check_success_resumes_as_one_two_and_three() -> void:
