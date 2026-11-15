@@ -238,7 +238,14 @@ func _resume_from_docking(input_mask: int) -> void:
 		_game_over_elapsed = 0
 		return
 	wave_number = WAVE_AFTER_DOCK
+	# pr7 + pr9b : le dernier tir du I + II avant l'intro (14721) est le
+	# groupe 0 ; à la reprise en I + II + III, le premier appui (16840,
+	# projectiles à 16841) forme le groupe 1 assemblé. L'index survit à
+	# l'amarrage. Un module sans groupes laisse l'index à 0, ce qui
+	# retrouve le groupe 0 mesuré après II → III.
+	var next_group := combat.pilot._next_group
 	_begin_combat(resume_x, 255)
+	combat.pilot._next_group = next_group
 	if i_ii_timeout_altitude:
 		combat.pilot.assembly_y_offset = 0
 	if input_mask & Pilot.FIRE:

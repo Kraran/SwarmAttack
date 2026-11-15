@@ -498,7 +498,25 @@ func _check_success_resumes_as_one_two_and_three() -> void:
 	_expect(run.combat.pilot.ship_x == Pilot.MIN_X, "La butée gauche du I + II + III est x = 14, obtenu %d" % run.combat.pilot.ship_x)
 	run.step(Pilot.LEFT)
 	_expect(run.combat.pilot.ship_x == Pilot.MIN_X, "La butée gauche tient tant que la gauche reste enfoncée")
-	print("OK réussite I + II → III : bonus 1500, 305 images, reprise à x = 112, vies 3, butée 14")
+	# pr7 + pr9b : le dernier groupe du I + II est le 0 (14721) ; à la reprise,
+	# le premier appui (16840) forme le groupe 1 assemblé (y = 195, écart 8).
+	run = _start_docking(3)
+	run.combat = CombatRound.new(4, 1, Pilot.START_X, 255, 3)
+	run.combat.pilot.step(Pilot.FIRE)
+	_expect(run.combat.pilot._next_group == 1, "Après le groupe 0 du I + II, l'index doit passer à 1")
+	run.combat.pilot.clear_shots()
+	run.docking.stage = Docking.Stage.SUCCESS
+	run.docking.bonus = 1500
+	for index in range(Docking.BONUS_HOLD):
+		run.step(0)
+	_expect(run.attached == 7 and run.combat.pilot._next_group == 1, "L'index 1 survit à l'amarrage réussi")
+	run.combat.pilot.ship_x = 200
+	run.combat.pilot.step(Pilot.FIRE)
+	var shots := run.combat.pilot.active_shots()
+	var left := Vector2i(191, 195)
+	var right := Vector2i(207, 195)
+	_expect(shots.size() == 2 and left in shots and right in shots, "Premier tir après reprise : groupe 1 à x = 200, obtenu %s" % str(shots))
+	print("OK réussite I + II → III : bonus 1500, 305 images, reprise à x = 112, vies 3, butée 14, premier tir groupe 1")
 
 
 func _check_life_lost_after_i_ii_and_iii() -> void:

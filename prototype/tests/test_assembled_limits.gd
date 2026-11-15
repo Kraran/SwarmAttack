@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_check_assembled_hitbox()
 	_check_i_ii_hitbox()
 	_check_i_ii_iii_hitbox()
+	_check_i_ii_iii_limits()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -54,6 +55,7 @@ func _enemy_at(position: Vector2i) -> CombatWave:
 	var enemy := CombatWave.Enemy.new()
 	enemy.alive = true
 	enemy.position = position
+	wave.enemies.clear()
 	wave.enemies.append(enemy)
 	return wave
 
@@ -97,4 +99,24 @@ func _check_i_ii_iii_hitbox() -> void:
 	# L'offset 16 ne s'applique qu'au I + II tant que 0x822c = 232.
 	# II et III, trop bas, ne reçoivent pas ce contact.
 	_expect(not hit.hits_attached(110, 6), "Le contact (116, 193) n'appartient pas au II + III")
-	print("OK hitbox I + II + III : raté à (116, 189), contact à (116, 193), offset 0")
+	# pr9b-tir-i-ii-iii, I + II + III immobile à x = 200. Table 0x8210–0x8212
+	# (y, x) : l'ennemi identifié sur le flanc du module III avance de +4 en y,
+	# x = 192 constant. À 17007, préfixe 0x60 à (192, 208), 0x8004 = 0 ;
+	# à 17008, préfixe 0x00 à (192, 212), 0x8004 = 1. La boîte du III reste
+	# ancrée à y = 208 (comme le II + III) : (192, 212) vaut dx = -8, dy = 4.
+	var hit_wall := _enemy_at(Vector2i(192, 212))
+	_expect(hit_wall.hits_attached(200, 7), "Frame 17008 : (192, 212) touche le module III")
+	_expect(not hit_wall.hits_attached(200, 3), "Le contact (192, 212) n'appartient pas au I + II")
+	print("OK hitbox I + II + III : raté à (116, 189), contacts à (116, 193) et (192, 212)")
+
+
+func _check_i_ii_iii_limits() -> void:
+	# pr9b-tir-i-ii-iii : arrivée à 16711, 0x822b = 216 (x = 200), tenue
+	# tant que la droite reste enfoncée, puis encore à 17150 après relâchement.
+	var right := Pilot.new(1, 196, 7)
+	for index in range(8):
+		right.step(Pilot.RIGHT)
+	_expect(right.ship_x == Pilot.MAX_X, "La butée droite du I + II + III est x = 200, obtenu %d" % right.ship_x)
+	right.step(Pilot.RIGHT)
+	_expect(right.ship_x == Pilot.MAX_X, "La butée droite tient tant que la droite reste enfoncée")
+	print("OK butée droite I + II + III : x = 200")
