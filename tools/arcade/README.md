@@ -321,9 +321,9 @@ python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot
 | +8, +9 | vy, vx signés |
 | +11 à +16 | Cap, virages restants, sens, pas droits, pas diagonaux, pas restants |
 
-**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues. `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
+**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues, ni à l’amarrage (même après une collision : `pr8`, `pr8b`), ni en fin de cycle (`pr11c` 17921). Ils repartent de zéro à l’entrée du module qui suit une perte de vie (`0x809b` = 0x01 ou 0x11), sur toutes les sondes concernées (`pr1-suite`, `pr10a-d`, `pr11a-d`). `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
 
-**Règles établies** (positions identiques à la RAM sur toute la durée des segments, hors dernier impact dont le crédit tombe après la fin du segment) :
+**Règles établies** (positions identiques à la RAM sur toute la durée des segments) :
 
 - Boucle (phase 1) : cap 15, 9 virages, sens conservé et pas (3, 3) avant le premier amarrage ; sens +1 et pas (1, 1) en 0x07/0x08.
 - Fin de formation : piqué si `0x823e` < `0x823d` (l’ennemi passe en phase 3 sans bouger, puis lance son piqué au pas suivant), sinon courbe de formation. Le premier ennemi ne part donc pas en piqué rectiligne.
@@ -342,7 +342,17 @@ python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot
 
 16 pas d’ouverture, un pas d’arrêt, puis chute jusqu’à y ≥ 256 : l’objet est posé à y = 0 (phase 4) et retiré au pas suivant. 200 points par objet abattu.
 
-**Rangées 0x0c et 0x0d** (relevé, non modélisé). Apparition à y = 0 aux x = 32, 56, 80, 104, 136, 160, 184, 208. Déplacement à chaque image de boucle. Descente d’ouverture, puis zigzags de 8 virages (caps 4 → 11 sens +1, puis 26 → 19 sens −1), cadence 2, pas (2, 2), drapeau 0x60. Piqué vertical (phase 3, vy = 4) jusqu’au haut de l’écran, puis réentrée près du vaisseau (`pr9` k2 : sortie à (60, 2), réapparition à (124, 2) avec `0x822b` = 128). Le choix du plongeur et la position de réentrée restent à établir.
+**Rangées 0x0c et 0x0d.** Modèle établi : 26 des 27 segments en rangée de `pr7`, `pr8*`, `pr9*`, `pr10a-b` et `pr11a-d` suivent la RAM sur toute leur durée, jusqu’à 1 110 images de boucle (`pr11d`). La seule exception est `pr11a` 16963 : l’objet abattu à 16962 n’est crédité qu’après la fin du segment, à la perte du module III. Les huit objets avancent à chaque image de boucle, dans l’ordre k0 à k7.
+
+- Apparition à l’horloge 32 en y = 0, aux x = 32, 56, 80, 104, 136, 160, 184, 208. Mêmes positions pour les survivants après une perte.
+- Ouverture : 16 pas verticaux (octet +4 de 16 à 0) à vy = 2, 3, 2, 3, 3, 2, 3, 2 selon l’objet. Phase 1 au dernier pas (horloge 48), puis phase 2 sans déplacement (49).
+- Zigzag (phase 2, octet +0 = 0x60) : courbes de 8 virages, cadence 2, pas (2, 2). Elles alternent entre les caps 4 → 11 au sens +1 et les caps 26 → 19 au sens −1. La première, à l’horloge 50, part au sens +1. Une courbe achevée (virages à 0, image sans déplacement) ou une réapparition enchaîne, à l’image suivante, la courbe de sens opposé.
+- Plongeur : à chaque image, le premier objet en phase 2 (dans l’ordre k0 à k7) passe en phase 3 si `0x823e` < `0x823d`. Il fait d’abord son pas normal, sans test de sortie (`pr11d` 17569 : piqué à y = 7). Le premier plongeur est donc k0 à l’horloge 50 ; ensuite, c’est le premier objet en phase 2 qui suit la sortie ou la destruction du précédent. `0x8242` passe à 0 au premier piqué.
+- Piqué (phase 3) : (0, +4) à chaque image, jusqu’à ce que y dépasse 255. `0x823e` baisse à la sortie.
+- Sortie (phase 4) : y < 8 ou 244 ≤ x < 252 après le pas. À l’image suivante, l’objet réapparaît à y inchangé en x = `0x822b` + (`0x8227` & 63) − 32, en phase 2. Ce calcul est vérifié sur les 302 réapparitions relevées (`0x8227` est l’horloge de vague). Si la courbe suivante le laisse encore à y < 8, il ressort et réapparaît de nouveau.
+- Impact : il est traité après le déplacement des huit objets. L’objet touché fait son dernier pas à l’image où il se fige, et `0x823e` baisse à la même image s’il plongeait (`pr11c` 16956 et 17417). Le plongeur suivant part à l’image d’après.
+- `0x8226` monte pendant les longues vagues en rangée (`pr11d` : 0 à 4), sans effet mesurable sur les déplacements. Son rôle n’est pas établi.
+- `0x823d` vaut 1 dans toutes les vagues en rangée relevées (cycle 1). Au cycle 2, rien n’a été relevé.
 
 ## Sonde de RAM
 

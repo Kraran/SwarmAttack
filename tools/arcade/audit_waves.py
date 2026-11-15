@@ -80,7 +80,7 @@ def build(P, start, mask, kindname):
             fr=None
             for g in range(s-25,s+1):
                 if g not in P or g-1 not in P: continue
-                if all(obj(P[h],k)==obj(P[g],k) for h in range(g,min(s+15,end))) and obj(P[g-2],k)!=obj(P[g],k):
+                if all(obj(P[h],k)==obj(P[g],k) for h in range(g,min(s+15,loops[-1]+1))) and obj(P[g-2],k)!=obj(P[g],k):
                     fr=g;break
             if fr is not None and kindname=='fall' and pos(P[fr],k)[1]==0: fr=None
             if fr is not None and (best is None or abs((s-fr)-10)<abs((s-best[1])-10)): best=(k,fr)
@@ -95,7 +95,9 @@ def build(P, start, mask, kindname):
     # assign each kill to the first loop frame >= freeze-1
     for kf,kl in kills.items():
         for i,f in enumerate(loops):
-            if f>=kf-1:
+            # Rangées : l'objet touché fait son dernier pas à l'image figée kf,
+            # l'impact s'applique avant le pas suivant.
+            if f>=(kf+1 if kindname=='row' else kf-1):
                 steps[i][1]+=kl; break
     return loops, steps, kills
 _PC={}
@@ -115,10 +117,14 @@ def run(segs):
 SEL=[('pr6b-hitbox-i-ii',10935,None,'0x07 après le premier amarrage, vaisseau mobile'),
      ('pr11c-cycle-vague-4-tir-precoce',20185,None,'0x14 cycle 2, cinq ennemis abattus'),
      ('pr11c-cycle-vague-4-tir-precoce',18337,None,'0x12 cycle 2, séparations et piqués'),
-     ('pr11c-cycle-vague-4-tir-precoce',19720,416,'0x13 cycle 2'),
+     ('pr11c-cycle-vague-4-tir-precoce',19720,None,'0x13 cycle 2, sept abattus'),
      ('pr11b-cycle-vague-4-patrouille',29507,None,'0x03 démo'),
      ('pr7-amarrage-i-ii-iii',14164,None,'0x09 objets en chute'),
-     ('pr7-amarrage-i-ii-iii',14503,None,'0x0a objets en chute')]
+     ('pr7-amarrage-i-ii-iii',14503,None,'0x0a objets en chute'),
+     ('pr11d-cycle-vague-4-immobile',16693,None,'0x0c rangée, vaisseau immobile, sept abattus'),
+     ('pr11c-cycle-vague-4-tir-precoce',17157,None,'0x0d rangée, huit abattus'),
+     ('pr11b-cycle-vague-4-patrouille',16693,None,'0x0c rangée, sorties latérales'),
+     ('pr9-tir-i-ii-iii',17668,None,'0x0c rangée, cinq survivants, motifs remis à zéro')]
 
 def checkpoints(probes):
     out=[]

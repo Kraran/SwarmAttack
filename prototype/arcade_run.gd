@@ -80,10 +80,14 @@ var _counter_dropped := false
 var _game_over_elapsed := 0
 var _docking_life_taken := false
 var _entrance_alive_mask := -1
-# Compteurs de motifs 0x8242-0x8247, conservés d'une vague à l'autre (pr7,
-# pr11c). Remise à zéro en début de partie : PROVISOIRE (non relevée ; nuls au
-# début de la démo, pr11a 29763).
+# Compteurs de motifs 0x8242-0x8247, conservés d'une vague à l'autre et à
+# travers l'amarrage et la fin de cycle (pr7, pr8, pr8b, pr11c). Ils sont remis
+# à zéro à l'entrée du module qui suit une perte de vie (0x809b = 0x01 ou 0x11 :
+# pr1-suite 5504 et 8379, pr10a-d, pr11a-d), pas après une collision
+# d'amarrage. Nuls au début de la démo (pr1-suite 10246) ; début de partie :
+# PROVISOIRE, supposé identique.
 var _patterns: Array = [0, 0, 0, 0, 0, 0]
+var _reset_patterns := false
 
 
 func front_module() -> int:
@@ -269,6 +273,7 @@ func _advance_replacement() -> void:
 	if not _counter_dropped and elapsed >= COUNTER_DROP_FRAMES:
 		lives -= 1
 		_counter_dropped = true
+		_reset_patterns = true
 		attached = _next_attached_after_loss()
 		if lives <= 0:
 			phase = Phase.GAME_OVER
@@ -387,6 +392,9 @@ func _begin_combat(ship_x: int, alive_mask: int) -> void:
 	_previous_score += combat.score
 	if not combat.wave.enemies.is_empty():
 		_patterns = combat.wave.patterns()
+	if _reset_patterns:
+		_patterns = [0, 0, 0, 0, 0, 0]
+		_reset_patterns = false
 	combat = CombatRound.new(
 		wave_number, front_module(), ship_x, alive_mask, attached, points_per_hit(),
 		stage, max_divers(), _patterns
