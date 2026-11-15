@@ -298,7 +298,51 @@ Ces relevés ne montrent aucune accélération au cycle 2. Après la perte du mo
 
 L’entrée « II + III » retenue jusqu’ici pour `pr8c` était fausse.
 
-**Écarts relevés, non reproduits.** Après le premier amarrage, la borne enchaîne 0x07 à 0x0a, soit quatre étapes. Le prototype n’en joue que deux. Les entrées de 0x07/0x08 et de 0x0c/0x0d ne suivent pas le modèle des vagues 3 et 4. `0x8226` monte de 1 à 4 toutes les 281 à 284 images pendant la longue vague 0x0c de `pr11d` (16970, 17251, 17535, 17819) ; son rôle n’est pas établi.
+**Écarts relevés, non reproduits.** Les entrées de 0x0c/0x0d ne suivent pas le modèle des vagues 3 et 4. `0x8226` monte de 1 à 4 toutes les 281 à 284 images pendant la longue vague 0x0c de `pr11d` (16970, 17251, 17535, 17819) ; son rôle n’est pas établi. Les étapes 0x07 à 0x0a sont reprises dans la section suivante.
+
+## Audit des vagues en RAM
+
+`audit_waves.py` découpe toutes les sondes `8000-83ff` en segments de vague et les rejoue dans `combat_wave.gd` (via `prototype/tests/run_wave.gd`), au pas de `0x8005`, avec la position du vaisseau, les impacts et les crédits relevés.
+
+```powershell
+python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot_v4.7.2-stable_win64.exe
+```
+
+**Objet ennemi** (`0x8184 + 20k`, k = 0 à 7) :
+
+| Octet | Contenu |
+| --- | --- |
+| +0 | Drapeaux de courbe : 0x10 à l’entrée, 0x22 en retour, 0x03/0x04/0x06/0x07 en piqué, 0x60 en rangée |
+| +1, +2 | y, x |
+| +3 | Phase : 0 entrée ou ouverture, 1 boucle, 2 formation, 3 piqué, 4 sortie ou retour |
+| +4 | Compteur d’ouverture ou d’attente (16 à 0) |
+| +5 | Partenaire présent (vagues étroites) |
+| +6, +7 | Cadence et reste |
+| +8, +9 | vy, vx signés |
+| +11 à +16 | Cap, virages restants, sens, pas droits, pas diagonaux, pas restants |
+
+**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues. `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
+
+**Règles établies** (positions identiques à la RAM sur toute la durée des segments, hors dernier impact dont le crédit tombe après la fin du segment) :
+
+- Boucle (phase 1) : cap 15, 9 virages, sens conservé et pas (3, 3) avant le premier amarrage ; sens +1 et pas (1, 1) en 0x07/0x08.
+- Fin de formation : piqué si `0x823e` < `0x823d` (l’ennemi passe en phase 3 sans bouger, puis lance son piqué au pas suivant), sinon courbe de formation. Le premier ennemi ne part donc pas en piqué rectiligne.
+- Choix du piqué : zone lointaine si x < `0x822b` − 32 ou x ≥ `0x822b` + 32 (`0x822b` = x du vaisseau + 16). Bande y = 128–159 : 63 virages, pas (4, 4), sans accélération, avec saut de virage (drapeau 0x03).
+- Retour (phase 4, avant le premier amarrage) : le virage est sauté quand virages restants & 7 = 2, et les pas droits et diagonaux gagnent 1 quand virages restants & 15 = 0 ; le sens ne s’inverse pas.
+- Sortie en 0x07/0x08 : un pas sur place, réapparition en ((x & 63) + 80, (y & 63) + 64), attente de 16 pas (octet +4), phase 1, puis boucle (130 sorties relevées).
+- Vagues étroites (`pr11c`, 0x12 et 0x13) : au pas de l’impact, le partenaire poursuit son mouvement ; au pas suivant, courbe cap 1, sens ±1 selon l’horloge, 30 virages, pas (1, 2), en phase 3 ; puis piqué. Les ennemis en formation plongent quand `0x823c` passe sous 5, au pas qui suit le crédit.
+- 0x09 et 0x0a (`pr7`) : paires k3/k7, k2/k6, k1/k5, k0/k4, lancées au pas qui suit la résolution de la paire précédente.
+
+| Objet | Départ | Pas (vx, vy) |
+| --- | --- | --- |
+| k3 / k7 | (144, 80) / (80, 128) | (−4, 6) / (4, 6) |
+| k2 / k6 | (64, 32) / (192, 112) | (3, 6) / (−4, 5) |
+| k1 / k5 | (176, 32) / (80, 64) | (−3, 6) / (2, 4) |
+| k0 / k4 | (32, 48) / (160, 96) | (4, 6) / (−3, 6) |
+
+16 pas d’ouverture, un pas d’arrêt, puis chute jusqu’à y ≥ 256 : l’objet est posé à y = 0 (phase 4) et retiré au pas suivant. 200 points par objet abattu.
+
+**Rangées 0x0c et 0x0d** (relevé, non modélisé). Apparition à y = 0 aux x = 32, 56, 80, 104, 136, 160, 184, 208. Déplacement à chaque image de boucle. Descente d’ouverture, puis zigzags de 8 virages (caps 4 → 11 sens +1, puis 26 → 19 sens −1), cadence 2, pas (2, 2), drapeau 0x60. Piqué vertical (phase 3, vy = 4) jusqu’au haut de l’écran, puis réentrée près du vaisseau (`pr9` k2 : sortie à (60, 2), réapparition à (124, 2) avec `0x822b` = 128). Le choix du plongeur et la position de réentrée restent à établir.
 
 ## Sonde de RAM
 

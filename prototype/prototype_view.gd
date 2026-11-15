@@ -234,6 +234,12 @@ func _draw_enemies() -> void:
 		if _diagnostics:
 			var hitbox := Rect2(Vector2(enemy.position) - Vector2(17, 4), Vector2(16, 12))
 			draw_rect(hitbox.intersection(Rect2(Vector2.ZERO, Vector2(Pilot.FIELD_SIZE))), ENEMY.darkened(0.65), false)
+		if _run.combat.wave.falling:
+			# Objet en chute (0x09, 0x0a) : losange, forme provisoire.
+			var diamond := PackedVector2Array([point + Vector2(0, -7), point + Vector2(4, 0), point + Vector2(0, 7), point + Vector2(-4, 0)])
+			draw_colored_polygon(diamond, ENEMY.darkened(0.3))
+			draw_circle(point, 2.0, ENEMY_CORE, true, -1.0, true)
+			continue
 		var tint := SHOT if _run.combat.wave.wide_entry else ENEMY
 		draw_arc(point, 6.0, 0.0, TAU, 14, tint, 1.0, true)
 		draw_line(point - Vector2(7, 0), point + Vector2(7, 0), ENEMY, 1.0)
@@ -280,7 +286,7 @@ func _draw_panel() -> void:
 			else:
 				_text(425, "Vaisseau perdu", 20, SHOT)
 		_:
-			_text(425, "Cycle %d · vague %d / %d" % [_run.cycle, _run.wave_number, ArcadeRun.WAVES_BEFORE_DOCK], 20, PRIMARY)
+			_text(425, "Cycle %d · vague %d / %d" % [_run.cycle, _run.wave_number, _run.last_wave()], 20, PRIMARY)
 	_text(463, "%03d points   ·   %d cibles   ·   Vies %d" % [
 		_run.score(), _run.combat.wave.remaining, _run.lives
 	], 17, MUTED)

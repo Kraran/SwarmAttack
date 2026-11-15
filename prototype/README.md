@@ -16,8 +16,9 @@ Le prototype démarre sur le cycle d’attraction relevé. Espace lance une part
 
 | Étape | Comportement du prototype | Validation contre Jeutel |
 | --- | --- | --- |
-| Vagues 1 et 2 | Quatre paires entrent en formation. Chaque moitié détruite rapporte 50 points. Les survivants se séparent et plongent. | Module I et première vague, voir ci-dessous. |
-| Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. | `pr11c`, vague 0x14 (troisième vague du cycle 2) : positions identiques au modèle sur 120 images de boucle, jusqu’au premier impact. La vague 0x15 s’en écarte dès la 48e image de boucle, sans impact. |
+| Vagues 1 et 2 | Quatre paires entrent en formation. Chaque moitié détruite rapporte 50 points. Le partenaire d’un ennemi abattu poursuit son mouvement un pas, prend la courbe (cap 1, 30 virages, pas (1, 2)) en phase de piqué au pas suivant, puis plonge. Sous 5 survivants (compte `0x823c`, décrémenté au crédit des points), les ennemis en formation plongent au pas qui suit le crédit. | Module I et première vague, voir ci-dessous. `pr11c` 0x12 et 0x13 : positions identiques à la RAM sur toute la vague (430 et 416 images de boucle, impacts et crédits relevés). |
+| Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. Boucle (cap 15, 9 virages) dans le sens d’entrée, pas (3, 3). En fin de formation, un ennemi plonge si le nombre de plongeurs (`0x823e`) est sous le maximum (`0x823d` : 1 au cycle 1, 2 au cycle 2), sinon il enchaîne une courbe de formation. Piqué : zone proche ou lointaine selon `0x822b` (x + 16) ; bande y = 128–159 en 63 virages (4, 4) avec saut de virage. Courbes de retour avec saut de virage et pas +1 tous les 16 virages. Compteurs de motifs conservés d’une vague à l’autre. | `tools/arcade/audit_waves.py` : 0x14 et 0x15 (`pr11c`) et la vague de la démo (0x03, `pr11a`, `pr11b`) identiques à la RAM sur toute leur durée. |
+| Étape après le premier amarrage | 0x07 et 0x08 : entrée large à 60 points, paires 3 et 4 en (3, 3) et (4, 4) à la cadence 1. Boucle toujours dans le sens +1, pas (1, 1). Un ennemi sorti reste un pas sur place, réapparaît en ((x & 63) + 80, (y & 63) + 64), attend 16 pas immobile, puis reprend sa boucle. 0x09 et 0x0a : huit objets en chute lancés par paires (k3/k7, k2/k6, k1/k5, k0/k4) à position et vitesse fixes, 16 pas d’ouverture, un pas d’arrêt, puis chute rectiligne jusqu’à la sortie par le bas ; 200 points. Puis le second amarrage. | `pr5c`, `pr6`, `pr6b`, `pr7`, `pr10c`, `pr10d`, `pr1-suite`, `pr3` : 0x07 et 0x08 identiques à la RAM (jusqu’à 1 340 images de boucle). `pr7` : 0x09 et 0x0a identiques sur 305 et 311 images. La hitbox des objets en chute et leur contact avec le vaisseau reprennent ceux des ennemis : provisoire. |
 | Perte d’un module | Le compteur de vies (`0x8097`, départ à 3) baisse d’une unité après 289 images de boucle (161 + 127 + 1). Le module suivant monte en 378 images (25 caché, 136 de montée de y = 255 à 120, 137 d’arrêt à mi-hauteur, 80 de descente jusqu’à y = 200). Après la perte du module I, le II prend le relais. Après celle du vaisseau II + III, le II seul repart. Après celle du vaisseau I + II, le I seul repart. La perte du II seul, dans le relevé, ramène le compteur à 0. | Recoupé sur les traces `pr1-suite` au rythme de `0x8005`. Les 292 images murales de la dernière perte viennent de 3 frames figées. |
 | Modules II et III seuls | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. | Inchangé. |
 | Vaisseau II + III | Tir alterné de deux paires, les deux pouvant voler ensemble. Premier appui : écart 12, y = 212. Appui suivant : écart 8, y = 195. Après une reprise, le premier groupe part (le groupe 1 peut déjà être occupé par les projectiles figés avant l’amarrage). Un appui est refusé tant que son groupe est en vol. Un maintien commencé pendant le vol et poursuivi après la disparition ne déclenche pas de volée différée : un nouvel front d’appui est nécessaire. | `pr1-suite` (motif) et `pr2-held-fire` (maintien), au rythme de `0x8005`. |
@@ -42,8 +43,10 @@ Le prototype démarre sur le cycle d’attraction relevé. Espace lance une part
 
 Écarts connus avec la borne, relevés mais pas encore reproduits :
 
-- Après le premier amarrage, la borne enchaîne quatre étapes (`0x809b` = 0x07 à 0x0a) avant le second amarrage. Le prototype n’en joue que deux. Sur `pr7`, 0x07 et 0x08 comptent 8 ennemis à 60 points. Leur entrée (117/123, 128) s’écarte du modèle dès la 34e image de boucle. 0x09 et 0x0a valent 200 points par ennemi, avec deux objets à l’apparition, (144, 80) et (128, 80), et 2 puis 3 ennemis abattus.
-- Après le second amarrage, les vagues 0x0c et 0x0d entrent en rangée (x = 32, 56, …, 208), avec des plongeons verticaux à +4 par image. Le prototype joue l’entrée large des vagues 3 et 4.
+- Après le second amarrage, les vagues 0x0c et 0x0d entrent en rangée (x = 32, 56, …, 208) et se déplacent à chaque image de boucle, en zigzags de 8 virages (caps 4 à 11 puis 26 à 19, cadence 2, pas (2, 2)), avec des piqués verticaux à +4 par image et une réentrée près du vaisseau. Le prototype joue encore l’entrée large des vagues 3 et 4. Relevés disponibles (`pr7`, `pr8*`, `pr9*`, `pr10*`, `pr11*`), modèle à établir.
+- Le délai entre l’impact et le crédit des points varie de 9 à 16 images de boucle selon les relevés ; le prototype garde 10. Les décisions qui lisent `0x823c` (moins de 5 survivants, paire suivante des objets en chute) peuvent donc partir un pas plus tôt ou plus tard.
+- Sur `pr1-suite` (0x05, survivants après une perte), la boucle garde la cadence 2 de l’entrée au lieu de 1 (3 cas). Cause non établie.
+- Remise à zéro des compteurs de motifs en début de partie et maximum de plongeurs au-delà du cycle 2 : provisoires.
 
 La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
 
@@ -58,7 +61,10 @@ Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 
 & $godot --headless --path prototype --script res://tests/test_i_ii_fire.gd
 & $godot --headless --path prototype --script res://tests/test_attract.gd
 & $godot --headless --path prototype --script res://tests/test_cycle.gd
+& $godot --headless --path prototype --script res://tests/test_waves.gd
 ```
+
+`test_waves.gd` rejoue sept segments relevés en RAM (`tests/wave_checkpoints.gd`) et compare les huit objets toutes les 8 images de boucle. L’audit complet contre toutes les sondes se lance avec `python tools/arcade/audit_waves.py .reference --godot <chemin de Godot>` ; `--checkpoints` régénère les points de contrôle.
 
 ## Comparaison avec Jeutel
 

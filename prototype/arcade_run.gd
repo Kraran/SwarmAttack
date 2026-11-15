@@ -35,6 +35,12 @@ const POINTS_NARROW := 50
 const POINTS_WIDE := 30
 const POINTS_AFTER_FIRST_DOCK := 60
 const POINTS_AFTER_SECOND_DOCK := 100
+# 0x809b = 0x09 et 0x0a (pr7) : objets en chute à 200 points (score 3940 → 4140
+# à 14258, 4540 → 4740 à 14743).
+const POINTS_FALLING := 200
+# Après le premier amarrage, quatre vagues avant le second : 0x07 et 0x08 à
+# entrée large (vagues 3 et 4), puis 0x09 et 0x0a d'objets en chute (5 et 6).
+const LAST_WAVE_AFTER_FIRST_DOCK := 6
 # Fin de cycle, relevée sur pr11c (images de boucle depuis le crédit du dernier
 # ennemi de la vague 0x0d, 17603) : 0x809b passe à 0x0e (+1), écran 0x80 puis 0xC0
 # (+2 à +31), vaisseau immobile ; à +33 il monte d'une unité par image (0x822c de
@@ -74,6 +80,10 @@ var _counter_dropped := false
 var _game_over_elapsed := 0
 var _docking_life_taken := false
 var _entrance_alive_mask := -1
+# Compteurs de motifs 0x8242-0x8247, conservés d'une vague à l'autre (pr7,
+# pr11c). Remise à zéro en début de partie : PROVISOIRE (non relevée ; nuls au
+# début de la démo, pr11a 29763).
+var _patterns: Array = [0, 0, 0, 0, 0, 0]
 
 
 func front_module() -> int:
@@ -147,6 +157,8 @@ func cycle_end_shows_message() -> bool:
 
 
 func points_per_hit(wave := wave_number, at_stage := stage) -> int:
+	if wave >= 5:
+		return POINTS_FALLING
 	if at_stage >= 2:
 		return POINTS_AFTER_SECOND_DOCK
 	if at_stage == 1:
@@ -202,8 +214,17 @@ func step(input_mask: int) -> void:
 			_advance_cycle_end()
 
 
+# 0x823d : 1 au cycle 1, 2 au cycle 2 (pr11c). Au-delà : PROVISOIRE, borné à 2.
+func max_divers() -> int:
+	return mini(cycle, 2)
+
+
+func last_wave() -> int:
+	return LAST_WAVE_AFTER_FIRST_DOCK if stage == 1 else WAVES_BEFORE_DOCK
+
+
 func _advance_from_clear() -> void:
-	if wave_number < WAVES_BEFORE_DOCK:
+	if wave_number < last_wave():
 		wave_number += 1
 		_begin_combat(combat.pilot.ship_x, 255)
 	elif stage >= 2:
@@ -364,5 +385,10 @@ func _resume_from_docking(input_mask: int) -> void:
 
 func _begin_combat(ship_x: int, alive_mask: int) -> void:
 	_previous_score += combat.score
-	combat = CombatRound.new(wave_number, front_module(), ship_x, alive_mask, attached, points_per_hit())
+	if not combat.wave.enemies.is_empty():
+		_patterns = combat.wave.patterns()
+	combat = CombatRound.new(
+		wave_number, front_module(), ship_x, alive_mask, attached, points_per_hit(),
+		stage, max_divers(), _patterns
+	)
 	phase = Phase.COMBAT
