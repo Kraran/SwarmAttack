@@ -20,7 +20,22 @@ const HEADINGS := [
 	Vector2i(4, 4), Vector2i(3, 5), Vector2i(1, 4), Vector2i(0, 3)
 ]
 
-enum Flight { OPENING, ENTRY_CURVE, FORMATION, DIVE, STRAIGHT_DIVE, RETURNING, CIRCLING }
+enum Flight { OPENING, ENTRY_CURVE, FORMATION, DIVE, STRAIGHT_DIVE, RETURNING, CIRCLING, FALL_PAUSE, FALL, FALL_EXIT }
+
+# Vagues 0x09 et 0x0a (pr7, 14132-14819) : huit objets lancés par paires, à
+# position et vitesse fixes (octets +1, +2, +8, +9 de l'objet), dans l'ordre
+# k3/k7, k2/k6, k1/k5, k0/k4. Une paire part au pas qui suit la résolution
+# (sortie ou crédit) de la précédente : 0x823c passe à 6, 4, 2 aux images
+# 14228, 14311, 14393, paires lancées à 14230, 14313, 14395.
+const FALL_PAIRS := [[3, 7], [2, 6], [1, 5], [0, 4]]
+const FALL_STARTS := [
+	Vector2i(32, 48), Vector2i(176, 32), Vector2i(64, 32), Vector2i(144, 80),
+	Vector2i(160, 96), Vector2i(80, 64), Vector2i(192, 112), Vector2i(80, 128)
+]
+const FALL_STEPS := [
+	Vector2i(4, 6), Vector2i(-3, 6), Vector2i(3, 6), Vector2i(-4, 6),
+	Vector2i(-3, 6), Vector2i(2, 4), Vector2i(-4, 5), Vector2i(4, 6)
+]
 
 class Enemy:
 	var position: Vector2i
@@ -39,29 +54,82 @@ class Enemy:
 	var separate_at := 0
 	var cadence := 1
 	var cadence_left := 1
+	var return_wait := 0
+	# Courbe de retour (octet +0 = 0x22) : saut de virage comme les courbes
+	# inversées, sans changement de sens, et pas +1 tous les 16 virages.
+	var return_curve := false
 
 	func display_position() -> Vector2:
 		return Vector2(position.x - 8, position.y + 8)
 
 var enemies: Array[Enemy] = []
+# Vague d'objets en chute (0x809b = 0x09 et 0x0a, numéros de vague 5 et 6).
+var falling := false
+var _next_pair := 0
 var remaining: int
 var points_per_hit: int
 var wide_entry: bool
 var _alive_mask: int
+# Étape du cycle (amarrages franchis) : choisit la variante d'entrée.
+var stage := 0
 var _wave_clock := 0
+# Compteurs de motifs, rangés en RAM de 0x8242 (formation) à 0x8246 (piqués,
+# quatre zones) puis 0x8247 (retour). Ils ne sont pas remis à zéro entre les
+# vagues (pr7, pr11c) : ArcadeRun les transmet d'une vague à la suivante.
 var _dive_patterns := [0, 0, 0, 0]
 var _return_pattern := 0
 var _formation_pattern := 0
+# Plongeurs simultanés : 0x823e compte les ennemis en piqué (phase RAM 3) et
+# 0x823d en fixe le maximum, 1 au cycle 1 et 2 au cycle 2 (pr11c, 0x809b = 0x11
+# et suivants). Un ennemi en fin de formation part en piqué si la place est
+# libre, sinon il enchaîne une courbe de formation.
+var max_divers := 1
+var divers := 0
+# 0x823c : survivants, décrémenté au crédit des points.
+var credited_remaining := 0
 
 
-func _init(wave_number := 1, alive_mask := 255) -> void:
-	wide_entry = wave_number >= 3
-	points_per_hit = 30 if wide_entry else 50
+func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> void:
+	stage = at_stage
+	falling = wave_number >= 5
+	wide_entry = wave_number >= 3 and not falling
+	points_per_hit = points if points > 0 else (30 if wide_entry else 50)
 	_alive_mask = alive_mask
 	remaining = 0
 	for slot in range(8):
 		if alive_mask & (1 << slot):
 			remaining += 1
+	credited_remaining = remaining
+
+
+func patterns() -> Array:
+	return [_formation_pattern] + _dive_patterns + [_return_pattern]
+
+
+func load_patterns(values: Array) -> void:
+	if values.size() != 6:
+		return
+	_formation_pattern = int(values[0])
+	_dive_patterns = [int(values[1]), int(values[2]), int(values[3]), int(values[4])]
+	_return_pattern = int(values[5])
+
+
+# Crédit d'un ennemi abattu (CombatRound, SCORE_DELAY images après l'impact).
+func credit_kill() -> void:
+	credited_remaining -= 1
+
+
+func kill(index: int) -> void:
+	var enemy := enemies[index]
+	if not enemy.alive:
+		return
+	enemy.alive = false
+	remaining -= 1
+	_alive_mask &= ~(1 << index)
+	if wide_entry and enemy.phase == Flight.DIVE:
+		divers -= 1
+	if not wide_entry and not falling and not (index & 1):
+		enemies[index + 1].separate_at = _wave_clock + 4
 
 
 func survivors() -> int:
@@ -72,6 +140,9 @@ func advance(frame: int, ship_x: int) -> void:
 	if frame in OPENING_CLOCK_HOLDS:
 		return
 	_wave_clock += 1
+	if falling:
+		_advance_falling()
+		return
 	if _wave_clock == SPAWN_FRAME:
 		for index in range(8):
 			var enemy := Enemy.new()
@@ -91,7 +162,9 @@ func advance(frame: int, ship_x: int) -> void:
 		return
 	for enemy in enemies:
 		if enemy.alive:
-			_advance_enemy(enemy, ship_x + 8)
+			# Référence des piqués : 0x822b (x + 16). pr11c 20306 (x = 158, 0x822b =
+			# 128 : zone proche) et pr7 11013 (x = 90, 0x822b = 130 : zone lointaine).
+			_advance_enemy(enemy, ship_x + 16)
 
 
 func hit_by(shot: Vector2i) -> Enemy:
@@ -104,11 +177,7 @@ func hit_by(shot: Vector2i) -> Enemy:
 			continue
 		var distance := bullet - enemy.position
 		if distance.x >= 0 and distance.x < 16 and distance.y >= 0 and distance.y < 12:
-			enemy.alive = false
-			remaining -= 1
-			_alive_mask &= ~(1 << index)
-			if not wide_entry and not (index & 1):
-				enemies[index + 1].separate_at = _wave_clock + 2
+			kill(index)
 			return enemy
 	return null
 
@@ -130,7 +199,16 @@ func hits_ship(ship_x: int, module := 1) -> bool:
 # le bas du module II (table d'objets 0x81e9–0x81ea). Après l'expiration
 # I + II → III (pr7, 0x822c = 216), l'offset revient à 0 (y = 192 et 200).
 func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
-	for module in range(1, 4):
+	return hit_module(ship_x, attached, y_offset) != 0
+
+
+# Module touché, testé du III vers le I (0 si aucun contact). Relevé sur le
+# I + II + III : ennemi à y = 193 ou 196 au contact (pr8c, pr9, pr10b), le
+# module I est détruit (0x8140 = 0) ; à y = 209, 212 ou 218 (pr9b, pr10a,
+# pr11a, pr11b), le module III l'est (0x814a = 0), alors que la boîte du II
+# couvre aussi ces points. Un contact attribué au II n'a pas été relevé.
+func hit_module(ship_x: int, attached: int, y_offset := 0) -> int:
+	for module in range(3, 0, -1):
 		if not (attached & (1 << (module - 1))):
 			continue
 		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
@@ -141,8 +219,8 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 		if attached == 7 and module == 1:
 			top = -2
 		if _hits_module_box(ship_x, module, top, y_offset if attached == 3 else 0):
-			return true
-	return false
+			return module
+	return 0
 
 
 func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool:
@@ -160,10 +238,16 @@ func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool
 
 
 func _advance_enemy(enemy: Enemy, ship: int) -> void:
+	# Séparation du partenaire (vagues étroites, pr11c 18447-18451 et
+	# 19739-19743) : au pas de la destruction il poursuit son mouvement ; au
+	# pas suivant il passe en phase 3 avec la courbe (cap 1, sens selon
+	# l'horloge, 30 virages, pas (1, 2)) ; au pas d'après il lance son piqué.
 	if enemy.separate_at > 0 and _wave_clock >= enemy.separate_at:
 		enemy.separate_at = 0
-		enemy.phase = Flight.FORMATION
+		_start_curve(enemy, 1, -1 if _wave_clock & 2 else 1, 30, 1, 2)
+		enemy.phase = Flight.DIVE
 		enemy.turns_left = 0
+		return
 	if enemy.phase == Flight.OPENING:
 		_move(enemy)
 		enemy.opening_left -= 1
@@ -172,6 +256,21 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 		return
 
 	var phase := enemy.phase
+	if phase == Flight.RETURNING and stage == 1:
+		# Après le premier amarrage, l'ennemi sorti (phase RAM 4) reste un pas
+		# sur place, réapparaît en ((x & 63) + 80, (y & 63) + 64) au pas
+		# suivant, attend 16 pas immobile (octet +4 de l'objet, de 0x10 à 0),
+		# passe en phase 1 au pas où le compteur s'annule, puis lance sa boucle.
+		# Relevé sur 130 sorties (pr1-suite, pr2, pr3, pr5b, pr6, pr7, pr10c-d).
+		if enemy.return_wait == 0:
+			enemy.position = Vector2i((enemy.position.x & 63) + 80, (enemy.position.y & 63) + 64)
+			enemy.return_wait = 16
+			return
+		enemy.return_wait -= 1
+		if enemy.return_wait == 0:
+			enemy.phase = Flight.CIRCLING
+			enemy.turns_left = 0
+		return
 	if phase == Flight.STRAIGHT_DIVE:
 		_move(enemy)
 		_check_exit(enemy)
@@ -192,8 +291,17 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 					_start_curve(enemy, 1, -enemy.turn, 47, 1, 1)
 				else:
 					_start_curve(enemy, 15, -enemy.turn, 31, 1, 1)
+				# pr11c 0x14 (k6 20319-20403, k7 20333-20459) : virages 26 et 18
+				# sautés, pas (1, 1) -> (2, 2) à 32 puis 16 virages restants.
+				enemy.return_curve = true
 			Flight.CIRCLING:
-				_start_curve(enemy, 15, -enemy.turn, 9, 3, 3)
+				# Octets +11 à +15 relevés à l'entrée en boucle (phase RAM 1) :
+				# cap 15, 9 virages, sens conservé et pas (3, 3) avant le premier
+				# amarrage (0x14, 0x15, démo) ; sens +1 et pas (1, 1) après (0x07, 0x08).
+				if stage == 1:
+					_start_curve(enemy, 15, 1, 9, 1, 1)
+				else:
+					_start_curve(enemy, 15, enemy.turn, 9, 3, 3)
 	else:
 		_step_curve(enemy)
 
@@ -203,9 +311,74 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 		enemy.phase = Flight.FORMATION
 	if phase != Flight.RETURNING and _check_exit(enemy):
 		return
-	if not wide_entry and phase == Flight.FORMATION and remaining < 5:
+	# Moins de 5 survivants : piqué. Le compte est 0x823c, décrémenté au crédit
+	# des points et non à l'impact (pr11c : crédits 18679 et 19994, passages
+	# en phase 3 aux pas suivants 18681 et 19996).
+	if not wide_entry and phase == Flight.FORMATION and credited_remaining < 5:
 		enemy.phase = Flight.DIVE
 		enemy.turns_left = 0
+
+
+func _advance_falling() -> void:
+	if _wave_clock == SPAWN_FRAME:
+		for index in range(8):
+			var enemy := Enemy.new()
+			enemy.alive = false
+			enemies.append(enemy)
+	if enemies.is_empty() or remaining == 0 or _wave_clock & 1:
+		return
+	# Paire suivante quand les précédentes sont résolues (0x823c).
+	var spawned: Array[int] = []
+	if _next_pair < FALL_PAIRS.size():
+		var later := 0
+		for pair in range(_next_pair, FALL_PAIRS.size()):
+			for index in FALL_PAIRS[pair]:
+				if _alive_mask & (1 << index):
+					later += 1
+		if credited_remaining <= later:
+			for index in FALL_PAIRS[_next_pair]:
+				if _alive_mask & (1 << index):
+					var enemy := enemies[index]
+					enemy.alive = true
+					enemy.position = FALL_STARTS[index]
+					enemy.velocity = FALL_STEPS[index]
+					enemy.phase = Flight.OPENING
+					enemy.opening_left = OPENING_LENGTH
+					spawned.append(index)
+			_next_pair += 1
+	for index in range(enemies.size()):
+		var enemy := enemies[index]
+		if not enemy.alive or index in spawned:
+			continue
+		match enemy.phase:
+			Flight.OPENING:
+				# 16 pas comptés par l'octet +4, puis phase 1 (pr7 k0, 14395-14427).
+				_fall_move(enemy)
+				enemy.opening_left -= 1
+				if enemy.opening_left == 0 and enemy.phase == Flight.OPENING:
+					enemy.phase = Flight.FALL_PAUSE
+			Flight.FALL_PAUSE:
+				# Phase 2 sans déplacement (14429).
+				enemy.phase = Flight.FALL
+			Flight.FALL:
+				_fall_move(enemy)
+			Flight.FALL_EXIT:
+				# Retiré au pas suivant la sortie, 0x823c décrémenté sans points
+				# (k7 : y = 0 à 14210, 0x823c de 8 à 7 à 14212).
+				enemy.alive = false
+				remaining -= 1
+				credited_remaining -= 1
+				_alive_mask &= ~(1 << index)
+
+
+# Sortie par le bas : y dépasse 255, l'objet est posé à y = 0 (phase RAM 4).
+func _fall_move(enemy: Enemy) -> void:
+	var next := enemy.position + enemy.velocity
+	if next.y >= 256:
+		enemy.position = Vector2i(next.x & 255, 0)
+		enemy.phase = Flight.FALL_EXIT
+		return
+	enemy.position = Vector2i(next.x & 255, next.y)
 
 
 func _start_entry(enemy: Enemy, index: int) -> void:
@@ -213,17 +386,24 @@ func _start_entry(enemy: Enemy, index: int) -> void:
 	var pair := index >> 1
 	const LENGTHS := [Vector2i(1, 1), Vector2i(2, 2), Vector2i(1, 3), Vector2i(2, 4)]
 	var length: Vector2i = LENGTHS[pair]
-	_start_curve(enemy, 8 if turn > 0 else 22, turn, 9, length.x, length.y, 0, false, 4 if pair == 0 else 2)
+	var cadence := 4 if pair == 0 else 2
+	if stage == 1:
+		# 0x809b = 0x07 et 0x08 (pr7, pr5c, pr6, pr1-suite…) : paires 3 et 4 en
+		# (3, 3) et (4, 4), cadence 1 (octets +14, +15 et +6 de l'objet).
+		const LENGTHS_AFTER_FIRST_DOCK := [Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 3), Vector2i(4, 4)]
+		const CADENCES_AFTER_FIRST_DOCK := [4, 2, 1, 1]
+		length = LENGTHS_AFTER_FIRST_DOCK[pair]
+		cadence = CADENCES_AFTER_FIRST_DOCK[pair]
+	_start_curve(enemy, 8 if turn > 0 else 22, turn, 9, length.x, length.y, 0, false, cadence)
 
 
 func _start_wide_formation(enemy: Enemy) -> void:
-	var occupied := false
-	for other in enemies:
-		if other.alive and other.phase == Flight.STRAIGHT_DIVE:
-			occupied = true
-			break
-	if not occupied:
-		enemy.phase = Flight.STRAIGHT_DIVE
+	# pr11c 0x14 (images 20302-20306) et pr7 0x07 (11009-11013) : l'ennemi
+	# passe en phase 3 sans bouger, puis lance son piqué au pas suivant.
+	if divers < max_divers:
+		divers += 1
+		enemy.phase = Flight.DIVE
+		enemy.turns_left = 0
 		return
 	_formation_pattern = (_formation_pattern + 6) & 6
 	const STEPS := [Vector2i(2, 2), Vector2i(2, 2), Vector2i(3, 2), Vector2i(3, 2)]
@@ -236,8 +416,11 @@ func _start_wide_formation(enemy: Enemy) -> void:
 func _check_exit(enemy: Enemy) -> bool:
 	if enemy.position.y >= 8 and (enemy.position.x < 244 or enemy.position.x >= 252):
 		return false
+	if wide_entry and enemy.phase == Flight.DIVE:
+		divers -= 1
 	enemy.phase = Flight.RETURNING
 	enemy.turns_left = 0
+	enemy.return_wait = 0
 	return true
 
 
@@ -260,6 +443,12 @@ func _start_dive(enemy: Enemy, ship: int) -> void:
 		region = 2 if y < 128 else 3
 		mask = 2
 	var pattern := _next_dive_pattern(region, mask)
+	if region == 3:
+		# 96 <= y < 160 découpé : la bande 128-159 donne 63 virages au pas
+		# (4, 4) sans accélération, avec le saut de virage des courbes
+		# inversées (pr7 11087, pr11b 29869, pr11c 20051 ; octet +0 = 0x03).
+		_start_curve(enemy, heading, turn, 63, 4, 4, 0, true)
+		return
 	if pattern < 4:
 		_start_curve(enemy, heading, turn, 31, 4, 4, -1)
 	else:
@@ -283,6 +472,7 @@ func _start_curve(
 	enemy.diagonal_steps = diagonal
 	enemy.acceleration = acceleration
 	enemy.reverse_turn = reverse_turn
+	enemy.return_curve = false
 	enemy.cadence = cadence
 	enemy.cadence_left = cadence
 	_change_heading(enemy)
@@ -299,11 +489,14 @@ func _step_curve(enemy: Enemy) -> void:
 		enemy.turns_left -= 1
 		if enemy.turns_left == 0:
 			return
-		if enemy.reverse_turn and (enemy.turns_left & 7) == 2:
+		if (enemy.reverse_turn or enemy.return_curve) and (enemy.turns_left & 7) == 2:
 			enemy.turns_left -= 1
 		enemy.heading = posmod(enemy.heading + enemy.turn - 1, HEADINGS.size()) + 1
 		if enemy.reverse_turn and (enemy.turns_left & 15) == 0:
 			enemy.turn = -enemy.turn
+		if enemy.return_curve and (enemy.turns_left & 15) == 0:
+			enemy.straight_steps += 1
+			enemy.diagonal_steps += 1
 		if (enemy.turns_left & 7) == 0:
 			enemy.straight_steps = maxi(1, enemy.straight_steps + enemy.acceleration)
 			enemy.diagonal_steps = maxi(1, enemy.diagonal_steps + enemy.acceleration)

@@ -254,6 +254,96 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-cycle-apres-
 
 Les 30 000 images couvrent la partie jusqu'au bout, même si le vaisseau survit longtemps. Après la dernière vie, la machine revient à l'attraction : la fin de la trace sert alors de repère de fin de partie. À relever sur la sonde : `0x809b` (étape) et `0x8226` (activité de vague) après la vague 4, `0x801d` (écran), `0x8099`–`0x809a` (score), `0x8097` (vies) et les états de module `0x8140`/`0x8145`/`0x814a`. Si aucune variante ne finit la vague 4, une seconde série partira de la plus longue, avec les plongeons relevés.
 
+## Relevés pr11
+
+Les quatre captures sont complètes : 30 000 images, empreintes de replay identiques aux CSV, 1 340 PNG chacune. Le score est le BCD `0x8099`–`0x809a`. Les images de boucle sont comptées sur `0x8005`.
+
+| Capture | Parcours | Contacts (module perdu) | Vies | Score final |
+| --- | --- | --- | --- | --- |
+| `pr11a-cycle-vague-4` | 0x0c seulement : 4 ennemis abattus (16836, 16886, 16898, 16974), puis 2 avec le module I seul (17969, 18046). | 16974 (III), 18135 (I), 18988 (II) | 3 → 2 à 17283, → 1 à 18457, → 0 à 19305 | 7040 |
+| `pr11b-cycle-vague-4-patrouille` | 0x0c seulement : 2 abattus (16909, 16970), puis 1 et 2. La patrouille ramène le vaisseau vers x = 166 et le plongeur de x = 192 le touche. | 17010 (III), 17975 (I), 18942 (II) | → 2 à 17321, → 1 à 18296, → 0 à 19261 | 6940 |
+| `pr11c-cycle-vague-4-tir-precoce` | Cycle 1 terminé sans perte de vie : 0x0c (8 abattus, dernier crédit 17124) puis 0x0d (8, dernier crédit 17603). Fin de cycle, puis cycle 2 : 0x12, 0x13, 0x14, 0x15. | 18771 (I, en 0x12), 20461 (II, en 0x14), 21909 (III, en 0x15) | → 2 à 19060, → 1 à 20750, → 0 à 22198 | 9230 |
+| `pr11d-cycle-vague-4-immobile` | 0x0c : 7 abattus en I + II + III (dernier à 17535), le 8e à 19660 avec le module II seul, puis 0x0d (4 abattus). | 17819 (III), 18736 (I), 20037 (II) | → 2 à 18134, → 1 à 19059, → 0 à 20353 | 7640 |
+
+**Valeur des ennemis.** Elle dépend de l’étape `0x809b`, pas des modules en jeu : 100 en 0x0c et 0x0d, quel que soit le vaisseau (I + II + III, module I seul, module II seul). Au cycle 2 : 50 en 0x12 et 0x13, 30 en 0x14 et 0x15. Sur les sondes plus anciennes : 30 en 0x05 (`pr1`), 60 en 0x07 et 0x08, 200 en 0x09 et 0x0a (`pr7`).
+
+**Enchaînement des vagues.** Chaque étape de combat compte 8 ennemis (0x0c, 0x0d, 0x12 à 0x15). `0x809b` avance l’image qui suit le crédit du dernier ennemi. Les nouveaux objets apparaissent 33 images de boucle après ce crédit, sur les quatre transitions de `pr11c`. Après une perte de vie, la même étape reprend avec ses survivants. Sur `pr11d`, 1 ennemi reste à la reprise de 19440, et son abattage à 19660 fait passer `0x809b` à 0x0d. Sur `pr11c`, 3 survivants restent à 19471.
+
+**Fin du cycle 1** (`pr11c`, images de boucle depuis le dernier crédit, 17603) :
+
+| Image | Frame | Repère |
+| --- | --- | --- |
+| +1 | 17604 | `0x809b` = 0x0e |
+| +2 à +31 | 17605–17634 | `0x801d` = 0x80, puis 0xC0 (29 images), vaisseau immobile à x = 146 (`0x822b` = 162) |
+| +32 | 17635 | `0x801d` = 0x00 |
+| +33 à +191 | 17637–17799 | Montée d’une unité par image de boucle, `0x822c` de 216 à 57 (159 pas, 4 frames figées). « PLUS LOIN » en cyan, x = 73–143, y = 112–118 sur les PNG : présent de 17650 à 17790, absent à 17640 et à 17800. |
+| +191 | 17799 | `0x801d` = 0x80, `0x8004` = 1, `0x8140`, `0x8145` et `0x814a` à 3 (trois modules en réserve) |
+| +192 à +312 | 17800–17920 | Écran 0xC0, champ d’étoiles vide |
+| +313 | 17921 | `0x809b` = 0x11, puis entrée du module I (`0x8140` = 2 à 17929). Le module apparaît à y = 120 à 18082 et redescend dès 18218. |
+| +689 | 18304 | `0x809b` = 0x12, module I à x = 112, y = 200. Vies 3, score 8040 inchangé, aucun bonus. |
+
+**Cycle 2.** 0x12 et 0x13 reprennent l’entrée étroite des vagues 1 et 2, 0x14 et 0x15 l’entrée large en courbe depuis (117/123, 128). Positions des objets comparées au modèle `combat_wave.gd`, vaisseau immobile à x = 112 :
+
+- 0x12 : identique sur 114 images de boucle, jusqu’au premier impact (horloge 146) ;
+- 0x14 : identique sur 120 images, jusqu’au premier impact ;
+- 0x13 : identique jusqu’au premier impact, à l’horloge 54 ;
+- 0x15 : s’écarte à l’horloge 48, sans impact. La vague 4 du cycle 1 n’ayant jamais été sondée depuis son début, on ne sait pas si cet écart est propre au cycle 2.
+
+Ces relevés ne montrent aucune accélération au cycle 2. Après la perte du module II seul en 0x14 (20461), le module III entre (`0x814a` 2 → 1) et reprend à 21137 (`0x822c` = 224). La partie n’a pas atteint l’amarrage du cycle 2.
+
+**Module perdu sur le I + II + III.**
+
+- Ennemi à y = 193–196 au contact (`pr8c` 16754, `pr9` 16926, `pr10b` 16903) : le module I est détruit, le II entre seul (`0x8145` = 1, `0x814a` = 3 en réserve), un seul module sur les PNG de `pr8c` à 17470.
+- Ennemi à y = 209–218 (`pr9b` 17008, `pr10a` 16553, `pr11a` 16974, `pr11b` 17010, `pr11d` 17819) : le module III est détruit, le I entre seul à `0x822c` = 200 avec le II en réserve.
+
+L’entrée « II + III » retenue jusqu’ici pour `pr8c` était fausse.
+
+**Écarts relevés, non reproduits.** Les entrées de 0x0c/0x0d ne suivent pas le modèle des vagues 3 et 4. `0x8226` monte de 1 à 4 toutes les 281 à 284 images pendant la longue vague 0x0c de `pr11d` (16970, 17251, 17535, 17819) ; son rôle n’est pas établi. Les étapes 0x07 à 0x0a sont reprises dans la section suivante.
+
+## Audit des vagues en RAM
+
+`audit_waves.py` découpe toutes les sondes `8000-83ff` en segments de vague et les rejoue dans `combat_wave.gd` (via `prototype/tests/run_wave.gd`), au pas de `0x8005`, avec la position du vaisseau, les impacts et les crédits relevés.
+
+```powershell
+python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot_v4.7.2-stable_win64.exe
+```
+
+**Objet ennemi** (`0x8184 + 20k`, k = 0 à 7) :
+
+| Octet | Contenu |
+| --- | --- |
+| +0 | Drapeaux de courbe : 0x10 à l’entrée, 0x22 en retour, 0x03/0x04/0x06/0x07 en piqué, 0x60 en rangée |
+| +1, +2 | y, x |
+| +3 | Phase : 0 entrée ou ouverture, 1 boucle, 2 formation, 3 piqué, 4 sortie ou retour |
+| +4 | Compteur d’ouverture ou d’attente (16 à 0) |
+| +5 | Partenaire présent (vagues étroites) |
+| +6, +7 | Cadence et reste |
+| +8, +9 | vy, vx signés |
+| +11 à +16 | Cap, virages restants, sens, pas droits, pas diagonaux, pas restants |
+
+**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues. `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
+
+**Règles établies** (positions identiques à la RAM sur toute la durée des segments, hors dernier impact dont le crédit tombe après la fin du segment) :
+
+- Boucle (phase 1) : cap 15, 9 virages, sens conservé et pas (3, 3) avant le premier amarrage ; sens +1 et pas (1, 1) en 0x07/0x08.
+- Fin de formation : piqué si `0x823e` < `0x823d` (l’ennemi passe en phase 3 sans bouger, puis lance son piqué au pas suivant), sinon courbe de formation. Le premier ennemi ne part donc pas en piqué rectiligne.
+- Choix du piqué : zone lointaine si x < `0x822b` − 32 ou x ≥ `0x822b` + 32 (`0x822b` = x du vaisseau + 16). Bande y = 128–159 : 63 virages, pas (4, 4), sans accélération, avec saut de virage (drapeau 0x03).
+- Retour (phase 4, avant le premier amarrage) : le virage est sauté quand virages restants & 7 = 2, et les pas droits et diagonaux gagnent 1 quand virages restants & 15 = 0 ; le sens ne s’inverse pas.
+- Sortie en 0x07/0x08 : un pas sur place, réapparition en ((x & 63) + 80, (y & 63) + 64), attente de 16 pas (octet +4), phase 1, puis boucle (130 sorties relevées).
+- Vagues étroites (`pr11c`, 0x12 et 0x13) : au pas de l’impact, le partenaire poursuit son mouvement ; au pas suivant, courbe cap 1, sens ±1 selon l’horloge, 30 virages, pas (1, 2), en phase 3 ; puis piqué. Les ennemis en formation plongent quand `0x823c` passe sous 5, au pas qui suit le crédit.
+- 0x09 et 0x0a (`pr7`) : paires k3/k7, k2/k6, k1/k5, k0/k4, lancées au pas qui suit la résolution de la paire précédente.
+
+| Objet | Départ | Pas (vx, vy) |
+| --- | --- | --- |
+| k3 / k7 | (144, 80) / (80, 128) | (−4, 6) / (4, 6) |
+| k2 / k6 | (64, 32) / (192, 112) | (3, 6) / (−4, 5) |
+| k1 / k5 | (176, 32) / (80, 64) | (−3, 6) / (2, 4) |
+| k0 / k4 | (32, 48) / (160, 96) | (4, 6) / (−3, 6) |
+
+16 pas d’ouverture, un pas d’arrêt, puis chute jusqu’à y ≥ 256 : l’objet est posé à y = 0 (phase 4) et retiré au pas suivant. 200 points par objet abattu.
+
+**Rangées 0x0c et 0x0d** (relevé, non modélisé). Apparition à y = 0 aux x = 32, 56, 80, 104, 136, 160, 184, 208. Déplacement à chaque image de boucle. Descente d’ouverture, puis zigzags de 8 virages (caps 4 → 11 sens +1, puis 26 → 19 sens −1), cadence 2, pas (2, 2), drapeau 0x60. Piqué vertical (phase 3, vy = 4) jusqu’au haut de l’écran, puis réentrée près du vaisseau (`pr9` k2 : sortie à (60, 2), réapparition à (124, 2) avec `0x822b` = 128). Le choix du plongeur et la position de réentrée restent à établir.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.

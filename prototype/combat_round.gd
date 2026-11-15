@@ -13,21 +13,29 @@ var score := 0
 var outcome := Outcome.PLAYING
 var impact_position := Vector2.ZERO
 var impact_age := IMPACT_FRAMES
+var lost_module := 0
 var _elapsed_frames := 0
 var _pending_points: Array[int] = []
 
 
-func _init(wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255, attached := 0) -> void:
+func _init(
+		wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255, attached := 0,
+		points := -1, stage := 0, max_divers := 1, patterns: Array = []
+) -> void:
 	pilot = Pilot.new(module, start_x, attached)
-	wave = CombatWave.new(wave_number, alive_mask)
+	wave = CombatWave.new(wave_number, alive_mask, points, stage)
+	wave.max_divers = max_divers
+	wave.load_patterns(patterns)
 
 
 func step(input_mask: int) -> void:
 	_elapsed_frames += 1
 	impact_age = mini(impact_age + 1, IMPACT_FRAMES)
+	var credits := 0
 	while not _pending_points.is_empty() and _pending_points[0] == _elapsed_frames:
 		_pending_points.pop_front()
 		score += wave.points_per_hit
+		credits += 1
 	if outcome != Outcome.PLAYING:
 		return
 	# Fin de vague : le moteur de tir Jeutel s'arrête (0x8226 à 0 vers 6185)
@@ -39,6 +47,10 @@ func step(input_mask: int) -> void:
 	var next_frame := pilot.frame + 1
 	pilot.step(input_mask, next_frame not in CombatWave.OPENING_CLOCK_HOLDS)
 	wave.advance(pilot.frame, pilot.ship_x)
+	# 0x823c baisse à l'image du crédit, après le déplacement des ennemis :
+	# la règle des moins de 5 survivants joue au pas suivant (pr11c 18679-18681).
+	for i in range(credits):
+		wave.credit_kill()
 	var shots := pilot.active_shots()
 	var hits: Array[int] = []
 	for index in range(shots.size() - 1, -1, -1):
@@ -54,6 +66,7 @@ func step(input_mask: int) -> void:
 			outcome = Outcome.CLEARED
 	elif wave.hits_attached(pilot.ship_x, pilot.attached, pilot.assembly_y_offset):
 		outcome = Outcome.MODULE_LOST
+		lost_module = wave.hit_module(pilot.ship_x, pilot.attached, pilot.assembly_y_offset)
 		pilot.clear_shots()
 		impact_position = Vector2(pilot.ship_x, pilot.ship_y() + 6)
 		impact_age = 0

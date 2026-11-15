@@ -188,6 +188,15 @@ func _draw_combat() -> void:
 			for module in range(3, 0, -1):
 				if _run.attached & (1 << (module - 1)):
 					_draw_module(Vector2(Pilot.START_X, entrance_y + (module - 1) * 8), module, SHIP)
+	elif _run.phase == ArcadeRun.Phase.CYCLE_END:
+		# pr11c : le vaisseau monte, « PLUS LOIN » (x 73-143, y 112-118 sur les PNG).
+		if _run.cycle_end_shows_ship():
+			var rise := _run.cycle_end_rise()
+			for module in range(3, 0, -1):
+				if pilot.has_module(module):
+					_draw_module(Vector2(pilot.ship_x, pilot.module_y(module) - rise), module, SHIP)
+		if _run.cycle_end_shows_message():
+			_field_text(108, 119, "PLUS LOIN", PRIMARY)
 	elif _run.phase != ArcadeRun.Phase.GAME_OVER:
 		# Dessiner la base d'abord, puis les modules supérieurs.
 		for module in range(3, 0, -1):
@@ -225,6 +234,12 @@ func _draw_enemies() -> void:
 		if _diagnostics:
 			var hitbox := Rect2(Vector2(enemy.position) - Vector2(17, 4), Vector2(16, 12))
 			draw_rect(hitbox.intersection(Rect2(Vector2.ZERO, Vector2(Pilot.FIELD_SIZE))), ENEMY.darkened(0.65), false)
+		if _run.combat.wave.falling:
+			# Objet en chute (0x09, 0x0a) : losange, forme provisoire.
+			var diamond := PackedVector2Array([point + Vector2(0, -7), point + Vector2(4, 0), point + Vector2(0, 7), point + Vector2(-4, 0)])
+			draw_colored_polygon(diamond, ENEMY.darkened(0.3))
+			draw_circle(point, 2.0, ENEMY_CORE, true, -1.0, true)
+			continue
 		var tint := SHOT if _run.combat.wave.wide_entry else ENEMY
 		draw_arc(point, 6.0, 0.0, TAU, 14, tint, 1.0, true)
 		draw_line(point - Vector2(7, 0), point + Vector2(7, 0), ENEMY, 1.0)
@@ -261,7 +276,9 @@ func _draw_panel() -> void:
 		return
 	match _run.phase:
 		ArcadeRun.Phase.REPLACEMENT:
-			_text(425, "Vaisseau perdu", 20, SHOT)
+			_text(425, "Cycle %d · entrée du module I" % _run.cycle if _run.is_cycle_entrance() else "Vaisseau perdu", 20, SHOT)
+		ArcadeRun.Phase.CYCLE_END:
+			_text(425, "Plus loin · fin du cycle %d" % _run.cycle, 20, PRIMARY)
 		ArcadeRun.Phase.GAME_OVER:
 			if _run.game_over_shows_message():
 				_text(425, "JEU 1 TERMINE", 20, SHOT)
@@ -269,7 +286,7 @@ func _draw_panel() -> void:
 			else:
 				_text(425, "Vaisseau perdu", 20, SHOT)
 		_:
-			_text(425, "Vague %d / %d" % [_run.wave_number, ArcadeRun.WAVES_BEFORE_DOCK], 20, PRIMARY)
+			_text(425, "Cycle %d · vague %d / %d" % [_run.cycle, _run.wave_number, _run.last_wave()], 20, PRIMARY)
 	_text(463, "%03d points   ·   %d cibles   ·   Vies %d" % [
 		_run.score(), _run.combat.wave.remaining, _run.lives
 	], 17, MUTED)
