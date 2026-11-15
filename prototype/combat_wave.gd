@@ -582,7 +582,9 @@ func _start_curve(
 	# boucle ni aux courbes suivantes (pr1-suite et pr13a, 0x05 reprise à 5882,
 	# paires 1 à 3 en cadence 2 jusqu'à la fin de la vague). Partout ailleurs, la
 	# boucle passe à 1, y compris en 0x14 reprise au cycle 2 (pr11c 21246).
-	# Seul ce cas est relevé ; la cause exacte n'est pas établie (PROVISOIRE).
+	# Indépendant de la position du vaisseau : pr14a, vaisseau immobile à x = 108
+	# pendant la reprise, garde aussi la cadence 2 (442 pas concordants). 0x04
+	# reprise n'a pas été relevée ; elle suit la même règle par extension.
 	if _resumed and wide_entry and stage == 0 and max_divers == 1:
 		cadence = enemy.cadence
 	enemy.cadence = cadence

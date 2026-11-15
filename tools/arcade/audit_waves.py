@@ -130,7 +130,8 @@ SEL=[('pr6b-hitbox-i-ii',10935,None,'0x07 après le premier amarrage, vaisseau m
      ('pr12a-cycle-1-debut',3749,None,'0x04 cycle 1'),
      ('pr12a-cycle-1-debut',4531,1200,'0x05 cycle 1, 1200 premiers pas'),
     ('pr13a-suite-depuis-debut',4531,None,'0x05 cycle 1 jusqu’à la perte de vie'),
-    ('pr13a-suite-depuis-debut',5915,None,'0x05 reprise après perte, cadence d’entrée conservée')]
+    ('pr13a-suite-depuis-debut',5915,None,'0x05 reprise après perte, cadence d’entrée conservée'),
+    ('pr14a-suite-immobile',5915,None,'0x05 reprise, vaisseau immobile, cadence d’entrée conservée')]
 
 def checkpoints(probes):
     out=[]
