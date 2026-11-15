@@ -163,15 +163,19 @@ func _draw_combat() -> void:
 	var combat := _run.combat
 	_draw_enemies()
 	var pilot := combat.pilot
-	if _run.phase != ArcadeRun.Phase.REPLACEMENT and _run.phase != ArcadeRun.Phase.GAME_OVER:
+	if _run.phase == ArcadeRun.Phase.REPLACEMENT:
+		var entrance_y := _run.entrance_ship_y()
+		if entrance_y >= 0:
+			for module in range(3, 0, -1):
+				if _run.attached & (1 << (module - 1)):
+					_draw_module(Vector2(Pilot.START_X, entrance_y + (module - 1) * 8), module, SHIP)
+	elif _run.phase != ArcadeRun.Phase.GAME_OVER:
 		# Dessiner la base d'abord, puis les modules supérieurs.
 		for module in range(3, 0, -1):
 			if pilot.has_module(module):
 				_draw_module(Vector2(pilot.ship_x, pilot.module_y(module)), module, SHIP)
-	if pilot.shot_active:
-		draw_rect(Rect2(Vector2(pilot.shot_position), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
-	if pilot.second_shot_active:
-		draw_rect(Rect2(Vector2(pilot.second_shot_position), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
+	for point in pilot.active_shots():
+		draw_rect(Rect2(Vector2(point), Vector2(1, Pilot.SHOT_LENGTH)), SHOT)
 	_draw_impact(combat)
 
 
@@ -237,7 +241,11 @@ func _draw_panel() -> void:
 		ArcadeRun.Phase.REPLACEMENT:
 			_text(425, "Vaisseau perdu", 20, SHOT)
 		ArcadeRun.Phase.GAME_OVER:
-			_text(425, "Partie terminée", 20, SHOT)
+			if _run.game_over_shows_message():
+				_text(425, "JEU 1 TERMINE", 20, SHOT)
+				_text(448, "ESSAYEZ A NOUVEAU", 17, SHOT)
+			else:
+				_text(425, "Vaisseau perdu", 20, SHOT)
 		_:
 			_text(425, "Vague %d / %d" % [_run.wave_number, ArcadeRun.WAVES_BEFORE_DOCK], 20, PRIMARY)
 	_text(463, "%03d points   ·   %d cibles   ·   Vies %d" % [
@@ -272,11 +280,13 @@ func _draw_readout() -> void:
 	_text(543, "Vaisseau %s    x %d    y %d" % [
 		_run.ship_label(), pilot.ship_x, pilot.ship_y()
 	], 17, SHIP)
-	if pilot.shot_active:
-		var point := pilot.shot_position
-		_text(576, "Projectile    x %d    y %d" % [point.x, point.y], 17, SHOT)
-	else:
+	var shots := pilot.active_shots()
+	if shots.is_empty():
 		_text(576, "Projectile    prêt", 17, MUTED)
+	else:
+		var point: Vector2i = shots[0]
+		var suffix := "" if shots.size() == 1 else "    +%d" % (shots.size() - 1)
+		_text(576, "Projectile    x %d    y %d%s" % [point.x, point.y, suffix], 17, SHOT)
 	var commands := PackedStringArray()
 	if _last_input & Pilot.LEFT:
 		commands.append("gauche")
