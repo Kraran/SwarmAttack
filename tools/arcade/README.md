@@ -223,6 +223,37 @@ Les commandes simulées par la démo ne sont pas observables : la trace ne conti
 python .\tools\arcade\extract_attract.py .reference\pr10e-attract\mouncrst\attract-probe.csv
 ```
 
+## Cycle après la vague 4
+
+Aucune capture ne montre encore la suite de la vague 4 en I + II + III sans module partenaire : vagues suivantes, bouclage ou hausse de difficulté, écran de bonus ou de niveau, compteurs de score et de vies. Le prototype (`arcade_run.gd`, `_advance_from_clear`) repart en vague 1, marqué PROVISOIRE. Sur `pr8c`, `pr9`, `pr9b`, `pr10a` et `pr10b`, le vaisseau complet meurt 90 à 350 images après la reprise, avec 0 à 3 ennemis abattus.
+
+Ce que montrent déjà ces relevés (objets ennemis `0x8170 + 20k`, k = 1..8 : état, y, x) :
+
+- La vague d'entrée large place 8 ennemis à x = 32, 56, 80, 104, 136, 160, 184 et 208, 31 images de boucle après la reprise. Jusqu'à la 48ᵉ image de boucle, leurs trajectoires sont identiques sur les cinq relevés, quelle que soit la position du vaisseau.
+- À la 49ᵉ image de boucle, l'ennemi k = 2 réapparaît à x = `0x822b` − 15 (113 sur `pr10b`, 111 sur `pr9`, 123 sur `pr10a`, 201 sur `pr9b`, 15 sur `pr8c`). D'autres retours visent aussi le vaisseau : k = 1 revient à x = `0x822b` + 4 à la 80ᵉ.
+- Les plongeons se suivent environ toutes les 40 à 50 images de boucle, dans l'ordre de k. Le plongeur descend à x constant, +4 par image, à l'abscisse qu'il occupait dans la formation. Sur `pr10b`, `pr9` et `pr10a` : k1 à x = 28, k2 à x ≈ `0x822b` + 29, k3 à 20, k4 à 62, k5 à 116 (contact au centre sur `pr9` à 16926 et sur `pr10b` à 16903). Sur `pr9b`, où le k2 réapparu à droite change la suite : k3 à 60, k4 à 52, k5 à 97, k6 à 136, k7 à 114, k8 à 192 (contact à la butée droite à 17008).
+
+Les quatre replays ci-dessous reprennent les entrées de `pr9` ou de `pr9b`, qui atteignent le I + II + III à 16662. Ils esquivent le plongeur connu, puis tirent sans arrêt jusqu'à la fin : un appui de 5 images toutes les 10 images. Une pression refusée pendant qu'un groupe vole ne coûte rien, et chaque groupe repart dès qu'il se libère, à 10 images près. Les positions et les esquives sont des prévisions, calculées avec les boîtes du prototype (ennemi touché pour x ∈ [x_vaisseau − 10, x_vaisseau + 28] au niveau du vaisseau) et un pas de 2 par image. Seule la capture fera foi. Dès que les tirs abattent d'autres ennemis que sur les relevés, la suite des plongeons n'est plus connue.
+
+| Replay | Déroulé prévu | But |
+| --- | --- | --- |
+| [solo-cycle-apres-vague-4-a.csv](replays/solo-cycle-apres-vague-4-a.csv) | `pr9` à l'identique jusqu'à 16899 (3 ennemis abattus à 16836, 16886 et 16898), droite 16900–16919 : `0x822b` de 126 à environ 166, hors de la colonne x = 116 du k5 (contact à 16926 sur `pr9`). Puis immobile, tir continu dès 16924. | Survie sur la vie 1 après le plongeon du k5, et suite des vagues avec un tir soutenu. |
+| [solo-cycle-apres-vague-4-b.csv](replays/solo-cycle-apres-vague-4-b.csv) | `pr9b` à l'identique jusqu'à 16971 (butée droite, 2 abattus), gauche 16972–16995 : `0x822b` de 216 à environ 168, hors de la colonne x = 192 du k8 (contact à 17008 sur `pr9b`). Dès 17000 : patrouille de ±40 autour de la position courante (droite 20 images, puis gauche et droite en alternance, 40 images chacune) et tir continu. | Comme a, mais en mouvement : les retours qui visent le vaisseau devraient le manquer. Après chaque perte de vie, la patrouille reprend autour du centre (`0x822b` entre environ 48 et 208, loin de la butée gauche). |
+| [solo-cycle-apres-vague-4-c.csv](replays/solo-cycle-apres-vague-4-c.csv) | Préfixe commun `pr8c`/`pr9` jusqu'à 16663, immobile au centre (`0x822b` = 126), tir continu dès 16700, droite 16896–16915 (vers 166). | Tir soutenu dès l'entrée de la vague 3 : plus d'abattus avant les premiers plongeons. Si le k5 plonge encore à x = 116, l'esquive l'évite. |
+| [solo-cycle-apres-vague-4-d.csv](replays/solo-cycle-apres-vague-4-d.csv) | Comme b jusqu'à 16999, puis immobile vers `0x822b` = 168 et tir continu dès 17000. | Témoin immobile de b. |
+
+```powershell
+git fetch origin
+git checkout cycle-apres-vague-4
+git pull
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-cycle-apres-vague-4-a.csv --frames 30000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 10 --output .reference\pr11a-cycle-vague-4
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-cycle-apres-vague-4-b.csv --frames 30000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 10 --output .reference\pr11b-cycle-vague-4-patrouille
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-cycle-apres-vague-4-c.csv --frames 30000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 10 --output .reference\pr11c-cycle-vague-4-tir-precoce
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-cycle-apres-vague-4-d.csv --frames 30000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 10 --output .reference\pr11d-cycle-vague-4-immobile
+```
+
+Les 30 000 images couvrent la partie jusqu'au bout, même si le vaisseau survit longtemps. Après la dernière vie, la machine revient à l'attraction : la fin de la trace sert alors de repère de fin de partie. À relever sur la sonde : `0x809b` (étape) et `0x8226` (activité de vague) après la vague 4, `0x801d` (écran), `0x8099`–`0x809a` (score), `0x8097` (vies) et les états de module `0x8140`/`0x8145`/`0x814a`. Si aucune variante ne finit la vague 4, une seconde série partira de la plus longue, avec les plongeons relevés.
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.
