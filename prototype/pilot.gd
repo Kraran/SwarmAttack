@@ -19,6 +19,11 @@ const SHOT_LENGTH := 4
 # Vaisseau II + III, relevé sur pr1-suite au rythme de 0x8005.
 # Groupe 0 : paire à y = 212 (registre 0x27), écart 12. Groupe 1 : paire à y = 195
 # (registre 0x38), écart 8. L'abscisse logique vaut le registre de projectile moins 17.
+# I + II + III (pr9-tir-i-ii-iii, 0x822b = 126, x = 110) : les mêmes deux paires,
+# qui peuvent voler ensemble. Dans ce relevé, le premier appui (16778) lance la
+# paire à y = 195, écart 8 ; le second (16793), pendant que la première vole
+# encore, lance la paire à y = 212, écart 12. La volée y = 212 reste formée
+# jusqu'à y = 4 à 16846 et y = 0 à 16847, puis les créneaux sont vides à 16848.
 const ASSEMBLED_START_Y := [212, 195]
 const ASSEMBLED_SPREADS := [12, 8]
 # Vaisseau I + II, relevé sur pr6-tir-i-ii au rythme de 0x8005, vaisseau à

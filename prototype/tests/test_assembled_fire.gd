@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_check_tap_does_not_repeat()
 	_check_hold_does_not_queue()
 	_check_resume_starts_with_first_group()
+	_check_i_ii_iii_same_groups()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -183,3 +184,48 @@ func _check_resume_starts_with_first_group() -> void:
 	pilot.step(Pilot.FIRE)
 	_expect_pair(pilot.active_shots(), 8, 195, Pilot.MIN_X, "Groupe 1 à x = 14")
 	print("OK reprise : le premier groupe part à y = 212, aussi à x = 14")
+
+
+func _full_ship(start_x := 110) -> Pilot:
+	return Pilot.new(2, start_x, 7)
+
+
+func _check_i_ii_iii_same_groups() -> void:
+	# pr9-tir-i-ii-iii, vaisseau à x = 110 (0x822b = 126). Les deux paires
+	# sont celles du II + III. Un Pilot neuf commence par le groupe 0 ; dans
+	# le relevé, le premier appui (16778) a formé le groupe 1 (y = 195, écart 8),
+	# sans qu'on isole un report du groupe depuis le I + II.
+	var pilot := _full_ship()
+	_expect(pilot.is_assembled() and pilot._next_group == 0, "I + II + III : is_assembled, prochain groupe 0")
+	pilot.step(Pilot.FIRE)
+	_expect_pair(pilot.active_shots(), 12, 212, 110, "I + II + III, groupe 0")
+	pilot.step(0)
+	pilot.step(Pilot.FIRE)
+	var both := pilot.active_shots()
+	_expect(both.size() == 4, "I + II + III : les deux paires volent ensemble, obtenu %d" % both.size())
+	_expect_pair(both, 12, 204, 110, "Groupe 0 encore en vol")
+	_expect_pair(both, 8, 195, 110, "Groupe 1 (pr9, 16779 : 101 et 117 à y = 195)")
+	# Durée de la paire y = 212 : dernière paire formée à y = 4 à 16846,
+	# y logiciel correspondant à 0 à 16847, créneaux vides à 16848.
+	pilot = _full_ship()
+	pilot.step(Pilot.FIRE)
+	for index in range(52):
+		pilot.step(0)
+	var mid := []
+	for point in pilot.active_shots():
+		if point.x == 97 or point.x == 121:
+			mid.append(point)
+	_expect(mid.size() == 2 and mid[0].y == 4 and mid[1].y == 4, "Paire y = 212 encore visible à y = 4 après 53 images, obtenu %s" % str(mid))
+	pilot.step(0)
+	var last := []
+	for point in pilot.active_shots():
+		if point.x == 97 or point.x == 121:
+			last.append(point)
+	_expect(last.size() == 2 and last[0].y == 0 and last[1].y == 0, "Paire y = 212 encore visible à y = 0 après 54 images, obtenu %s" % str(last))
+	pilot.step(0)
+	var gone := []
+	for point in pilot.active_shots():
+		if point.x == 97 or point.x == 121:
+			gone.append(point)
+	_expect(gone.is_empty(), "La paire y = 212 disparaît à la 55e image")
+	print("OK I + II + III : mêmes paires que le II + III, superposition, durée 54 images")

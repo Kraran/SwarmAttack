@@ -146,6 +146,14 @@ Le replay [solo-docking-i-ii-iii-tir.csv](replays/solo-docking-i-ii-iii-tir.csv)
 python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-tir.csv --frames 20000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 2 --output .reference\pr9-tir-i-ii-iii
 ```
 
+Relevé `pr9-tir-i-ii-iii` : à 16664, `0x822b` passe de 128 à 126 sans commande (x = 110), analogue au 128→130 du I + II à la reprise. Le vaisseau reste à `0x822b` = 126, `0x822c` = 216. Le premier appui (16778, projectiles à 16779) lance la paire du groupe 1 : y = 195, écart 8, abscisses logiques 101 et 117 (registres `0x76` / `0x86`). Le second (16793, projectiles à 16794), pendant que la première vole encore, lance la paire du groupe 0 : y = 212, écart 12, abscisses 97 et 121 (registres `0x72` / `0x8a`). Les deux paires coexistent. La première volée est interrompue par des ennemis vers 16823–16828. La paire y = 212 est encore formée à y = 4 à 16846 et à y logiciel 0 à 16847 ; les créneaux sont vides à 16848. L’appui de 16848, à la disparition, ne déclenche pas de volée ; celui de 16858 relance la paire y = 195 à 16859. Le maintien prévu à 16928, la butée droite et le stationnement au centre n’ont pas été atteints : un ennemi identifié dans la table `0x81d5` / `0x81d6` (y, x) plonge à x = 116 constant, +4 par image ; (116, 189) à 16925 est un raté (`0x8004` = 0), (116, 193) à 16926 un contact sur le nez du module I (`0x8004` = 1, vies encore à 3, score 6740). Le plafond dy ≥ −3 du module I compterait déjà 16925 ; il est resserré à −2 pour le I + II + III. Pendant l’explosion, `0x822b` ne bouge plus malgré la droite ensuite enfoncée. `0x8004` reste à 1 jusqu’à 17087 (161 images), vies 3 → 2 à 17252 (326 images après le contact). La butée droite n’est pas mesurée.
+
+Le replay [solo-docking-i-ii-iii-tir-b.csv](replays/solo-docking-i-ii-iii-tir-b.csv) reprend le même préfixe jusqu’à 16662, puis pousse à droite dès 16664 pour quitter le centre avant le plongeon de 16926. Depuis x = 110 (`0x822b` = 126), l’arrivée à x = 200 (`0x822b` = 216) est attendue vers 16712 si le pas est de 2. La droite reste enfoncée pendant les essais de tir à la butée (taps de 5 images à 16840 et 16855, troisième tap à 16910, appui à 16920 pendant qu’une volée vole encore, maintien de 120 images à partir de 16990). À 17150 le vaisseau relâche tout et reste immobile à la butée pour un contact contrôlé.
+
+```powershell
+python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii-iii-tir-b.csv --frames 20000 --probe 8000-83ff --probe-from 16600 --snap-from 16600 --snap-every 2 --output .reference\pr9b-tir-i-ii-iii
+```
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.

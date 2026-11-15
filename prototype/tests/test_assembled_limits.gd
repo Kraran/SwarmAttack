@@ -20,6 +20,7 @@ func _initialize() -> void:
 	_check_assembled_limits()
 	_check_assembled_hitbox()
 	_check_i_ii_hitbox()
+	_check_i_ii_iii_hitbox()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -83,3 +84,17 @@ func _check_i_ii_hitbox() -> void:
 	var low := _enemy_at(Vector2i(120, 210))
 	_expect(low.hits_attached(114, 3, 0), "Après expiration, le I + II reprend les boîtes à y = 192/200")
 	print("OK hitbox I + II : raté à (123, 231), contact à (120, 226), offset 16")
+
+
+func _check_i_ii_iii_hitbox() -> void:
+	# pr9-tir-i-ii-iii, I + II + III immobile à x = 110 (0x822b = 126,
+	# 0x822c = 216). Table d'objets 0x81d5/0x81d6 (y, x). L'ennemi identifié
+	# sur le nez du module I plonge de +4 par image, x = 116 constant.
+	var miss := _enemy_at(Vector2i(116, 189))
+	_expect(not miss.hits_attached(110, 7), "Frame 16925 : (116, 189) ne touche pas le I + II + III")
+	var hit := _enemy_at(Vector2i(116, 193))
+	_expect(hit.hits_attached(110, 7), "Frame 16926 : (116, 193) touche le nez du module I")
+	# L'offset 16 ne s'applique qu'au I + II tant que 0x822c = 232.
+	# II et III, trop bas, ne reçoivent pas ce contact.
+	_expect(not hit.hits_attached(110, 6), "Le contact (116, 193) n'appartient pas au II + III")
+	print("OK hitbox I + II + III : raté à (116, 189), contact à (116, 193), offset 0")

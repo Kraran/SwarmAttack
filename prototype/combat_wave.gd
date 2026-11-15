@@ -134,6 +134,12 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 		if not (attached & (1 << (module - 1))):
 			continue
 		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
+		# pr9-tir-i-ii-iii, vaisseau I + II + III immobile à x = 110
+		# (0x822b = 126, 0x822c = 216) : (116, 189) à 16925 est un raté,
+		# (116, 193) à 16926 un contact sur le nez du module I. Le plafond
+		# dy >= -3 du I, seul, compterait déjà 16925 ; on le resserre à -2.
+		if attached == 7 and module == 1:
+			top = -2
 		if _hits_module_box(ship_x, module, top, y_offset if attached == 3 else 0):
 			return true
 	return false
