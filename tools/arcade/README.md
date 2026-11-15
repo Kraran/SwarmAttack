@@ -396,7 +396,21 @@ Le délai ne dépend ni de l’horloge de vague ni de `0x8005`. Il croît avec `
 
 Ces valeurs sont exactes pour 114 impacts sur 150. Le reste de la variation (± 1 à 2 images) tient vraisemblablement à la charge de la carte ; le mécanisme n’est pas établi.
 
-**Cadence de boucle de `pr1-suite` 0x05.** Elle reste inexpliquée. Toutes les autres entrées en boucle relevées prennent la cadence 1, dont 0x04 et 0x05 de `pr12a`. Or `pr12` n’a pas de perte de vie en 0x04 ou 0x05, et la sonde de `pr1-suite` commence à 5100, après le début de la vague.
+**Cadence de boucle de `pr1-suite` 0x05.** Voir « Relevé pr13 » ci-dessous.
+
+## Relevé pr13
+
+`pr13a-suite-depuis-debut` : capture complète. Elle compte 11 000 images sondées de 0 à 10 999 (`8000-83ff`), 11 001 lignes de trace et 520 PNG (5 800 à 10 990, toutes les 10 images). Empreinte du replay `13978ca450b4…`, identique à `solo-docking-suite.csv`. Sur les 5 900 images communes (5 100 à 10 999), la RAM est identique à `pr1-suite`. Jusqu’à 5161, elle est identique à `pr12a` (même début de partie).
+
+**Calendrier** (`0x809b`) : 0x02 à 539, 0x03 à 2579, 0x04 à 3717, 0x05 à 4499, perte de vie à 5504 (vies 3 → 2, 3 survivants), entrée 0x01, reprise de 0x05 à 5882 (objets 3, 5 et 6 à 5915), amarrage 0x06 à 6185.
+
+**Cadence.** Lors d’une entrée normale (0x05 à 4531), les paires 1 à 3 entrent en cadence 2 et passent en cadence 1 à l’image où la boucle se charge (cap 15, 9 virages, pas (3, 3) ; objet 3 à 4606). Après la reprise de 5915, la boucle se charge de même (5991, 5995, 6015), mais l’octet +6 reste à 2. Il reste à 2 jusqu’à la fin de la vague, courbes de formation et piqués compris (objet 5 à 6105, objet 3 à 6103). L’entrée elle-même est normale ; ce n’était donc pas un effet de la sonde tardive de `pr1-suite`.
+
+Sur les 187 chargements de boucle relevés avec une cadence d’entrée de 2 ou 4, ces 6 (deux fois les 3 mêmes) sont les seuls où la cadence ne change pas. Aucun octet de motif, de compte (`0x823c`, `0x823d`, `0x823a`-`0x8241`) ni de l’objet ne les sépare des autres. La reprise de 0x14 au cycle 2 (`pr11c` 21169, masque c1, 3 survivants, motifs à zéro) passe bien en cadence 1. Seuls séparent ce cas les octets liés au vaisseau (`0x822b` de 62 à 66, contre 78 au moins ailleurs, `0x8236`/`0x8237`, tirs) et des octets de pile. Le prototype conserve la cadence d’entrée dans les vagues larges du cycle 1 reprises avant le premier amarrage. Avec cette règle, la reprise suit la RAM sur 268 pas sur 268, 3 impacts compris. La règle reste provisoire : un seul cas relevé, 0x04 reprise jamais vue, influence de la position du vaisseau non exclue.
+
+Le replay [solo-docking-suite-immobile.csv](replays/solo-docking-suite-immobile.csv) reprend `solo-docking-suite.csv` jusqu’à 5885 (dernière entrée), puis laisse le vaisseau immobile à x = 112 pendant la reprise. Si la cadence reste à 2, la position du vaisseau est hors de cause.
+
+**Audit** : 88 segments sur 90 suivent la RAM sur toute leur durée, dont les 7 de `pr13a`. 0x05 de 4531 suit la RAM sur ses 678 pas jusqu’à la perte de vie. Restent les deux 0x0c identiques de `pr11a` et `pr12b` à 16963 (impact non crédité avant la perte du module).
 
 ## Sonde de RAM
 

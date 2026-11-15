@@ -46,7 +46,7 @@ Le prototype démarre sur le cycle d’attraction relevé. Espace lance une part
 Écarts connus avec la borne, relevés mais pas encore reproduits :
 
 - Délai entre l’impact et le crédit des points : de 9 à 14 images de boucle depuis la première image de l’explosion, sur 150 impacts. Il croît avec le nombre d’ennemis restants. Le prototype prend la valeur la plus fréquente par type de vague et par `0x823c` à l’impact : 9 ou 10 en vagues étroites et larges, 10 à 13 en rangée. Cette valeur est exacte pour 114 impacts sur 150 et décalée d’une ou deux images pour les autres. Les objets en chute gardent 10, non relevé. Le mécanisme exact (charge de la carte) n’est pas établi.
-- Sur `pr1-suite` (0x05, survivants après une perte), la boucle garde la cadence 2 de l’entrée au lieu de 1 (3 cas). Toutes les autres entrées en boucle relevées, dont les vagues 0x04 et 0x05 complètes de `pr12a`, prennent la cadence 1. La cause n’est pas établie : `pr12` ne contient pas de perte de vie en 0x04 ou 0x05.
+- Vague large du cycle 1 reprise après une perte de vie (`pr1-suite` et `pr13a`, 0x05 reprise à 5882) : la cadence d’entrée (2 pour les paires 1 à 3) n’est jamais remplacée, ni à la boucle ni aux courbes suivantes. Partout ailleurs la boucle passe à 1, y compris en 0x14 reprise au cycle 2 (`pr11c` 21169). Le prototype applique ce cas aux vagues larges du cycle 1 avant le premier amarrage, reprises avec des survivants. Il n’est relevé qu’une fois (0x05) ; 0x04 reprise n’a pas été vue et la cause exacte n’est pas établie. Le vaisseau était à gauche (x = 46 à 50), plus à gauche que dans tous les autres cas : ce facteur n’est pas exclu.
 - Maximum de plongeurs au-delà du cycle 2, et dans les vagues en rangée d’un éventuel cycle 2 : provisoires. Les compteurs de motifs sont nuls en début de partie (`pr12a-b`, depuis la mise sous tension) ; après un retour d’attraction, seul le début de la démo est relevé.
 
 La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
@@ -65,7 +65,7 @@ Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 
 & $godot --headless --path prototype --script res://tests/test_waves.gd
 ```
 
-`test_waves.gd` rejoue quinze segments relevés en RAM, dont les vagues 0x02 à 0x05 du cycle 1 et quatre vagues en rangée, soit 1 233 points de contrôle (`tests/wave_checkpoints.gd`) et compare les huit objets toutes les 8 images de boucle. L’audit complet contre toutes les sondes se lance avec `python tools/arcade/audit_waves.py .reference --godot <chemin de Godot>` ; `--checkpoints` régénère les points de contrôle.
+`test_waves.gd` rejoue dix-sept segments relevés en RAM, dont les vagues 0x02 à 0x05 du cycle 1, la reprise de 0x05 après une perte (`pr13a`) et quatre vagues en rangée, soit 1 350 points de contrôle (`tests/wave_checkpoints.gd`) et compare les huit objets toutes les 8 images de boucle. L’audit complet contre toutes les sondes se lance avec `python tools/arcade/audit_waves.py .reference --godot <chemin de Godot>` ; `--checkpoints` régénère les points de contrôle.
 
 ## Comparaison avec Jeutel
 

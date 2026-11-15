@@ -83,6 +83,7 @@ var remaining: int
 var points_per_hit: int
 var wide_entry: bool
 var _alive_mask: int
+var _resumed := false
 # Étape du cycle (amarrages franchis) : choisit la variante d'entrée.
 var stage := 0
 var _wave_clock := 0
@@ -109,6 +110,7 @@ func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> 
 	wide_entry = wave_number >= 3 and not falling and not rows
 	points_per_hit = points if points > 0 else (30 if wide_entry else 50)
 	_alive_mask = alive_mask
+	_resumed = alive_mask != 255
 	remaining = 0
 	for slot in range(8):
 		if alive_mask & (1 << slot):
@@ -495,6 +497,7 @@ func _start_entry(enemy: Enemy, index: int) -> void:
 		const CADENCES_AFTER_FIRST_DOCK := [4, 2, 1, 1]
 		length = LENGTHS_AFTER_FIRST_DOCK[pair]
 		cadence = CADENCES_AFTER_FIRST_DOCK[pair]
+	enemy.cadence = cadence
 	_start_curve(enemy, 8 if turn > 0 else 22, turn, 9, length.x, length.y, 0, false, cadence)
 
 
@@ -574,6 +577,14 @@ func _start_curve(
 	enemy.acceleration = acceleration
 	enemy.reverse_turn = reverse_turn
 	enemy.return_curve = false
+	# Vague large du cycle 1 (0x823d = 1) reprise après une perte de vie, avant le
+	# premier amarrage : la cadence d'entrée (+6) n'est jamais remplacée, ni à la
+	# boucle ni aux courbes suivantes (pr1-suite et pr13a, 0x05 reprise à 5882,
+	# paires 1 à 3 en cadence 2 jusqu'à la fin de la vague). Partout ailleurs, la
+	# boucle passe à 1, y compris en 0x14 reprise au cycle 2 (pr11c 21246).
+	# Seul ce cas est relevé ; la cause exacte n'est pas établie (PROVISOIRE).
+	if _resumed and wide_entry and stage == 0 and max_divers == 1:
+		cadence = enemy.cadence
 	enemy.cadence = cadence
 	enemy.cadence_left = cadence
 	_change_heading(enemy)
