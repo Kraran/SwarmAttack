@@ -188,10 +188,11 @@ func _check_cycle_continues_without_partner() -> void:
 	run.combat = CombatRound.new(4, 2, Pilot.START_X, 255, 6)
 	run.combat.outcome = CombatRound.Outcome.CLEARED
 	run.step(0)
-	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Sans partenaire, un nouveau cycle de combat commence")
-	_expect(run.wave_number == 1, "Le cycle reprend à la vague 1, obtenu %d" % run.wave_number)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Sans partenaire, le combat continue sans amarrage")
+	_expect(run.stage == 1, "PROVISOIRE : l'étape suivante commence, obtenu %d" % run.stage)
+	_expect(run.wave_number == ArcadeRun.WAVE_AFTER_DOCK, "Reprise sur une entrée large, obtenu %d" % run.wave_number)
 	_expect(run.attached == 6, "Le vaisseau II + III est conservé")
-	print("OK cycle suivant : combat poursuivi sans nouvel amarrage")
+	print("OK sans partenaire : étape suivante sans nouvel amarrage (provisoire)")
 
 
 func _check_timeout_resumes_as_one() -> void:
@@ -561,13 +562,15 @@ func _check_success_resumes_as_one_two_and_three() -> void:
 
 
 func _check_life_lost_after_i_ii_and_iii() -> void:
-	# pr8c : destruction du I + II + III à la butée gauche (16754), vies 3 → 2
-	# à 17073, puis entrée du II + III (modules à y = 200 et 216, à 17451).
+	# pr8c : destruction du I + II + III à la butée gauche (16754), module I
+	# touché, vies 3 → 2 à 17073, puis entrée du module II seul (0x8145 = 1,
+	# 0x814a = 3 en réserve, à 17451).
 	var run := ArcadeRun.new()
 	run.attached = 7
 	run.lives = 3
 	run.combat = CombatRound.new(3, 1, Pilot.MIN_X, 255, 7)
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	run.combat.lost_module = 1
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "La perte du I + II + III ouvre le remplacement")
 	for index in range(ArcadeRun.COUNTER_DROP_FRAMES - 1):
@@ -576,5 +579,5 @@ func _check_life_lost_after_i_ii_and_iii() -> void:
 	_expect(run.attached == 7, "Le masque reste I + II + III tant que le compteur n'a pas baissé")
 	run.step(0)
 	_expect(run.lives == 2, "Vies 3 → 2 à la baisse du compteur, obtenu %d" % run.lives)
-	_expect(run.attached == 6, "Le vaisseau II + III succède au I + II + III, masque=%d" % run.attached)
-	print("OK perte du I + II + III : vies 3 → 2, puis II + III")
+	_expect(run.attached == 2, "Le module II seul succède au I + II + III, masque=%d" % run.attached)
+	print("OK perte du I + II + III par le module I : vies 3 → 2, puis module II seul")

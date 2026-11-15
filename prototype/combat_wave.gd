@@ -54,9 +54,9 @@ var _return_pattern := 0
 var _formation_pattern := 0
 
 
-func _init(wave_number := 1, alive_mask := 255) -> void:
+func _init(wave_number := 1, alive_mask := 255, points := -1) -> void:
 	wide_entry = wave_number >= 3
-	points_per_hit = 30 if wide_entry else 50
+	points_per_hit = points if points > 0 else (30 if wide_entry else 50)
 	_alive_mask = alive_mask
 	remaining = 0
 	for slot in range(8):
@@ -130,7 +130,16 @@ func hits_ship(ship_x: int, module := 1) -> bool:
 # le bas du module II (table d'objets 0x81e9–0x81ea). Après l'expiration
 # I + II → III (pr7, 0x822c = 216), l'offset revient à 0 (y = 192 et 200).
 func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
-	for module in range(1, 4):
+	return hit_module(ship_x, attached, y_offset) != 0
+
+
+# Module touché, testé du III vers le I (0 si aucun contact). Relevé sur le
+# I + II + III : ennemi à y = 193 ou 196 au contact (pr8c, pr9, pr10b), le
+# module I est détruit (0x8140 = 0) ; à y = 209, 212 ou 218 (pr9b, pr10a,
+# pr11a, pr11b), le module III l'est (0x814a = 0), alors que la boîte du II
+# couvre aussi ces points. Un contact attribué au II n'a pas été relevé.
+func hit_module(ship_x: int, attached: int, y_offset := 0) -> int:
+	for module in range(3, 0, -1):
 		if not (attached & (1 << (module - 1))):
 			continue
 		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
@@ -141,8 +150,8 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 		if attached == 7 and module == 1:
 			top = -2
 		if _hits_module_box(ship_x, module, top, y_offset if attached == 3 else 0):
-			return true
-	return false
+			return module
+	return 0
 
 
 func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool:

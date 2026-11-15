@@ -13,13 +13,14 @@ var score := 0
 var outcome := Outcome.PLAYING
 var impact_position := Vector2.ZERO
 var impact_age := IMPACT_FRAMES
+var lost_module := 0
 var _elapsed_frames := 0
 var _pending_points: Array[int] = []
 
 
-func _init(wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255, attached := 0) -> void:
+func _init(wave_number := 1, module := 1, start_x := Pilot.START_X, alive_mask := 255, attached := 0, points := -1) -> void:
 	pilot = Pilot.new(module, start_x, attached)
-	wave = CombatWave.new(wave_number, alive_mask)
+	wave = CombatWave.new(wave_number, alive_mask, points)
 
 
 func step(input_mask: int) -> void:
@@ -54,6 +55,7 @@ func step(input_mask: int) -> void:
 			outcome = Outcome.CLEARED
 	elif wave.hits_attached(pilot.ship_x, pilot.attached, pilot.assembly_y_offset):
 		outcome = Outcome.MODULE_LOST
+		lost_module = wave.hit_module(pilot.ship_x, pilot.attached, pilot.assembly_y_offset)
 		pilot.clear_shots()
 		impact_position = Vector2(pilot.ship_x, pilot.ship_y() + 6)
 		impact_age = 0
