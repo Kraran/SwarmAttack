@@ -128,7 +128,7 @@ func load_patterns(values: Array) -> void:
 	_return_pattern = int(values[5])
 
 
-# Crédit d'un ennemi abattu (CombatRound, SCORE_DELAY images après l'impact).
+# Crédit d'un ennemi abattu (CombatRound, score_delay() images après l'impact).
 func credit_kill() -> void:
 	credited_remaining -= 1
 
@@ -268,8 +268,17 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 	if enemy.separate_at > 0 and _wave_clock >= enemy.separate_at:
 		enemy.separate_at = 0
 		_start_curve(enemy, 1, -1 if _wave_clock & 2 else 1, 30, 1, 2)
-		enemy.phase = Flight.DIVE
-		enemy.turns_left = 0
+		# Au cycle 1 (0x823d = 1), le partenaire garde cette courbe en
+		# formation (phase 2) tant que 0x823c vaut au moins 5 : pr12a 0x02
+		# (598, 721, 902) et 0x03 (2648, 2672), y compris depuis l'ouverture.
+		# Sous 5 (pr12a 3076, 3356) et au cycle 2 (0x823d = 2, pr11c 0x12 et
+		# 0x13, même à 8 survivants), il passe en phase 3 et plonge au pas
+		# suivant.
+		if max_divers >= 2 or credited_remaining < 5:
+			enemy.phase = Flight.DIVE
+			enemy.turns_left = 0
+		else:
+			enemy.phase = Flight.FORMATION
 		return
 	if enemy.phase == Flight.OPENING:
 		_move(enemy)

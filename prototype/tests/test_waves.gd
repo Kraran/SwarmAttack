@@ -14,6 +14,7 @@ func _initialize() -> void:
 	_check_falling_points()
 	_check_stage_one_sequence()
 	_check_rows_and_pattern_reset()
+	_check_score_delays()
 	if _failures == 0:
 		print("WAVES OK")
 	quit(1 if _failures else 0)
@@ -123,6 +124,19 @@ func _check_rows_and_pattern_reset() -> void:
 		_fail("perte de module : phase %d, motifs %s" % [run.phase, run.combat.wave.patterns()])
 		return
 	print("OK étape 2 : rangées à 100 points, motifs remis à zéro après une perte")
+
+
+func _check_score_delays() -> void:
+	# Délai impact -> crédit selon le type de vague et 0x823c (150 impacts).
+	const CombatRound = preload("res://combat_round.gd")
+	var cases := [[1, 0, 8, 10], [1, 0, 4, 9], [3, 0, 8, 10], [3, 0, 3, 9], [3, 2, 8, 13], [3, 2, 2, 10]]
+	for c in cases:
+		var round := CombatRound.new(c[0], 1, 112, 255, 0, -1, c[1])
+		round.wave.credited_remaining = c[2]
+		if round.score_delay() != c[3]:
+			_fail("délai de crédit vague %d étape %d, %d restants : %d au lieu de %d" % [c[0], c[1], c[2], round.score_delay(), c[3]])
+			return
+	print("OK délais de crédit : 9-10 (étroite, large), 10-13 (rangée)")
 
 
 func _fail(message: String) -> void:

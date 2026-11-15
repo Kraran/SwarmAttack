@@ -84,8 +84,8 @@ var _entrance_alive_mask := -1
 # travers l'amarrage et la fin de cycle (pr7, pr8, pr8b, pr11c). Ils sont remis
 # à zéro à l'entrée du module qui suit une perte de vie (0x809b = 0x01 ou 0x11 :
 # pr1-suite 5504 et 8379, pr10a-d, pr11a-d), pas après une collision
-# d'amarrage. Nuls au début de la démo (pr1-suite 10246) ; début de partie :
-# PROVISOIRE, supposé identique.
+# d'amarrage. Nuls en début de partie (pr12a-b : RAM effacée à 106, 0x809b =
+# 0x01 à 151) et au début de la démo (pr1-suite 10246, pr12b 27726).
 var _patterns: Array = [0, 0, 0, 0, 0, 0]
 var _reset_patterns := false
 

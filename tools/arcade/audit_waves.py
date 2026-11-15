@@ -124,7 +124,11 @@ SEL=[('pr6b-hitbox-i-ii',10935,None,'0x07 après le premier amarrage, vaisseau m
      ('pr11d-cycle-vague-4-immobile',16693,None,'0x0c rangée, vaisseau immobile, sept abattus'),
      ('pr11c-cycle-vague-4-tir-precoce',17157,None,'0x0d rangée, huit abattus'),
      ('pr11b-cycle-vague-4-patrouille',16693,None,'0x0c rangée, sorties latérales'),
-     ('pr9-tir-i-ii-iii',17668,None,'0x0c rangée, cinq survivants, motifs remis à zéro')]
+     ('pr9-tir-i-ii-iii',17668,None,'0x0c rangée, cinq survivants, motifs remis à zéro'),
+     ('pr12a-cycle-1-debut',571,None,"0x02 cycle 1, séparations depuis l'ouverture"),
+     ('pr12a-cycle-1-debut',2611,None,'0x03 cycle 1, séparations puis piqués sous 5'),
+     ('pr12a-cycle-1-debut',3749,None,'0x04 cycle 1'),
+     ('pr12a-cycle-1-debut',4531,1200,'0x05 cycle 1, 1200 premiers pas')]
 
 def checkpoints(probes):
     out=[]
