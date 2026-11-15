@@ -24,7 +24,7 @@ const ENTRANCE_MID_Y := 120
 const ENTRANCE_REST_Y := 200
 const STARTING_LIVES := 3
 # Après la baisse à 0 : 31 images, puis 30 images de « JEU 1 TERMINE ».
-# Les 869 images suivantes mènent à la démo (non reproduite).
+# Le cycle d'attraction (attract.gd) reprend ensuite au texte de présentation.
 const GAME_OVER_CLEAR := 31
 const GAME_OVER_MESSAGE := 30
 
@@ -98,6 +98,11 @@ func entrance_ship_y() -> int:
 
 func game_over_shows_message() -> bool:
 	return phase == Phase.GAME_OVER and _game_over_elapsed >= GAME_OVER_CLEAR
+
+
+# pr1-suite : 31 + 30 images après la baisse à 0, puis le texte d'attraction.
+func game_over_finished() -> bool:
+	return phase == Phase.GAME_OVER and _game_over_elapsed >= GAME_OVER_CLEAR + GAME_OVER_MESSAGE
 
 
 func practice_docking() -> void:

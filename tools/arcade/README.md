@@ -64,7 +64,7 @@ Les variantes suivantes se reproduisent en copiant le replay et en remplaçant l
 | 6946 | x = 118 à y = 201, soit 6 unités à droite | Amarrage. |
 | 6948 | x = 119 à y = 201, soit 7 unités à droite | Collision. |
 
-La tolérance de 6 unités est vérifiée pour ce contact entre les modules II et III. Pour l’assemblage I et II en partie, un contact réussi est relevé à l’offset (14, −7) sur `pr5c-amarrage-i-ii-succes` ; (13, −7) au cran précédent n’accroche pas. Les autres bords de la fenêtre et les effets d’autres vitesses d’approche restent à mesurer.
+La tolérance de 6 unités est vérifiée pour ce contact entre les modules II et III. Pour l’assemblage I et II en partie, le contact de `pr5c-amarrage-i-ii-succes` se fait à (14, −6) : c’est la position calculée au cran, l’affichage étant resté à (14, −7). Celui de la démo se fait à (5, −6), affiché (6, −7) ; voir « Relevés pr10 ». (13, −7) au cran précédent n’accroche pas. Les autres bords de la fenêtre et les effets d’autres vitesses d’approche restent à mesurer.
 
 Le jeu n’amarre le module I avec le II que si le module I est encore là après la vague 4. Les captures `pr1-*`, `pr2-held-fire` et `pr3-hitbox` suivent toutes le parcours solo qui perd le module I à la frame 5215, puis amarrent le II sur le III. La démonstration, elle, réussit un I + II (chrono `10:7` à 2685, bonus `10 × 100 = 1000` à 2686–2687) mais ce n’est pas une approche jouée, et les traces de cette démo ne sont pas dans le dépôt.
 
@@ -82,7 +82,7 @@ L’écran d’expiration dure 183 images, sans aucune frame figée (`0x8005` av
 
 Le replay [solo-docking-i-ii-success.csv](replays/solo-docking-i-ii-success.csv) reprend le trajet jusqu’à 9700, puis, à partir du premier pas (10112), tient gauche 53 ticks d’approche, freine à droite, et maintient le tir à partir du 60e tick. La capture `pr5c-amarrage-i-ii-succes` (13 000 images, sonde `8000-83ff` depuis 9500, instantanés toutes les 2 images depuis 9500) est complète, reprend exactement ces entrées, et coïncide avec `pr5b` jusqu’au début du pilotage (10112).
 
-Le contact réussit à 10599 : `0x8004` passe à 1, chrono `17:10` (affiché `17:0`), `0x822b` = 134, `0x822c` = 217, soit l’offset (14, −7) par rapport à la cible (112, 216). Au cran de contrôle précédent (10595), l’offset (13, −7) n’a pas accroché. L’objet `0x8140` se cale sur (120, 208). L’écran « BRAVO !! » affiche `BONUS 17 × 100 = 1700` pendant 305 images, sans frame figée (10599–10903). À 10904, le score passe de 1280 à 2980 et le vaisseau I + II reprend, recentré (`0x822b` = 128, `0x822c` = 232), vies toujours à 3, créneaux `0x8161–0x8168` vides. La vague à entrée large apparaît vers 10935.
+Le contact réussit à 10599 : `0x8004` passe à 1, chrono `17:10` (affiché `17:0`), `0x822b` = 134, `0x822c` = 217, soit l’offset (14, −7) par rapport à la cible (112, 216). Au cran de contrôle précédent (10595), l’offset (13, −7) n’a pas accroché. Relecture sur `pr10e` : à 10599, l’attente verticale `0x8225` était à 0 et repart à 1. Le cran a donc porté le module à (14, −6), position que le jeu teste sans l’afficher. L’objet `0x8140` se cale sur (120, 208). L’écran « BRAVO !! » affiche `BONUS 17 × 100 = 1700` pendant 305 images, sans frame figée (10599–10903). À 10904, le score passe de 1280 à 2980 et le vaisseau I + II reprend, recentré (`0x822b` = 128, `0x822c` = 232), vies toujours à 3, créneaux `0x8161–0x8168` vides. La vague à entrée large apparaît vers 10935.
 
 La droite reste enfoncée : `0x822b` avance de 2 par image jusqu’à 216 à 10948 (x = 200) et y reste à cette butée jusqu’à la destruction. Le tir, maintenu depuis l’approche jusqu’à 10999, ne produit aucune volée à la reprise ; le motif de tir du I + II n’est donc pas observé. Un ennemi détruit le vaisseau à 12290 (`0x8004` = 1, toujours à la butée droite), les vies passent de 3 à 2 à 12579 (289 images de boucle). Le module I reprend ensuite l’entrée (`0x822c` vers 200, sprite `0x78`, visible à 12968). La capture s’arrête à 12999, pendant cette entrée. La hitbox du I + II et sa butée gauche ne sont pas calées sur ce seul contact. L’amarrage I + II vers le III n’est pas visé par ce passage.
 
@@ -181,7 +181,47 @@ python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-i-ii
 python .\tools\arcade\capture.py --scenario attract --frames 20000 --probe 8000-83ff --snap-every 10 --output .reference\pr10e-attract
 ```
 
-Restent hors de ce lot : le bord bas de la zone de capture I + II → III (il faudrait passer sous la cible), les bords de la zone de capture du module I vers le II (l’approche de `pr5c` présente des frames figées, 8 entre 10120 et 10215, absentes de `pr5b` : la cadence des crans dépend des entrées et ne se prévoit pas encore), et le cycle suivant après la vague 4 sans partenaire.
+Restaient hors de ce lot, et restent provisoires : le bord bas de la zone de capture I + II → III (il faudrait passer sous la cible), les bords de la zone de capture du module I vers le II (l’approche de `pr5c` présente des frames figées, 8 entre 10120 et 10215, absentes de `pr5b` : la cadence des crans dépend des entrées et ne se prévoit pas encore), et le cycle suivant après la vague 4 sans partenaire.
+
+## Relevés pr10
+
+Les cinq captures sont complètes, avec les empreintes de replay attendues : 17 000, 17 200, 13 000, 13 000 et 20 000 images. Sur `pr10a` et `pr10b`, le modèle d’inertie reproduit image par image `0x822b`, `0x822c`, `0x8222`–`0x8225` jusqu’au contact. Les deux approches ont donc suivi la trajectoire prévue.
+
+**`pr10a-capture-i-ii-iii-droite`.** Balayage vers la gauche, y alternant entre −5 et −6. (15, −5) et (15, −6) restent sans contact. Au cran 15976, (14, −6) accroche : `0x8004` = 1 à 15977, chrono `14:06`, `0x822b` = 134, `0x822c` = 218. L’écran bonus dure 305 images, puis le score passe de 4940 à 9140 (+ `14 × 300` = 4200). Reprise à 16282 en I + II + III (`0x822b` = 128, `0x822c` = 216). Destruction à 16553, vies 3 → 2 à 16866.
+
+**`pr10b-capture-i-ii-iii-gauche`.** Balayage vers la droite. (1, −6), puis (2, −5) à deux crans, restent sans contact. Au cran 16332, (3, −6) accroche : `0x8004` = 1 à 16333, chrono `05:07`, `0x822b` = 123, `0x822c` = 218. Bonus `05 × 300`, score 4940 → 6440, reprise à 16638.
+
+Ces deux captures donnent la zone I + II → III sur la rangée y = −6 : de x = 3 à x = 14, avec le contact (8, −6) de `pr8c`. (2, −6) n’a pas été visité. Les rangées y = −5 à 1 dans x = 3–14 ne sont jamais atteintes et restent provisoires. Les bords sont les mêmes que ceux du rectangle provisoire du module I, x = 3–14.
+
+**`pr10c-hitbox-i-ii-gauche` et `pr10d-hitbox-i-ii-droite`.** La gauche, ou la droite, de 11466 à 11469 porte le vaisseau de `0x822b` = 130 à 122, ou à 138, dès 11471. L’ennemi `0x81e9`/`0x81ea` suit exactement la trajectoire de `pr6b` : sa course ne dépend pas de ce déplacement tardif. Dans les deux cas, (123, 231) à 11491–11492 est un raté et (120, 226) à 11493 un contact. C’est la même image de boucle que 11494 sur `pr6b`, à une frame figée près. Le contact sur le bas du module II (boîte à y = 216) couvre donc dx = −2, 6 et 14 à dy = 10 ; dy = 15 reste un raté. La boîte actuelle (dx de −5 à 23, dy ≤ 12) n’est pas modifiée. Les bords latéraux et le bas exact, entre 10 et 15, restent provisoires. Suites identiques sur les deux captures : drapeau levé 161 images, vies 3 → 2 à 11782, perte suivante à 12400, vies 2 → 1 à 12690.
+
+**`pr10e-attract`.** Après la mise sous tension et l’effacement de la RAM (106–107), le cycle est le suivant :
+
+| Écran | Frames (1er cycle / 2e cycle) | Durée | Repères |
+| --- | --- | --- | --- |
+| Texte de présentation | 107–855 / 9619–10367 | 748 images murales (4 / 3 figées), 745 de boucle au 2e cycle | `0x801d` = `0x60`. Lignes entamées puis complètes, lues sur les PNG à 10 images près : « BATAILLE DANS L’UNIVERS » 21–151, « MOUNE CRESTE » 181–251, « ESSAYEZ VOUS AUSSI » 501–601, « SENSATIONS FORTES » 641, « GARANTIES » 661. |
+| Tableau des scores | 855–978 / 10367–10490 | 123 images, aucune figée | « SCORE NOM », NO1 à NO5 à 005000 (`0x8051` passe à 0). |
+| Démo | 978–9619 / 10490–19134 | 8641 / 8644 images murales, 8526 de boucle | Démarre à `0x8097` = 3, finit au retour à 0. Retour direct au texte, sans écran « JEU TERMINE ». |
+
+Au rythme de `0x8005`, les deux démos sont identiques : positions, vies et `0x8004` coïncident sur les 8526 images de boucle. La démo est donc scriptée. Elle se déroule ainsi (images de boucle depuis le début de la démo, frames du 1er cycle) :
+
+- 0–377 (978–1355) : entrée du module I, à y = 120 vers 281 puis posé à y = 200 à 377. Il n’y a aucune vague de combat avant l’amarrage.
+- 377 (1355) : intro de l’amarrage I → II (`0x809b` = 2, « RAVITAILLEMENT »), chrono `30:10` à 730 (1708).
+- 1693 (2686) : contact. L’affichage reste à (6, −7), le cran porte le module à (5, −6). Chrono `10:07`, écran « BRAVO !! » `10 × 100 = 1000` pendant 305 images.
+- 1998 (2991) : reprise en I + II à x = 112 (`0x822b` = 128, `0x822c` = 232), vagues 3 et 4 (`0x809b` = 3 puis 4 à 2611). Une volée toutes les 64 images de boucle, de 2045 à 3187 : 19 volées, dont un écart de 54 images au changement de vague. La démo ne marque aucun point (`0x8099`–`0x809a` inchangés).
+- 3207 (4215) : intro I + II → III (`0x809b` = 5), chrono `30:10` à 3560 (4570), puis expiration à 4944 (5967) : « DOMMAGE !! », `00:0`, écran de 183 images.
+- 5127 (6150) : reprise du I + II à x = 112, `0x822c` = 216. Volées de 5174 à 5494, toutes les 64 images.
+- 5503 (6529) : destruction du I + II, drapeau 161 images, vies 3 → 2 à 5792 (289 images). Le module II est perdu (`0x8145` = 0) et le module I refait son entrée.
+- 7247 (8334) : destruction du module I, vies 2 → 1 à 7536 (289 images). Le module III entre (`0x822c` = 224).
+- 8209 (9302) : destruction du module III, drapeau 161 images, vies 1 → 0 et retour au texte à 8526, soit 317 images après le contact au lieu de 289.
+
+Les états des modules `0x8140`, `0x8145` et `0x814a` valent 3 en réserve, 2 en entrée ou en approche, 1 en jeu et 0 une fois détruits.
+
+Les commandes simulées par la démo ne sont pas observables : la trace ne contient que les commandes du collecteur, toutes au repos. On les déduit des positions. En fin d’approche (dès 2503), le module I descend en diagonale à la vitesse verticale maximale (`0x8223` = `0x40`, une unité par cran), et sa vitesse horizontale se resserre de 173 à 170. Le tir est régulier, toutes les 64 images, et seulement en I + II. La table `prototype/attract_demo_data.gd` conserve, image de boucle par image de boucle, chaque changement de `0x822b`, `0x822c`, `0x8097`, `0x8004`, `0x801d`, `0x809b`, `0x8230`–`0x8231` et des trois états de module, ainsi que les volées. Pour la régénérer :
+
+```powershell
+python .\tools\arcade\extract_attract.py .reference\pr10e-attract\mouncrst\attract-probe.csv
+```
 
 ## Sonde de RAM
 

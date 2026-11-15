@@ -85,7 +85,17 @@ func _check_i_ii_hitbox() -> void:
 	# pr7 : après l'expiration I + II → III, 0x822c = 216, offset 0.
 	var low := _enemy_at(Vector2i(120, 210))
 	_expect(low.hits_attached(114, 3, 0), "Après expiration, le I + II reprend les boîtes à y = 192/200")
-	print("OK hitbox I + II : raté à (123, 231), contact à (120, 226), offset 16")
+	# pr10c / pr10d : même ennemi, même trajectoire (indépendante du décalage
+	# tardif du vaisseau), vaisseau à 0x822b = 122 (x = 106) et 138 (x = 122).
+	# Raté à (123, 231) à 11491–11492, contact à (120, 226) à 11493 dans les
+	# deux cas, comme à x = 114. Le bas de la boîte du module II (dy ≤ 12 sous
+	# y = 216) touche donc de dx = -2 à dx = 14 ; (dy = 15) reste un raté.
+	for ship_x in [106, 122]:
+		var shifted_miss := _enemy_at(Vector2i(123, 231))
+		_expect(not shifted_miss.hits_attached(ship_x, 3, 16), "pr10 : (123, 231) ne touche pas le I + II à x = %d" % ship_x)
+		var shifted_hit := _enemy_at(Vector2i(120, 226))
+		_expect(shifted_hit.hits_attached(ship_x, 3, 16), "pr10 : (120, 226) touche le I + II à x = %d" % ship_x)
+	print("OK hitbox I + II : raté à (123, 231), contact à (120, 226) pour x = 106, 114 et 122, offset 16")
 
 
 func _check_i_ii_iii_hitbox() -> void:
