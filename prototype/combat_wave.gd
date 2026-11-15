@@ -20,7 +20,18 @@ const HEADINGS := [
 	Vector2i(4, 4), Vector2i(3, 5), Vector2i(1, 4), Vector2i(0, 3)
 ]
 
-enum Flight { OPENING, ENTRY_CURVE, FORMATION, DIVE, STRAIGHT_DIVE, RETURNING, CIRCLING, FALL_PAUSE, FALL, FALL_EXIT }
+enum Flight {
+	OPENING, ENTRY_CURVE, FORMATION, DIVE, STRAIGHT_DIVE, RETURNING, CIRCLING, FALL_PAUSE, FALL, FALL_EXIT,
+	ROW_PAUSE, ROW_ZIGZAG, ROW_DIVE, ROW_EXIT
+}
+
+# Vagues en rangée 0x0c et 0x0d (après le second amarrage ; pr7, pr8*, pr9*,
+# pr10a-b, pr11*). Apparition à l'horloge 32 en y = 0, vitesse d'ouverture
+# verticale propre à chaque objet (octet +8), 16 pas comptés par l'octet +4.
+# Tous les objets avancent à chaque image de boucle.
+const ROW_X := [32, 56, 80, 104, 136, 160, 184, 208]
+const ROW_OPENING_VY := [2, 3, 2, 3, 3, 2, 3, 2]
+const ROW_DIVE_STEP := Vector2i(0, 4)
 
 # Vagues 0x09 et 0x0a (pr7, 14132-14819) : huit objets lancés par paires, à
 # position et vitesse fixes (octets +1, +2, +8, +9 de l'objet), dans l'ordre
@@ -66,6 +77,8 @@ var enemies: Array[Enemy] = []
 # Vague d'objets en chute (0x809b = 0x09 et 0x0a, numéros de vague 5 et 6).
 var falling := false
 var _next_pair := 0
+# Vague en rangée (0x809b = 0x0c et 0x0d, numéros de vague 3 et 4 de l'étape 2).
+var rows := false
 var remaining: int
 var points_per_hit: int
 var wide_entry: bool
@@ -92,7 +105,8 @@ var credited_remaining := 0
 func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> void:
 	stage = at_stage
 	falling = wave_number >= 5
-	wide_entry = wave_number >= 3 and not falling
+	rows = at_stage >= 2 and wave_number >= 3 and not falling
+	wide_entry = wave_number >= 3 and not falling and not rows
 	points_per_hit = points if points > 0 else (30 if wide_entry else 50)
 	_alive_mask = alive_mask
 	remaining = 0
@@ -114,7 +128,7 @@ func load_patterns(values: Array) -> void:
 	_return_pattern = int(values[5])
 
 
-# Crédit d'un ennemi abattu (CombatRound, SCORE_DELAY images après l'impact).
+# Crédit d'un ennemi abattu (CombatRound, score_delay() images après l'impact).
 func credit_kill() -> void:
 	credited_remaining -= 1
 
@@ -128,7 +142,13 @@ func kill(index: int) -> void:
 	_alive_mask &= ~(1 << index)
 	if wide_entry and enemy.phase == Flight.DIVE:
 		divers -= 1
-	if not wide_entry and not falling and not (index & 1):
+	if rows and enemy.phase == Flight.ROW_DIVE:
+		# L'impact est traité après le déplacement des huit objets : 0x823e
+		# baisse à l'image où l'objet touché fait son dernier pas, et le
+		# plongeur suivant part à l'image d'après (pr11c : k7 à 16956, k3
+		# plonge à 16957 ; k1 à 17417, k2 plonge à 17418).
+		divers -= 1
+	if not wide_entry and not falling and not rows and not (index & 1):
 		enemies[index + 1].separate_at = _wave_clock + 4
 
 
@@ -142,6 +162,9 @@ func advance(frame: int, ship_x: int) -> void:
 	_wave_clock += 1
 	if falling:
 		_advance_falling()
+		return
+	if rows:
+		_advance_rows(ship_x + 16)
 		return
 	if _wave_clock == SPAWN_FRAME:
 		for index in range(8):
@@ -245,8 +268,17 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 	if enemy.separate_at > 0 and _wave_clock >= enemy.separate_at:
 		enemy.separate_at = 0
 		_start_curve(enemy, 1, -1 if _wave_clock & 2 else 1, 30, 1, 2)
-		enemy.phase = Flight.DIVE
-		enemy.turns_left = 0
+		# Au cycle 1 (0x823d = 1), le partenaire garde cette courbe en
+		# formation (phase 2) tant que 0x823c vaut au moins 5 : pr12a 0x02
+		# (598, 721, 902) et 0x03 (2648, 2672), y compris depuis l'ouverture.
+		# Sous 5 (pr12a 3076, 3356) et au cycle 2 (0x823d = 2, pr11c 0x12 et
+		# 0x13, même à 8 survivants), il passe en phase 3 et plonge au pas
+		# suivant.
+		if max_divers >= 2 or credited_remaining < 5:
+			enemy.phase = Flight.DIVE
+			enemy.turns_left = 0
+		else:
+			enemy.phase = Flight.FORMATION
 		return
 	if enemy.phase == Flight.OPENING:
 		_move(enemy)
@@ -317,6 +349,75 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 	if not wide_entry and phase == Flight.FORMATION and credited_remaining < 5:
 		enemy.phase = Flight.DIVE
 		enemy.turns_left = 0
+
+
+func _advance_rows(ship: int) -> void:
+	if _wave_clock == SPAWN_FRAME:
+		for index in range(8):
+			var enemy := Enemy.new()
+			enemy.alive = bool(_alive_mask & (1 << index))
+			enemy.position = Vector2i(ROW_X[index], 0)
+			enemy.velocity = Vector2i(0, ROW_OPENING_VY[index])
+			enemy.turn = 0
+			enemies.append(enemy)
+		return
+	if enemies.is_empty():
+		return
+	for enemy in enemies:
+		if not enemy.alive:
+			continue
+		match enemy.phase:
+			Flight.OPENING:
+				# 16 pas verticaux, phase 1 au dernier (pr11d k0 : y = 32 à 16710).
+				_move(enemy)
+				enemy.opening_left -= 1
+				if enemy.opening_left == 0:
+					enemy.phase = Flight.ROW_PAUSE
+			Flight.ROW_PAUSE:
+				# Phase 2 sans déplacement (16711), zigzag au pas suivant.
+				enemy.phase = Flight.ROW_ZIGZAG
+				enemy.turns_left = 0
+			Flight.ROW_ZIGZAG:
+				# Zigzags de 8 virages à la cadence 2, pas (2, 2), octet +0 = 0x60 :
+				# caps 4 à 11 au sens +1, puis 26 à 19 au sens -1, en alternance.
+				# Une courbe achevée (virages à 0, sans déplacement) ou une
+				# réapparition enchaîne la courbe de sens opposé au pas suivant.
+				if enemy.turns_left == 0:
+					enemy.turn = -1 if enemy.turn > 0 else 1
+					_start_curve(enemy, 4 if enemy.turn > 0 else 26, enemy.turn, 8, 2, 2, 0, false, 2)
+				else:
+					_step_curve(enemy)
+				# Le premier objet en phase 2, dans l'ordre k0 à k7, plonge quand
+				# 0x823e est sous 0x823d, après son pas normal et sans test de
+				# sortie (pr11d k1 : piqué à y = 7, 17569).
+				if divers < max_divers:
+					divers += 1
+					enemy.phase = Flight.ROW_DIVE
+					if _formation_pattern != 0:
+						# 0x8242 passe à 0 au premier piqué de la vague (horloge 50).
+						_formation_pattern = 0
+				else:
+					_row_exit(enemy)
+			Flight.ROW_DIVE:
+				# Piqué vertical à +4 par image de boucle jusqu'à la sortie par le bas.
+				enemy.velocity = ROW_DIVE_STEP
+				_move(enemy)
+				if _row_exit(enemy):
+					divers -= 1
+			Flight.ROW_EXIT:
+				# Réapparition au pas suivant la sortie, y inchangé, en
+				# x = 0x822b + (0x8227 & 63) - 32 (302 réapparitions sur pr7, pr8*,
+				# pr9*, pr10a-b et pr11a-d, toutes conformes).
+				enemy.position.x = (ship + (_wave_clock & 63) - 32) & 255
+				enemy.phase = Flight.ROW_ZIGZAG
+				enemy.turns_left = 0
+
+
+func _row_exit(enemy: Enemy) -> bool:
+	if enemy.position.y >= 8 and (enemy.position.x < 244 or enemy.position.x >= 252):
+		return false
+	enemy.phase = Flight.ROW_EXIT
+	return true
 
 
 func _advance_falling() -> void:

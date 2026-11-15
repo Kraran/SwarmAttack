@@ -287,7 +287,7 @@ Les quatre captures sont complètes : 30 000 images, empreintes de replay identi
 - 0x12 : identique sur 114 images de boucle, jusqu’au premier impact (horloge 146) ;
 - 0x14 : identique sur 120 images, jusqu’au premier impact ;
 - 0x13 : identique jusqu’au premier impact, à l’horloge 54 ;
-- 0x15 : s’écarte à l’horloge 48, sans impact. La vague 4 du cycle 1 n’ayant jamais été sondée depuis son début, on ne sait pas si cet écart est propre au cycle 2.
+- 0x15 : s’écarte à l’horloge 48, sans impact. `pr12a` a depuis sondé la vague 4 du cycle 1 (0x05) depuis son début : elle suit le même modèle que 0x15, et l’écart est corrigé depuis.
 
 Ces relevés ne montrent aucune accélération au cycle 2. Après la perte du module II seul en 0x14 (20461), le module III entre (`0x814a` 2 → 1) et reprend à 21137 (`0x822c` = 224). La partie n’a pas atteint l’amarrage du cycle 2.
 
@@ -321,16 +321,16 @@ python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot
 | +8, +9 | vy, vx signés |
 | +11 à +16 | Cap, virages restants, sens, pas droits, pas diagonaux, pas restants |
 
-**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues. `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
+**Variables de vague.** `0x823c` : survivants, décrémenté au crédit des points ou à la sortie d’un objet en chute. `0x823d` : maximum de plongeurs, 1 au cycle 1 et 2 au cycle 2 (mis à 2 à l’entrée du cycle 2, 17921). `0x823e` : plongeurs en cours (il déborde en vagues étroites : 255, 253). `0x8242` : motif de formation ; `0x8243`–`0x8246` : motifs de piqué des quatre zones ; `0x8247` : motif de retour. Ces compteurs ne sont pas remis à zéro entre les vagues, ni à l’amarrage (même après une collision : `pr8`, `pr8b`), ni en fin de cycle (`pr11c` 17921). Ils repartent de zéro à l’entrée du module qui suit une perte de vie (`0x809b` = 0x01 ou 0x11), sur toutes les sondes concernées (`pr1-suite`, `pr10a-d`, `pr11a-d`). `0x823a`/`0x823b` varient selon le type d’étape (fd/01 entrée, ff/03 vague 1 et amarrage, 00/04 étroite au cycle 2, 01/05 en 0x07-0x08, 02/06 large, 03/07 en 0x09-0x0a, 04/08 en rangée, fe/02 fin de cycle) ; leur rôle n’est pas établi.
 
-**Règles établies** (positions identiques à la RAM sur toute la durée des segments, hors dernier impact dont le crédit tombe après la fin du segment) :
+**Règles établies** (positions identiques à la RAM sur toute la durée des segments) :
 
 - Boucle (phase 1) : cap 15, 9 virages, sens conservé et pas (3, 3) avant le premier amarrage ; sens +1 et pas (1, 1) en 0x07/0x08.
 - Fin de formation : piqué si `0x823e` < `0x823d` (l’ennemi passe en phase 3 sans bouger, puis lance son piqué au pas suivant), sinon courbe de formation. Le premier ennemi ne part donc pas en piqué rectiligne.
 - Choix du piqué : zone lointaine si x < `0x822b` − 32 ou x ≥ `0x822b` + 32 (`0x822b` = x du vaisseau + 16). Bande y = 128–159 : 63 virages, pas (4, 4), sans accélération, avec saut de virage (drapeau 0x03).
 - Retour (phase 4, avant le premier amarrage) : le virage est sauté quand virages restants & 7 = 2, et les pas droits et diagonaux gagnent 1 quand virages restants & 15 = 0 ; le sens ne s’inverse pas.
 - Sortie en 0x07/0x08 : un pas sur place, réapparition en ((x & 63) + 80, (y & 63) + 64), attente de 16 pas (octet +4), phase 1, puis boucle (130 sorties relevées).
-- Vagues étroites (`pr11c`, 0x12 et 0x13) : au pas de l’impact, le partenaire poursuit son mouvement ; au pas suivant, courbe cap 1, sens ±1 selon l’horloge, 30 virages, pas (1, 2), en phase 3 ; puis piqué. Les ennemis en formation plongent quand `0x823c` passe sous 5, au pas qui suit le crédit.
+- Vagues étroites (`pr12a` 0x02 et 0x03, `pr11c` 0x12 et 0x13). À l’image de l’impact, le partenaire fait encore son pas, même en ouverture, puis passe en phase 2 sans courbe. Au pas suivant, il prend la courbe cap 1, sens ±1 selon l’horloge, 30 virages, pas (1, 2). Au cycle 2 (`0x823d` = 2), il la prend en phase 3, à 8 survivants comme à 2 (`pr11c` 18447, 19739), puis plonge au pas d’après. Au cycle 1, il la garde en phase 2 tant que `0x823c` ≥ 5 (`pr12a` 598, 721, 902, 2648, 2672), et passe en phase 3 en dessous (3076, 3356). Les ennemis en formation plongent quand `0x823c` passe sous 5, au pas qui suit le crédit.
 - 0x09 et 0x0a (`pr7`) : paires k3/k7, k2/k6, k1/k5, k0/k4, lancées au pas qui suit la résolution de la paire précédente.
 
 | Objet | Départ | Pas (vx, vy) |
@@ -342,7 +342,61 @@ python .\tools\arcade\audit_waves.py .reference --godot .tools\godot-4.7.2\Godot
 
 16 pas d’ouverture, un pas d’arrêt, puis chute jusqu’à y ≥ 256 : l’objet est posé à y = 0 (phase 4) et retiré au pas suivant. 200 points par objet abattu.
 
-**Rangées 0x0c et 0x0d** (relevé, non modélisé). Apparition à y = 0 aux x = 32, 56, 80, 104, 136, 160, 184, 208. Déplacement à chaque image de boucle. Descente d’ouverture, puis zigzags de 8 virages (caps 4 → 11 sens +1, puis 26 → 19 sens −1), cadence 2, pas (2, 2), drapeau 0x60. Piqué vertical (phase 3, vy = 4) jusqu’au haut de l’écran, puis réentrée près du vaisseau (`pr9` k2 : sortie à (60, 2), réapparition à (124, 2) avec `0x822b` = 128). Le choix du plongeur et la position de réentrée restent à établir.
+**Rangées 0x0c et 0x0d.** Modèle établi : 26 des 27 segments en rangée de `pr7`, `pr8*`, `pr9*`, `pr10a-b` et `pr11a-d` suivent la RAM sur toute leur durée, jusqu’à 1 110 images de boucle (`pr11d`). La seule exception est `pr11a` 16963 : l’objet abattu à 16962 n’est crédité qu’après la fin du segment, à la perte du module III. Les huit objets avancent à chaque image de boucle, dans l’ordre k0 à k7.
+
+- Apparition à l’horloge 32 en y = 0, aux x = 32, 56, 80, 104, 136, 160, 184, 208. Mêmes positions pour les survivants après une perte.
+- Ouverture : 16 pas verticaux (octet +4 de 16 à 0) à vy = 2, 3, 2, 3, 3, 2, 3, 2 selon l’objet. Phase 1 au dernier pas (horloge 48), puis phase 2 sans déplacement (49).
+- Zigzag (phase 2, octet +0 = 0x60) : courbes de 8 virages, cadence 2, pas (2, 2). Elles alternent entre les caps 4 → 11 au sens +1 et les caps 26 → 19 au sens −1. La première, à l’horloge 50, part au sens +1. Une courbe achevée (virages à 0, image sans déplacement) ou une réapparition enchaîne, à l’image suivante, la courbe de sens opposé.
+- Plongeur : à chaque image, le premier objet en phase 2 (dans l’ordre k0 à k7) passe en phase 3 si `0x823e` < `0x823d`. Il fait d’abord son pas normal, sans test de sortie (`pr11d` 17569 : piqué à y = 7). Le premier plongeur est donc k0 à l’horloge 50 ; ensuite, c’est le premier objet en phase 2 qui suit la sortie ou la destruction du précédent. `0x8242` passe à 0 au premier piqué.
+- Piqué (phase 3) : (0, +4) à chaque image, jusqu’à ce que y dépasse 255. `0x823e` baisse à la sortie.
+- Sortie (phase 4) : y < 8 ou 244 ≤ x < 252 après le pas. À l’image suivante, l’objet réapparaît à y inchangé en x = `0x822b` + (`0x8227` & 63) − 32, en phase 2. Ce calcul est vérifié sur les 302 réapparitions relevées (`0x8227` est l’horloge de vague). Si la courbe suivante le laisse encore à y < 8, il ressort et réapparaît de nouveau.
+- Impact : il est traité après le déplacement des huit objets. L’objet touché fait son dernier pas à l’image où il se fige, et `0x823e` baisse à la même image s’il plongeait (`pr11c` 16956 et 17417). Le plongeur suivant part à l’image d’après.
+- `0x8226` monte pendant les longues vagues en rangée (`pr11d` : 0 à 4), sans effet mesurable sur les déplacements. Son rôle n’est pas établi.
+- `0x823d` vaut 1 dans toutes les vagues en rangée relevées (cycle 1). Au cycle 2, rien n’a été relevé.
+
+## Relevés pr12
+
+Les deux captures sont complètes. Chacune compte 30 000 images sondées de 0 à 29 999 (`8000-83ff`), 30 001 lignes de trace et 1 500 PNG. Empreintes des replays :
+
+- `pr12a-cycle-1-debut` : `073150709b1a…`, identique à `solo-cycle-apres-vague-4-c.csv` ;
+- `pr12b-cycle-1-debut-a` : `14fd089c7ac7…`, identique à `solo-cycle-apres-vague-4-a.csv`.
+
+Sur les 13 400 images communes (16 600 à 29 999), la RAM est identique octet pour octet à `pr11c` et à `pr11a` : la borne est déterministe. Le zip reste petit parce que la sonde se compresse bien.
+
+**Calendrier du cycle 1** (`0x809b`, `pr12a`) : RAM effacée à 106, 0x01 (entrée) à 151, 0x02 à 539, 0x03 à 2579, 0x04 à 3717, 0x05 à 4499, 0x06 (amarrage I → II) à 9551, puis 0x07 à 10904. `0x823d` vaut 1 dès 539 (0 à l’entrée). `0x823a`/`0x823b` : fd/01 à l’entrée, ff/03 en vague 1.
+
+**Audit** : toutes les vagues du cycle 1 suivent la RAM sur toute leur durée :
+
+| Vague | Durée (images de boucle) | Impacts |
+| --- | --- | --- |
+| 0x02 | 1 968 | 8 |
+| 0x03 | 1 080 | 8 |
+| 0x04 | 742 | 8 |
+| 0x05 | 4 716 | 8 |
+
+Il fallait pour cela la règle de séparation du cycle 1 (section précédente). La règle des moins de 5 survivants vaut aussi au cycle 1. Les vagues larges du cycle 1 suivent le même modèle que 0x14 et 0x15.
+
+**Compteurs de motifs en début de partie** : nuls (effacés à 106 avec le reste de la RAM, inchangés jusqu’à 0x02). La démo qui suit une fin de partie (`pr12b` 27726) part aussi de zéro.
+
+**Délai de crédit.** Sur 150 impacts (`pr1` à `pr12`), on compte le délai entre la première image de l’explosion et la baisse de `0x823c`. L’explosion démarre à l’image du gel de l’objet : `0x80ef` prend la valeur de base 0x4b, 0x7a, 0xa0 ou 0xe8, puis avance d’un cran par image de boucle.
+
+| Type de vague | Délai (images) |
+| --- | --- |
+| Étroite | 9 à 11 |
+| Large | 9 à 11 |
+| Rangée | 9 à 14 |
+
+Le délai ne dépend ni de l’horloge de vague ni de `0x8005`. Il croît avec `0x823c` au moment de l’impact :
+
+| Type de vague | Valeur la plus fréquente |
+| --- | --- |
+| Étroite | 9 de 1 à 4 restants, 10 de 5 à 8 |
+| Large | 9 de 1 à 3 restants, 10 de 4 à 8 |
+| Rangée | 10, 10, 11, 11, 12, 12, 12, 13 de 1 à 8 restants |
+
+Ces valeurs sont exactes pour 114 impacts sur 150. Le reste de la variation (± 1 à 2 images) tient vraisemblablement à la charge de la carte ; le mécanisme n’est pas établi.
+
+**Cadence de boucle de `pr1-suite` 0x05.** Elle reste inexpliquée. Toutes les autres entrées en boucle relevées prennent la cadence 1, dont 0x04 et 0x05 de `pr12a`. Or `pr12` n’a pas de perte de vie en 0x04 ou 0x05, et la sonde de `pr1-suite` commence à 5100, après le début de la vague.
 
 ## Sonde de RAM
 

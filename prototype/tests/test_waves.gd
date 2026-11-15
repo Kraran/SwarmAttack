@@ -13,6 +13,8 @@ func _initialize() -> void:
 		_replay(segment)
 	_check_falling_points()
 	_check_stage_one_sequence()
+	_check_rows_and_pattern_reset()
+	_check_score_delays()
 	if _failures == 0:
 		print("WAVES OK")
 	quit(1 if _failures else 0)
@@ -94,6 +96,47 @@ func _check_stage_one_sequence() -> void:
 		_fail("étape 1 : vagues %s, phase %d" % [seen, run.phase])
 		return
 	print("OK étape 1 : 0x07, 0x08, 0x09, 0x0a, puis second amarrage")
+
+
+func _check_rows_and_pattern_reset() -> void:
+	# Après le second amarrage, 0x0c et 0x0d entrent en rangée (pr7, pr11*).
+	const ArcadeRun = preload("res://arcade_run.gd")
+	const CombatRound = preload("res://combat_round.gd")
+	var run := ArcadeRun.new()
+	run.stage = 2
+	run.attached = 3
+	run.wave_number = 3
+	run._patterns = [6, 2, 12, 2, 0, 0]
+	run._begin_combat(112, 255)
+	if not run.combat.wave.rows or run.combat.wave.wide_entry or run.points_per_hit() != 100:
+		_fail("étape 2 : la vague 3 doit entrer en rangée à 100 points")
+		return
+	# Perte d'un module : les motifs 0x8242-0x8247 repartent de zéro à
+	# l'entrée suivante (0x809b = 0x01), la même vague reprend en rangée.
+	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	var guard := 0
+	while guard < 2000:
+		guard += 1
+		run.step(0)
+		if run.phase == ArcadeRun.Phase.COMBAT:
+			break
+	if run.phase != ArcadeRun.Phase.COMBAT or not run.combat.wave.rows or run.combat.wave.patterns() != [0, 0, 0, 0, 0, 0]:
+		_fail("perte de module : phase %d, motifs %s" % [run.phase, run.combat.wave.patterns()])
+		return
+	print("OK étape 2 : rangées à 100 points, motifs remis à zéro après une perte")
+
+
+func _check_score_delays() -> void:
+	# Délai impact -> crédit selon le type de vague et 0x823c (150 impacts).
+	const CombatRound = preload("res://combat_round.gd")
+	var cases := [[1, 0, 8, 10], [1, 0, 4, 9], [3, 0, 8, 10], [3, 0, 3, 9], [3, 2, 8, 13], [3, 2, 2, 10]]
+	for c in cases:
+		var round := CombatRound.new(c[0], 1, 112, 255, 0, -1, c[1])
+		round.wave.credited_remaining = c[2]
+		if round.score_delay() != c[3]:
+			_fail("délai de crédit vague %d étape %d, %d restants : %d au lieu de %d" % [c[0], c[1], c[2], round.score_delay(), c[3]])
+			return
+	print("OK délais de crédit : 9-10 (étroite, large), 10-13 (rangée)")
 
 
 func _fail(message: String) -> void:
