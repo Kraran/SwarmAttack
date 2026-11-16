@@ -49,7 +49,7 @@ func step(input_mask: int) -> void:
 			credits += 1
 	if outcome != Outcome.PLAYING:
 		return
-	# Fin de vague : le moteur de tir Jeutel s'arrête (0x8226 à 0 vers 6185)
+	# Fin de vague : le moteur de tir s'arrête (0x8226 à 0 vers 6185)
 	# sans vider les créneaux logiciels. Les projectiles restent figés.
 	if wave.remaining == 0:
 		if _pending_points.is_empty():

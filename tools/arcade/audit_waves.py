@@ -5,7 +5,7 @@ Usage :
   python tools/arcade/audit_waves.py DOSSIER_SONDES [--godot CHEMIN]
   python tools/arcade/audit_waves.py DOSSIER_SONDES --checkpoints
 
-DOSSIER_SONDES est parcouru à la recherche de */mouncrst/replay-probe.csv
+DOSSIER_SONDES est parcouru à la recherche de */replay-probe.csv
 (sorties de capture.py --probe 8000-83ff). Chaque apparition de vague (huit
 objets 0x8184 + 20k aux positions d'entrée étroite, large, en rangée ou en
 chute) devient un segment : pas du vaisseau (0x822b - 16) à chaque image de

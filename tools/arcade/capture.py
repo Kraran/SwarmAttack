@@ -14,7 +14,6 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = Path(__file__).with_name("trace.lua")
-ROM_SET = "mouncrst"
 SCENARIOS = {
     "idle": 850,
     "movement": 850,
@@ -57,15 +56,15 @@ def probe_range(text):
 def capture(args):
     replay = read_replay(args.replay, args.frames) if args.replay else None
     roms = args.rom_dir.resolve()
-    rom = roms / f"{ROM_SET}.zip"
+    rom = roms / f"{args.machine}.zip"
     rom_hash = hashlib.sha256(rom.read_bytes()).hexdigest()
     command = [str(args.mame.resolve()), "-noreadconfig", "-rompath", str(roms)]
-    subprocess.run([*command, "-verifyroms", ROM_SET], check=True)
-    xml = ET.fromstring(subprocess.check_output([*command, "-listxml", ROM_SET]))
-    machine = xml.find(f"./machine[@name='{ROM_SET}']")
+    subprocess.run([*command, "-verifyroms", args.machine], check=True)
+    xml = ET.fromstring(subprocess.check_output([*command, "-listxml", args.machine]))
+    machine = xml.find(f"./machine[@name='{args.machine}']")
     metadata = {
         "mame": xml.attrib["build"],
-        "set": ROM_SET,
+        "set": args.machine,
         "rom_sha256": rom_hash,
         "display": machine.find("display").attrib,
         "dip_defaults": {
@@ -79,7 +78,7 @@ def capture(args):
     probes = list(dict.fromkeys(args.probe or ()))
     if probes:
         metadata["probe"] = {"ranges": probes, "from": args.probe_from}
-    output = args.output.resolve() / ROM_SET
+    output = args.output.resolve() / args.machine
     output.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(dir=output) as directory:
@@ -100,7 +99,7 @@ def capture(args):
             )
             result = subprocess.run(
                 [
-                    *command, ROM_SET, "-nowriteconfig", "-noplugins", "-noautosave",
+                    *command, args.machine, "-nowriteconfig", "-noplugins", "-noautosave",
                     "-video", "none", "-sound", "none", "-nothrottle", "-frameskip", "0",
                     "-cfg_directory", "cfg", "-nvram_directory", "nvram",
                     "-snapshot_directory", ".", "-seconds_to_run", str(frames // 60 + 3),
@@ -173,6 +172,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mame", type=Path, default=Path(r"D:\mame\mame.exe"))
     parser.add_argument("--rom-dir", type=Path, default=ROOT)
+    parser.add_argument("--machine", required=True, help="Identifiant du jeu à capturer dans MAME.")
     parser.add_argument("--scenario", choices=SCENARIOS, action="append")
     parser.add_argument("--replay", type=Path, help="CSV des changements de commandes.")
     parser.add_argument("--frames", type=int)
@@ -185,6 +185,8 @@ if __name__ == "__main__":
     parser.add_argument("--probe-from", type=int, default=0, help="Index de la première frame de la sonde.")
     parser.add_argument("--output", type=Path, default=ROOT / ".reference")
     options = parser.parse_args()
+    if not re.fullmatch(r"[a-z0-9_]+", options.machine):
+        parser.error("--machine attend un identifiant MAME")
     if options.frames is not None and options.frames < 1:
         parser.error("--frames doit être positif")
     if options.replay and (options.scenario or options.frames is None):

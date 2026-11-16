@@ -1,13 +1,12 @@
 # SwarmAttack
 
-Adaptation de **Moune Creste**, l’édition Jeutel de Moon Cresta. Le jeu couvre les dix vagues du premier cycle et les séquences d’amarrage des trois modules. Il propose le solo et le duo local en alternance.
+SwarmAttack est un jeu de défense orbitale. Pilotez votre vaisseau à travers dix vagues et assemblez ses trois modules lors des manœuvres d’amarrage. Jouez en solo ou à deux en alternance sur le même PC.
 
-**[Télécharger SwarmAttack pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/download/v0.1.0/SwarmAttack-Windows-x64.zip)** · [Notes de version](https://github.com/Kraran/SwarmAttack/releases/tag/v0.1.0)
+**[Télécharger pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/download/v0.2.0/SwarmAttack-Windows-x64.zip)** · [Notes de version](https://github.com/Kraran/SwarmAttack/releases/tag/v0.2.0)
 
-Décompressez l’archive, puis ouvrez `SwarmAttack.exe`. Espace lance une partie et sert à tirer. Déplacez-vous avec les flèches ou la manette. Échap ouvre le menu de pause, où vous pouvez reprendre, revenir à l’accueil ou quitter. F5 coupe ou réactive le son.
+Décompressez l’archive et ouvrez `SwarmAttack.exe`. Espace lance une partie et sert à tirer. Déplacez-vous avec les flèches ou la manette. Échap ouvre le menu de pause et F5 coupe ou réactive le son.
 
-Le rendu Full HD utilise des modèles 3D chromés et interpole les mouvements entre les pas de simulation. Les bruitages et jingles proviennent de captures de la version Jeutel.
+Le jeu propose des modèles 3D chromés, un rendu Full HD ou portrait, des effets de particules, et des bruitages et jingles générés par le jeu.
 
 - [Commandes, compilation et tests](prototype/README.md)
-- [Relevés et relectures Jeutel](tools/arcade/README.md)
 - [Plan de développement](PLAN_DEVELOPPEMENT.md)

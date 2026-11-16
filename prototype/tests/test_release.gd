@@ -35,7 +35,7 @@ var _failures := 0
 func _initialize() -> void:
 	_test_full_cycle()
 	_test_assembled_contact_edges()
-	_test_jeutel_presentation()
+	_test_wave_presentation()
 	_test_ring_halves()
 	_test_duo()
 	_test_reserve()
@@ -89,7 +89,7 @@ func _test_assembled_contact_edges() -> void:
 		_expect(dock.stage == cases[offset], "Contact I + II → III incorrect à %s." % str(offset))
 
 
-func _test_jeutel_presentation() -> void:
+func _test_wave_presentation() -> void:
 	var banks := [0, 0, 2, 2, 1, 1, 3, 3, 4, 4]
 	var number := 0
 	for stage in range(3):
@@ -199,9 +199,9 @@ func _test_reserve() -> void:
 			break
 	_expect(session.finished and run.cycle == 2 and not run.bonus_reserve, "La réserve s’est déclenchée deux fois.")
 	run.cycle = 3
-	_expect(run.max_divers() == 3, "Maximum Jeutel au cycle 3.")
+	_expect(run.max_divers() == 3, "Maximum de plongeurs au cycle 3.")
 	run.cycle = 17
-	_expect(run.max_divers() == 1, "Le quartet de cycle du maximum Jeutel doit revenir à zéro.")
+	_expect(run.max_divers() == 1, "Le quartet de cycle de la limite de plongeurs doit revenir à zéro.")
 
 
 func _test_profile() -> void:

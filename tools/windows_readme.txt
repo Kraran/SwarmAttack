@@ -1,9 +1,9 @@
 SWARMATTACK
-Adaptation de Moune Creste, édition Jeutel
+Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
 La présentation est conçue pour le Full HD (1920 × 1080), avec un champ
-vertical et des modèles chromés d’après les silhouettes Jeutel.
+vertical et des modèles spatiaux chromés.
 La VSync suit la fréquence du moniteur. Pour jouer à 60 Hz, sélectionnez
 60 Hz dans les paramètres d’affichage Windows si nécessaire.
 

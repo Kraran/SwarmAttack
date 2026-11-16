@@ -160,7 +160,7 @@ func _advance_approach(input_mask: int) -> void:
 
 
 func _in_capture_area(offset: Vector2i) -> bool:
-	# Jeutel $2289, $22EF et $237C appellent le test de capture $24FC
+	# Les trois séquences utilisent le même test de capture
 	# après le test de collision $2540. Les bornes basses en RAM sont
 	# strictes et les hautes inclusives. Pour I + II, le registre logique
 	# pointe un cran de 8 pixels après le module II sur les deux axes.

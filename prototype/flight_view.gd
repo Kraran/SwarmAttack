@@ -66,7 +66,7 @@ func _add_backdrop(viewport: SubViewport, material: Material) -> void:
 
 
 func start_frame(star_frame: float) -> void:
-	# Les relevés Jeutel décalent verticalement les étoiles de 5 pixels
+	# Le fond décale verticalement les étoiles de 5 pixels
 	# logiques en 10 images, y compris en démo et pendant l'amarrage.
 	_backdrop_material.set_shader_parameter(&"vertical_scroll", fposmod(star_frame, 512.0) / 512.0)
 	_ship_mask = 0

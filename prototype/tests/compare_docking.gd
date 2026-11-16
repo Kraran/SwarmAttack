@@ -1,6 +1,6 @@
 extends SceneTree
 
-# Compare l'approche d'amarrage du module II avec les relevés Jeutel.
+# Compare l'approche d'amarrage du module II avec les relevés référence.
 # Chaque dossier contient replay.csv (entrées et sprites) et replay-probe.csv,
 # produits par capture.py avec la sonde PROBE à partir de la frame 6700.
 
@@ -67,7 +67,7 @@ func _compare(folder: String, expected_stage: int, expected_bonus: int) -> void:
 	var sprites: String = trace[start - 1][7]
 	var dock := Docking.new(2, _byte(sprites, 4), false)
 	if dock.position != Vector2i(_byte(sprites, 4), _byte(sprites, 7)):
-		_fail("%s : position de départ %s, Jeutel %d,%d" % [
+		_fail("%s : position de départ %s, référence %d,%d" % [
 			label, dock.position, _byte(sprites, 4), _byte(sprites, 7)
 		])
 
@@ -109,7 +109,7 @@ func _compare(folder: String, expected_stage: int, expected_bonus: int) -> void:
 			wrong = true
 		if wrong and first_error < 0:
 			first_error = frame
-			printerr("%s : premier écart à la frame %d | prototype %s v %d,%d chrono %s | Jeutel %d,%d v %d,%d chrono %s" % [
+			printerr("%s : premier écart à la frame %d | prototype %s v %d,%d chrono %s | référence %d,%d v %d,%d chrono %s" % [
 				label, frame, dock.position, dock._horizontal.velocity, dock._vertical.velocity,
 				dock.display_clock(), _byte(sprites, 4), _byte(sprites, 7), _byte(registers, 0),
 				_byte(registers, 1), clock
@@ -119,13 +119,13 @@ func _compare(folder: String, expected_stage: int, expected_bonus: int) -> void:
 		label, start, compared, position_errors, velocity_errors, clock_errors
 	])
 	if position_errors or velocity_errors or clock_errors:
-		_fail("%s : l'approche diverge de Jeutel" % label)
+		_fail("%s : l'approche diverge de la référence" % label)
 
-	var jeutel_done: bool = end_frame >= 0 and _byte(probe[end_frame][1], 16) != 0
+	var reference_done: bool = end_frame >= 0 and _byte(probe[end_frame][1], 16) != 0
 	if expected_stage == Docking.Stage.SUCCESS:
-		if not jeutel_done or dock.stage != Docking.Stage.SUCCESS:
-			_fail("%s : amarrage attendu à la même frame, prototype %s, Jeutel %s (frame %d)" % [
-				label, Docking.Stage.keys()[dock.stage], "terminé" if jeutel_done else "en cours", end_frame
+		if not reference_done or dock.stage != Docking.Stage.SUCCESS:
+			_fail("%s : amarrage attendu à la même frame, prototype %s, référence %s (frame %d)" % [
+				label, Docking.Stage.keys()[dock.stage], "terminé" if reference_done else "en cours", end_frame
 			])
 		elif dock.bonus != expected_bonus:
 			_fail("%s : bonus %d, attendu %d" % [label, dock.bonus, expected_bonus])

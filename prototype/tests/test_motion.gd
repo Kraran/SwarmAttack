@@ -109,7 +109,7 @@ func _state_at_refresh(view: Node, frequency: int, practice: bool) -> Array:
 		view._advance_frame(now - before, Pilot.RIGHT)
 		before = now
 	var run: ArcadeRun = view._run
-	_expect(run.frame == DURATION_USEC / Pilot.FRAME_USEC, "Nombre de pas Jeutel en 0,6 s à %d Hz." % frequency)
+	_expect(run.frame == DURATION_USEC / Pilot.FRAME_USEC, "Nombre de pas de simulation en 0,6 s à %d Hz." % frequency)
 	if practice:
 		return [run.frame, run.docking.position, run.docking.remaining_tenths]
 	return [run.frame, run.combat.pilot.ship_x, run.combat.wave.enemies[0].position, run.score()]
