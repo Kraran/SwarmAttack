@@ -49,6 +49,12 @@ Le prototype démarre sur le cycle d’attraction relevé. Espace lance une part
 - Délai entre l’impact et le crédit des points : de 9 à 14 images de boucle depuis la première image de l’explosion, sur 150 impacts. Il croît avec le nombre d’ennemis restants. Le prototype prend la valeur la plus fréquente par type de vague et par `0x823c` à l’impact : 9 ou 10 en vagues étroites et larges, 10 à 13 en rangée. Cette valeur est exacte pour 114 impacts sur 150 et décalée d’une ou deux images pour les autres. Les objets en chute gardent 10, non relevé. Le mécanisme exact (charge de la carte) n’est pas établi.
 - Maximum de plongeurs au-delà du cycle 2, et dans les vagues en rangée d’un éventuel cycle 2 : provisoires. Les compteurs de motifs sont nuls en début de partie (`pr12a-b`, depuis la mise sous tension) ; après un retour d’attraction, seul le début de la démo est relevé.
 
+Comparé à une partie vidéo du Moon Cresta original (Nichibutsu), sans en tirer de valeur, voir `tools/arcade/README.md`, « Points vérifiés d’après une vidéo » :
+
+- Aucun tir ennemi n’existe dans les relevés de Moune Creste, du cycle 1 (0x02 à 0x0e) aux vagues 0x12 à 0x15 du cycle 2. Le prototype n’en a donc pas. Les vagues qui suivent le second amarrage du cycle 2 et le cycle 3 n’ont pas été relevées.
+- Les objets en chute ne se fragmentent pas : un objet touché reste figé, explose, puis disparaît. Aucun nouvel objet ne s’active (0x09 et 0x0a, 9 passages relevés, en partie identiques).
+- Au cycle 2, le mouvement n’accélère pas : une image par pas de boucle, mêmes trajectoires, et 0x823d passe de 1 à 2. La vague 3 du cycle 2 (0x14) entre en courbes larges, comme au cycle 1. Le cycle 3 reste inconnu.
+
 La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. La grille, les zones de collision et les coordonnées s’affichent avec F1. Les formes restent celles d’une vue de diagnostic.
 
 Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 :
