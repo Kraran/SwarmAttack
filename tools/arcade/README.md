@@ -414,6 +414,37 @@ Le replay [solo-docking-suite-immobile.csv](replays/solo-docking-suite-immobile.
 
 **Audit** : 93 segments sur 95 suivent la RAM sur toute leur durée, dont les 7 de `pr13a` et les 5 de `pr14a`. 0x05 de 4531 suit la RAM sur ses 678 pas jusqu’à la perte de vie. Restent les deux 0x0c identiques de `pr11a` et `pr12b` à 16963 (impact non crédité avant la perte du module).
 
+## Points vérifiés d’après une vidéo
+
+Une partie vidéo du Moon Cresta original de Nichibutsu (7 min 37, non versée au dépôt) a suggéré quatre points à vérifier. La vidéo indique seulement quoi chercher. Les réponses ci-dessous viennent des relevés de Moune Creste, via [audit_traces.py](audit_traces.py) (`python tools/arcade/audit_traces.py DOSSIER_SONDES`) et `audit_waves.py`.
+
+**Tirs ennemis : absents.**
+- Le matériel offre huit projectiles en `0x9860`-`0x987f`, tracés dans `bullet_ram`. Sur les 111 couples capture × étape relevés (`pr1` à `pr14`, 0x02 à 0x0e et 0x11 à 0x15), seuls les créneaux 0 à 4 servent, et ce sont les tirs du vaisseau. Ils montent de 4 par image, sauf une remise en place de 8 au plus par vague, au départ d’un nouveau tir. Les créneaux 5 à 7 restent vides, et aucun projectile ne descend.
+- La RAM de travail ne contient aucun objet de tir ennemi. Le seul créneau mobile hors des huit objets, à `0x8170`, porte un tir du vaisseau : il part de y = 216 et monte de 4 par image (`pr12a` 0x0c, 16711-16749).
+- Les PNG de 0x0c et 0x0d (`pr12a` 17140-17560) ne montrent que les tirs du vaisseau, par paires. Sur la vidéo, les traits blancs de la vague équivalente ressemblent aussi aux tirs du joueur.
+- Non relevé : les vagues qui suivent le second amarrage du cycle 2, et le cycle 3.
+
+**Fragmentation des objets en chute : absente.**
+- Dans les 9 passages de 0x09 et 0x0a relevés (`pr7`, `pr8`-`pr8c`, `pr12a`-`b`, en partie identiques entre captures), aucun objet ne s’active hors des huit positions d’apparition.
+- Un objet touché reste figé à sa position (`pr12a` 14262 en (172, 137), 14777 en (157, 102)). L’explosion s’affiche ensuite en anneau (PNG 14760), puis plus rien n’apparaît (14780, 14800).
+- Les huit créneaux de sprites ne portent aucun morceau. `audit_waves.py` suit ces vagues jusqu’au bout, impacts compris.
+
+**Accélération au cycle 2 : absente.**
+- Le rythme de boucle est le même aux deux cycles, une image par pas à 1 à 6 % près selon la charge :
+
+| Vague | Images par pas, cycle 1 | Images par pas, cycle 2 |
+| --- | --- | --- |
+| 1 (0x02 / 0x12) | 1,020 | 1,010 |
+| 2 (0x03 / 0x13) | 1,023 | 1,024 |
+| 3 (0x04 / 0x14) | 1,010 | 1,010 |
+| 4 (0x05 / 0x15) | 1,064 | 1,007 |
+
+- Le même modèle de mouvement reproduit 0x12 à 0x15 sur toute leur durée.
+- 0x04 et 0x14 donnent les mêmes positions pour les huit objets pendant les 90 premiers pas (3749 et 20185, sans impact). Ils s’écartent quand le cycle 2 lance son second plongeur.
+- Seul `0x823d` change, de 1 à 2. Le cycle 3 n’a pas été atteint.
+
+**Entrée de la vague 3 du cycle 2 : large.** 0x14 (`pr11c`, `pr12a`, 20185) apparaît aux positions d’entrée large (117/123, 128) et suit le modèle des vagues larges. Les rangées n’apparaissent qu’après le second amarrage (0x0c et 0x0d).
+
 ## Sonde de RAM
 
 `--probe` ajoute un fichier `<scénario>-probe.csv` à côté de la trace. Chaque option donne une adresse ou une plage hexadécimale du programme, lue à la fin de chaque frame à partir de `--probe-from`. Le manifeste consigne les plages et la frame de départ.

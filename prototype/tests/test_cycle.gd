@@ -153,6 +153,34 @@ func _check_second_cycle_waves() -> void:
 		run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.DOCKING and run.docking_target() == 2, "Après la vague 4 du cycle 2, le module I amarre le II (comme au cycle 1, non relevé)")
 	print("OK cycle 2 : vagues 1-4 à 50, 50, 30, 30")
+	_check_second_cycle_speed()
+
+
+func _check_second_cycle_speed() -> void:
+	# pr12a : 0x14 entre en courbes larges comme 0x04 (pas en rangée), et les
+	# huit objets ont les mêmes positions RAM que 0x04 pendant les 90 premiers
+	# pas de boucle (3749 et 20185, aucun impact). Le cycle 2 n'accélère pas le
+	# mouvement : seul 0x823d passe de 1 à 2. Le rythme de boucle est le même
+	# (1,01 image par pas en 0x04 comme en 0x14).
+	var waves := []
+	for cycle in [1, 2]:
+		var run := ArcadeRun.new()
+		run.cycle = cycle
+		run.wave_number = 3
+		run._begin_combat(Pilot.START_X, 255)
+		_expect(run.combat.wave.wide_entry and not run.combat.wave.rows, "Cycle %d, vague 3 : entrée large" % cycle)
+		_expect(run.combat.wave.max_divers == cycle, "Cycle %d : 0x823d = %d" % [cycle, cycle])
+		waves.append(run.combat.wave)
+	var frame := 1000
+	for step in range(31 + 90):
+		frame += 1
+		for wave in waves:
+			wave.advance(frame, Pilot.START_X)
+		for k in range(waves[0].enemies.size()):
+			if waves[0].enemies[k].position != waves[1].enemies[k].position:
+				_fail("Cycle 2, vague 3 : objet %d diffère du cycle 1 au pas %d" % [k, step - 30])
+				return
+	print("OK cycle 2 : vague 3 en entrée large, même mouvement qu'au cycle 1 (90 pas)")
 
 
 func _check_life_loss_keeps_cycle() -> void:
