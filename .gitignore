@@ -1,7 +1,14 @@
 /.tools/
 /.reference/
+/dist/
 /.godot/
 /prototype/.godot/
+/prototype/**/*.uid
 /mouncrst.zip
 /Moon Cresta *Nichibutsu.mp4
+/Moon Cresta *Nichibutsu.zip
+/SwarmAttack.exe
+/SwarmAttack-Windows-x64.zip
+/LICENCES-GODOT.txt
+/LISEZ-MOI.txt
 __pycache__/

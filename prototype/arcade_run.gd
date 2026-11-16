@@ -71,6 +71,10 @@ var cycle_end_elapsed := 0
 # Masque des modules assemblés : bit 0 = I, bit 1 = II, bit 2 = III.
 var attached := 1
 var lives := STARTING_LIVES
+var bonus_threshold := 30000
+var bonus_reserve := false
+var _bonus_used := false
+var turn_ended := false
 var combat := CombatRound.new()
 var docking: Docking
 var frame := 0
@@ -124,7 +128,11 @@ func score() -> int:
 func entrance_elapsed() -> int:
 	if not _counter_dropped or phase != Phase.REPLACEMENT:
 		return -1
-	return COUNTER_DROP_FRAMES + ENTRANCE_FRAMES - _replacement_left - COUNTER_DROP_FRAMES
+	return replacement_elapsed() - COUNTER_DROP_FRAMES
+
+
+func replacement_elapsed() -> int:
+	return COUNTER_DROP_FRAMES + ENTRANCE_FRAMES - _replacement_left
 
 
 func entrance_ship_y() -> int:
@@ -187,6 +195,7 @@ func practice_docking() -> void:
 
 
 func step(input_mask: int) -> void:
+	turn_ended = false
 	frame += 1
 	match phase:
 		Phase.COMBAT:
@@ -216,11 +225,13 @@ func step(input_mask: int) -> void:
 			_game_over_elapsed += 1
 		Phase.CYCLE_END:
 			_advance_cycle_end()
+	if not _bonus_used and score() >= bonus_threshold:
+		bonus_reserve = true
 
 
-# 0x823d : 1 au cycle 1, 2 au cycle 2 (pr11c). Au-delà : PROVISOIRE, borné à 2.
+# Jeutel $3870-$387D : le quartet haut de $809B, plus un.
 func max_divers() -> int:
-	return mini(cycle, 2)
+	return ((cycle - 1) & 0x0F) + 1
 
 
 func last_wave() -> int:
@@ -269,15 +280,14 @@ func _advance_cycle_end() -> void:
 
 func _advance_replacement() -> void:
 	_replacement_left -= 1
-	var elapsed := COUNTER_DROP_FRAMES + ENTRANCE_FRAMES - _replacement_left
+	var elapsed := replacement_elapsed()
 	if not _counter_dropped and elapsed >= COUNTER_DROP_FRAMES:
 		lives -= 1
+		turn_ended = true
 		_counter_dropped = true
 		_reset_patterns = true
 		attached = _next_attached_after_loss()
-		if lives <= 0:
-			phase = Phase.GAME_OVER
-			_game_over_elapsed = 0
+		if lives <= 0 and not _consume_reserve():
 			return
 	if _replacement_left == 0:
 		var alive := combat.wave.survivors() if _entrance_alive_mask < 0 else _entrance_alive_mask
@@ -362,9 +372,10 @@ func _resume_from_docking(input_mask: int) -> void:
 	combat.score = 0
 	docking = null
 	if lives <= 0:
-		# Collision d'amarrage avec une seule vie restante : non relevée.
-		phase = Phase.GAME_OVER
-		_game_over_elapsed = 0
+		if _consume_reserve():
+			phase = Phase.REPLACEMENT
+			_replacement_left = ENTRANCE_FRAMES
+			_counter_dropped = true
 		return
 	wave_number = WAVE_AFTER_DOCK
 	# pr7 (expiration), pr8b (collision), pr8c (réussite) : l'étape suivante
@@ -386,6 +397,24 @@ func _resume_from_docking(input_mask: int) -> void:
 		combat.pilot.restore_shots(leftover)
 		for _tick in range(resume_ticks):
 			combat.pilot.advance_shots_only()
+
+
+func _consume_reserve() -> bool:
+	if not bonus_reserve:
+		lives = 0
+		phase = Phase.GAME_OVER
+		_game_over_elapsed = 0
+		return false
+	bonus_reserve = false
+	_bonus_used = true
+	lives = STARTING_LIVES
+	attached = 1
+	cycle += 1
+	stage = 0
+	wave_number = 1
+	_reset_patterns = true
+	_entrance_alive_mask = 255
+	return true
 
 
 func _begin_combat(ship_x: int, alive_mask: int) -> void:
