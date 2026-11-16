@@ -74,6 +74,12 @@ func display_position() -> Vector2:
 	return Vector2(position.x - (8 if module == 1 else 0), position.y + 8)
 
 
+func movement_intervals() -> Vector2i:
+	if stage == Stage.APPROACH:
+		return Vector2i(_horizontal.wait + 1, _vertical.wait + 1) * BOARD_FRAMES_PER_CONTROL
+	return Vector2i.ONE * BOARD_FRAMES_PER_CONTROL
+
+
 func display_clock() -> String:
 	if stage == Stage.INTRO:
 		return "30:0"
@@ -154,30 +160,22 @@ func _advance_approach(input_mask: int) -> void:
 
 
 func _in_capture_area(offset: Vector2i) -> bool:
-	# Le contact se teste sur la position calculée au cran, avant affichage.
-	# pr5c (frame 10599) : 0x822b/0x822c restent à l'offset (14, -7) affiché
-	# depuis 10596, mais l'attente verticale était à 0 : le cran porte le
-	# module à (14, -6), et c'est là que 0x8004 passe à 1. Démo d'attraction
-	# (pr10e, frame 2686) : affiché (6, -7), vitesses 171/64 et attentes 0,
-	# le cran donne (5, -6), contact. Le cran précédent de pr5c, (13, -7),
-	# reste sans contact. Seule la rangée y = -6 est mesurée pour le module I
-	# (x = 5 et 14) ; le reste du rectangle reste provisoire.
-	# I + II → III (pr8c, pr10a, pr10b) : contacts mesurés sur la rangée
-	# y = -6 à x = 3, 8 et 14 ; ratés à (1, -6), (15, -6), (2, -5), (15, -5),
-	# (7, -7) et (6, -8). (2, -6) n'a pas été visité. Les rangées y > -6,
-	# jamais atteintes dans la zone x = 3–14, reprennent provisoirement le
-	# rectangle du module I.
+	# Jeutel $2289, $22EF et $237C appellent le test de capture $24FC
+	# après le test de collision $2540. Les bornes basses en RAM sont
+	# strictes et les hautes inclusives. Pour I + II, le registre logique
+	# pointe un cran de 8 pixels après le module II sur les deux axes.
+	if is_i_and_ii():
+		return Rect2i(3, -6, 12, 16).has_point(offset)
 	var capture_area := Rect2i(3, -6, 12, 8) if module == 1 else Rect2i(-5, -14, 12, 16)
 	return capture_area.has_point(offset)
 
 
 func _resolve_contact() -> void:
-	# pr8 / pr8b : collisions I + II → III aux offsets (31, -3) et (29, -3) ;
-	# (32, -4) et (28, -4) restent sans contact. La zone de collision n'est
-	# connue que par ces deux points.
+	var offset := position - TARGET
 	if is_i_and_ii():
-		var offset := position - TARGET
-		if offset in [Vector2i(31, -3), Vector2i(29, -3)]:
+		# Même paire II et III que pour le module II seul, après translation
+		# depuis le module II vers la position logique de l'assemblage.
+		if Rect2i(-17, -3, 52, 16).has_point(offset):
 			stage = Stage.COLLISION
 		elif _in_capture_area(offset):
 			# Pendant l'écran bonus, 0x822c garde la position du contact
@@ -187,7 +185,6 @@ func _resolve_contact() -> void:
 			bonus = ((remaining_tenths - 1) / 10) * 300
 			stage = Stage.SUCCESS
 		return
-	var offset := position - TARGET
 	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)
 	if crash_area.has_point(offset):
 		stage = Stage.COLLISION

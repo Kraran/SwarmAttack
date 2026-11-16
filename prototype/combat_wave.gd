@@ -73,6 +73,11 @@ class Enemy:
 	func display_position() -> Vector2:
 		return Vector2(position.x - 8, position.y + 8)
 
+	func has_visible_pose() -> bool:
+		# FALL_EXIT encode la sortie par le bas dans la RAM de Jeutel.
+		# Son y = 0 est conservé jusqu'au retrait, pour le tempo de la paire.
+		return alive and phase != Flight.FALL_EXIT
+
 var enemies: Array[Enemy] = []
 # Vague d'objets en chute (0x809b = 0x09 et 0x0a, numéros de vague 5 et 6).
 var falling := false

@@ -27,6 +27,12 @@ def load(path):
         r=csv.reader(f); next(r)
         for row in r: out[int(row[0])]=bytes.fromhex(row[1])
     return out
+
+
+def has_wave_probe(path):
+    with open(path, newline='') as stream:
+        return next(csv.reader(stream), []) == ['frame', '8000-83ff']
+
 def name(p): return p.replace('\\','/').split('/')[-3]
 
 NARROW=[(112,96),(112,96),(120,96),(120,96),(128,96),(128,96),(120,88),(120,88)]
@@ -44,13 +50,11 @@ def kind(m):
     return None,0
 def segments(P):
     F=sorted(P); segs=[]
-    loopf=[f for f in F[1:] if P[f][5]!=P[f-1][5]]
-    i=0
     for f in F[1:]:
         if f-1 not in P: continue
         k,mask=kind(P[f])
         kp,_=kind(P[f-1])
-        if k and P[f][0x9b] not in (1,0x11) and (kp is None or pos(P[f],0)!=pos(P[f-1],0) or True) and kind(P[f-1])[0]!=k:
+        if k and kp!=k and P[f][0x9b] not in (1,0x11):
             segs.append((f,k,mask))
     return segs
 def obj(m,k):
@@ -63,11 +67,14 @@ def build(P, start, mask, kindname):
     lvl=P[start][0x9b]
     loops=[]; f=start
     while f<=end:
+        if f not in P: break
         m=P[f]
         if m[0x9b]!=lvl or m[4]==1 or m[0x1d]!=0: break
         loops.append(f)
         f+=1
-        while f<=end and P[f][5]==P[f-1][5]: f+=1
+        while f in P and P[f][5]==P[f-1][5]: f+=1
+    if not loops:
+        return [], [], {}
     # kills
     kills={}
     sc=[f for f in range(start+1,loops[-1]+1) if f in P and f-1 in P and (P[f][0x23c]<P[f-1][0x23c] if kindname!='fall' else (score(P[f]) or 0)>(score(P[f-1]) or 0))]
@@ -79,18 +86,26 @@ def build(P, start, mask, kindname):
             # freeze start
             fr=None
             for g in range(s-25,s+1):
-                if g not in P or g-1 not in P: continue
+                if g not in P or g-2 not in P: continue
                 if all(obj(P[h],k)==obj(P[g],k) for h in range(g,min(s+15,loops[-1]+1))) and obj(P[g-2],k)!=obj(P[g],k):
                     fr=g;break
             if fr is not None and kindname=='fall' and pos(P[fr],k)[1]==0: fr=None
             if fr is not None and (best is None or abs((s-fr)-10)<abs((s-best[1])-10)): best=(k,fr)
         if best:
             used.add(best[0]); kills.setdefault(best[1],[]).append(best[0])
+    if kindname == 'row':
+        # Un impact peut désactiver l'objet avant la fin du segment, puis
+        # créditer les points pendant la transition du joueur.
+        for k in range(8):
+            if k in used or not mask>>k&1:
+                continue
+            active = 0x182 + 20*k
+            for f in range(start+1, loops[-1]+1):
+                if P[f-1][active] == 1 and P[f][active] == 0:
+                    kills.setdefault(f, []).append(k)
+                    break
     steps=[]
     for f in loops:
-        ks=[]
-        for kf,kl in kills.items():
-            if kf<=f and kf not in [x for x in ()] : pass
         steps.append([P[f][0x22b]-16, []])
     # assign each kill to the first loop frame >= freeze-1
     for kf,kl in kills.items():
@@ -105,13 +120,37 @@ def P_cache(p):
     if p not in _PC: _PC[p]=load(p)
     return _PC[p]
 def run(segs):
-    inp=os.path.join(tempfile.gettempdir(),'audit_waves_in.json'); out=os.path.join(tempfile.gettempdir(),'audit_waves_out.txt')
-    json.dump([{'wave':s['wave'],'mask':s['mask'],'steps':s['steps'],'stage':s['stage'],'patterns':s['patterns'],'max_divers':s['max_divers'],'credits':[i+1 for i,f in enumerate(s['loops']) if (P_cache(s['path'])[f][0x23c]<P_cache(s['path'])[f-1][0x23c] if s['kind']!='fall' else (score(P_cache(s['path'])[f]) or 0)>(score(P_cache(s['path'])[f-1]) or 0))]} for s in segs],open(inp,'w'))
-    subprocess.run([GODOT,'--headless','--path',PROTO,'--script','res://tests/run_wave.gd','--',inp,out],stdin=subprocess.DEVNULL,capture_output=True,timeout=600)
-    res=[]; cur=None
-    for line in open(out):
-        if line.startswith('SEG'): cur=[]; res.append(cur); continue
-        cur.append([tuple(map(int,t.split(','))) for t in line.split()])
+    scenarios = []
+    for s in segs:
+        probe = P_cache(s['path'])
+        credits = []
+        for i, frame in enumerate(s['loops']):
+            before, after = probe[frame-1], probe[frame]
+            if s['kind']=='fall':
+                credited = (score(after) or 0) > (score(before) or 0)
+            else:
+                credited = after[0x23c] < before[0x23c]
+            if credited:
+                credits.append(i+1)
+        scenario = {k:s[k] for k in ('wave', 'mask', 'steps', 'stage', 'patterns', 'max_divers')}
+        scenario['credits'] = credits
+        scenarios.append(scenario)
+    with tempfile.TemporaryDirectory(prefix='swarmattack-waves-') as temp:
+        inp = os.path.join(temp, 'input.json')
+        out = os.path.join(temp, 'output.txt')
+        with open(inp, 'w') as stream:
+            json.dump(scenarios, stream)
+        subprocess.run([GODOT,'--headless','--path',PROTO,'--script','res://tests/run_wave.gd','--',inp,out],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, timeout=600, check=True)
+        res = []
+        with open(out) as stream:
+            for line in stream:
+                if line.startswith('SEG'):
+                    res.append([])
+                else:
+                    res[-1].append([tuple(map(int,t.split(','))) for t in line.split()])
+    if len(res) != len(segs):
+        raise RuntimeError("Nombre de segments rejoués incorrect")
     return res
 
 SEL=[('pr6b-hitbox-i-ii',10935,None,'0x07 après le premier amarrage, vaisseau mobile'),
@@ -182,7 +221,10 @@ def main():
         print(__doc__); return 2
     if '--godot' in args:
         i=args.index('--godot'); GODOT=args[i+1]; del args[i:i+2]
-    probes=sorted(glob.glob(os.path.join(args[0],'**','replay-probe.csv'),recursive=True))
+    probes=sorted(p for p in glob.glob(os.path.join(args[0],'**','replay-probe.csv'),recursive=True) if has_wave_probe(p))
+    if not probes:
+        print("Aucune sonde RAM 8000-83ff trouvée.", file=sys.stderr)
+        return 2
     if '--checkpoints' in args:
         checkpoints(probes); return 0
     allsegs=[]

@@ -4,6 +4,12 @@ extends RefCounted
 # sonde 8000-83ff depuis 0). Deux cycles complets, identiques au rythme de
 # 0x8005 : texte de présentation, tableau des scores, démo, puis retour au texte.
 const DemoData = preload("res://attract_demo_data.gd")
+const VisualData = preload("res://attract_visual_data.gd")
+const VISUAL_STRIDE := VisualData.STRIDE
+const MODULE_OFFSET := VisualData.MODULE_OFFSET
+const STYLE_OFFSET := VisualData.STYLE_OFFSET
+const DIVING_OFFSET := VisualData.DIVING_OFFSET
+const THRUST_OFFSET := VisualData.THRUST_OFFSET
 
 # Texte de présentation : 0x801d = 0x20 puis 0x60 de 9619 à 10367, soit
 # 748 images murales dont 3 figées (745 au rythme de 0x8005). Depuis la mise
@@ -26,7 +32,6 @@ const TITLE_LINES := [
 	["SENSATIONS FORTES", 641, 641],
 	["GARANTIES", 661, 661],
 ]
-const SCORE_LINES := ["SCORE   NOM", "NO1  005000", "NO2  005000", "NO3  005000", "NO4  005000", "NO5  005000"]
 
 # Valeurs de 0x801d pendant la démo.
 const SCREEN_PLAY := 0x00
@@ -41,6 +46,7 @@ enum Screen { TITLE_TEXT, SCORE_TABLE, DEMO }
 
 var frame := 0
 var _row := 0
+var _visuals := PackedByteArray()
 
 
 func cycle_length() -> int:
@@ -109,6 +115,15 @@ func demo_clock() -> String:
 	var clock := demo_value(Column.CLOCK)
 	var tenths := clock & 0xFF
 	return "%02x:%d" % [clock >> 8, ((tenths >> 4) * 10 + (tenths & 0x0F)) % 10]
+
+
+func demo_objects(lookback := 0) -> PackedByteArray:
+	if screen() != Screen.DEMO:
+		return PackedByteArray()
+	if _visuals.is_empty():
+		_visuals = Marshalls.base64_to_raw(VisualData.DEFLATE).decompress(VisualData.SIZE, FileAccess.COMPRESSION_DEFLATE)
+	var index := maxi(0, demo_frame() - lookback) * VisualData.STRIDE
+	return _visuals.slice(index, index + VisualData.STRIDE)
 
 
 func _sync_row() -> void:

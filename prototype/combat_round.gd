@@ -22,6 +22,7 @@ var score := 0
 var outcome := Outcome.PLAYING
 var impact_position := Vector2.ZERO
 var impact_age := IMPACT_FRAMES
+var impacted_enemy: CombatWave.Enemy
 var lost_module := 0
 var _elapsed_frames := 0
 var _pending_points: Array[int] = []
@@ -79,6 +80,7 @@ func step(input_mask: int) -> void:
 		lost_module = wave.hit_module(pilot.ship_x, pilot.attached, pilot.assembly_y_offset)
 		pilot.clear_shots()
 		impact_position = Vector2(pilot.ship_x, pilot.ship_y() + 6)
+		impacted_enemy = null
 		impact_age = 0
 
 
@@ -98,6 +100,7 @@ func _try_hit(position: Vector2i) -> bool:
 	if hit == null:
 		return false
 	_pending_points.append(_elapsed_frames + score_delay())
+	impacted_enemy = hit
 	impact_position = hit.display_position()
 	impact_age = 0
 	return true
