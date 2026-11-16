@@ -74,7 +74,7 @@ class Enemy:
 		return Vector2(position.x - 8, position.y + 8)
 
 	func has_visible_pose() -> bool:
-		# FALL_EXIT encode la sortie par le bas dans la RAM de Jeutel.
+		# FALL_EXIT encode la sortie par le bas dans les traces de référence.
 		# Son y = 0 est conservé jusqu'au retrait, pour le tempo de la paire.
 		return alive and phase != Flight.FALL_EXIT
 

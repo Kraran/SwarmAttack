@@ -1,160 +1,55 @@
-# SwarmAttack — Adaptation de Moune Creste (Jeutel)
+# Guide de SwarmAttack
 
-La [version Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v0.1.0) est disponible en téléchargement. Décompresser l’archive puis ouvrir `SwarmAttack.exe`. Pour lancer la version de travail depuis les sources, ouvrir [Lancer le prototype.cmd](../Lancer%20le%20prototype.cmd). Le lanceur utilise l’installation portable de Godot dans `.tools`. Le projet Godot s’ouvre avec [project.godot](project.godot).
+Décompressez la [version Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v0.2.0) et ouvrez `SwarmAttack.exe`.
 
-| Action | Commande |
-| --- | --- |
-| Déplacer le module | Flèches gauche et droite, Q et D, stick gauche ou croix de la manette |
-| Tirer | Espace ou bouton A |
-| Lancer une partie solo depuis l’attraction | Espace ou bouton A |
-| Lancer une partie à deux en alternance | 2 ou bouton Y |
-| Pause et reprise | Échap ou Start |
-| Choisir et valider dans la pause | ↑/↓ et Entrée, croix directionnelle et A, ou clic |
-| Retour à l’accueil depuis la pause | T ou bouton B |
-| Fermer le jeu | « Quitter » dans le menu de pause ou Échap à l’accueil |
-| Recommencer | R |
-| Essai d’amarrage direct | F2 |
-| Freiner puis remonter pendant l’amarrage | Espace ou bouton A |
-| Basculer entre la 3D et la grille de diagnostic | F1 |
-| Régler le seuil de la réserve à 30 000 ou 50 000 points depuis l’accueil | F3 |
-| Couper ou réactiver le son | F5 |
-| Mode portrait et plein écran | F10 et F11 |
+| Action | Clavier | Manette |
+| --- | --- | --- |
+| Jouer en solo, tirer, freiner pendant l’amarrage | Espace | A |
+| Jouer à deux en alternance | 2 | Y |
+| Déplacer le module | ←/→ ou Q/D | Stick gauche ou croix |
+| Mettre en pause ou reprendre | Échap | Start |
+| Choisir et valider dans la pause | ↑/↓ et Entrée | Croix et A |
+| Revenir à l’accueil depuis la pause | T | B |
+| Recommencer | R | |
+| S’entraîner à l’amarrage | F2 | |
+| Régler le seuil de la réserve depuis l’accueil | F3 | |
+| Activer ou couper le son | F5 | |
+| Alterner entre paysage et portrait | F10 | |
+| Alterner entre plein écran et fenêtré | F11 | |
+| Activer le diagnostic visuel | F1 | |
 
-Le jeu démarre sur le cycle d’attraction relevé. Espace lance une partie aux commandes du module I, sur le terrain de 224 × 256 unités logiques. L’horloge applique un pas de 16,5 ms.
+Le menu de pause propose « Reprendre », « Accueil » et « Quitter ». La souris permet également de choisir ces options.
 
-La composition 16:9 est prévue pour 1920 × 1080. Le champ de jeu conserve son format vertical et occupe 756 × 1008 pixels en Full HD. Au premier lancement, le jeu démarre en plein écran et s’adapte au moniteur. Les préférences d’affichage déjà enregistrées sont reprises.
+## En jeu
 
-La VSync suit la fréquence du moniteur, avec une image par rafraîchissement sur un écran réglé à 60 Hz lorsque le rendu tient cette cadence. L’horloge Jeutel reste à 16,5 ms par pas. L’affichage interpole les positions et orientations du vaisseau, des ennemis et de la démo, en tenant compte des cadences de déplacement. Les axes d’amarrage suivent chacun leur propre cadence. F1 affiche les positions brutes utilisées pour les comparaisons. La fréquence de Windows se règle indépendamment du jeu.
+Le cycle compte dix vagues et deux amarrages. Les premières formations comportent des rotors en deux demi-coques, puis viennent les chasseurs à pinces et les intercepteurs. Les météorites des vagues 7 et 8 descendent en diagonale. Les capsules des deux dernières vagues zigzaguent avant de plonger.
 
-La caméra orthographique affiche des coques biseautées en chrome et les couleurs des modèles Jeutel, du petit module I au large module III. Cinq familles ennemies ont chacune un profil distinct, établi d’après les captures de la borne. Le fond étoilé défile vers le bas à raison de cinq pixels logiques en dix images. Les coordonnées du jeu servent aussi à la vue de diagnostic. En duo, les joueurs jouent à tour de rôle, chacun avec son score et ses vies. Les cinq meilleurs scores et les réglages sont stockés en local. Le démarrage est en jeu libre sur Windows.
+Les modules assemblés élargissent les possibilités de tir. En duo, chacun joue à son tour avec ses propres vies et son score. Les réglages et les cinq meilleurs scores sont conservés dans `%APPDATA%\Godot\app_userdata\SwarmAttack\arcade.cfg`.
 
-## Générer la version Windows
+Le pas logique est de 16,5 ms. Le rendu interpole les positions et suit le rafraîchissement de l’écran via la VSync. La composition paysage est prévue pour 1920 × 1080. F1 affiche les positions et les zones de collision du diagnostic.
 
-Avec Godot 4.7.2 dans `.tools/godot-4.7.2`, placer le modèle officiel `windows_release_x86_64.exe` dans son sous-dossier `templates`, puis lancer depuis la racine du projet.
+## Développement
+
+Ouvrez [project.godot](project.godot) dans Godot 4.7.2 standard. Le [lanceur Windows](../Lancer%20le%20prototype.cmd) utilise l’exécutable Godot placé dans `.tools/godot-4.7.2`.
+
+Pour produire l’archive Windows, placez le modèle d’export `windows_release_x86_64.exe` dans `.tools/godot-4.7.2/templates` et lancez depuis la racine.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows.ps1
 ```
 
-L’archive contient l’exécutable autonome, les commandes et les licences Godot. MAME et la ROM servent aux comparaisons locales.
+L’archive produite se trouve dans `dist/SwarmAttack-Windows-x64.zip`.
 
-Les dix extraits dans `audio/jeutel` viennent de MAME 0.286 avec le set `mouncrst`. Le tir est isolé par différence entre deux captures identiques jusqu’au tir. Les autres extraits sont découpés aux événements relevés en jeu, avec de courts fondus aux raccords. Les jingles sont déclenchés par les phases du jeu. Les variations du générateur tonal entre ces événements restent à reproduire.
+## Tests
 
-## Relevés du gameplay
-
-La suite de livraison rejoue une partie de 10 432 pas, du démarrage à la première vague du cycle 2. Le parcours réussit deux amarrages et atteint 11 340 points. Les 1 405 points de contrôle du test des vagues correspondent aux traces Jeutel. L’audit étendu des positions a également reproduit 105 segments de traces RAM, avec les mouvements et les destructions relevés en entrée.
-
-L’interface compte les dix vagues du cycle en continu. Le code conserve les numéros de manche par étape employés dans les comparateurs. Dans le longplay Nichibutsu, le premier amarrage et les quatre vagues suivantes sont visibles entre 1 min 30 s et 2 min 20 s. Les couleurs, les banques graphiques et les libellés du jeu sont établis sur les captures Jeutel.
-
-| Vagues affichées | Relevé Jeutel | Présentation HD |
-| --- | --- | --- |
-| 1–2 | `0x02`–`0x03`, `pr12a` | Rotors violet-vert et jaune-bleu en deux demi-coques. Un tir en détruit une seule. Sous cinq moitiés restantes au compteur de la borne, les paires encore assemblées se séparent pendant le piqué. |
-| 3–4 | `0x04`–`0x05`, `pr12a` | Coques à pinces vert-orange et magenta-cyan. |
-| 5–6 | `0x07`–`0x08`, `pr7` | Coques étroites à quatre appendices, vert-rouge puis magenta-or. |
-| 7–8 | `0x09`–`0x0a`, `pr7` | Météorites rocheuses à cratères qui descendent par paires en diagonale. Leur diamètre passe par huit paliers à l’entrée. |
-| 9–10 | `0x0c`–`0x0d`, `pr11c` | Capsules or-vert et magenta-cyan, avec sillage pendant le piqué. |
-
-Les écrans « RAVITAILLEMENT », « CHRONO » et « BRAVO !! » apparaissent dans le champ de jeu. L’assemblage s’aligne à la réussite d’après les positions des modules relevées. En attraction, les positions visibles et la banque ennemie proviennent de la trace `pr10e`. Le regroupement des ennemis après une perte de vie suit une interpolation visuelle calée sur `pr1-suite`.
-
-Une météorite sortie par le bas reste en phase de sortie jusqu’au pas logique qui la retire. L’ordonnée RAM remise à zéro pendant ce délai sert de marqueur et sa pose est masquée à l’écran dès le franchissement du bord.
-
-| Étape | Comportement du prototype | Validation contre Jeutel |
-| --- | --- | --- |
-| Vagues 1 et 2 | Quatre paires entrent en formation. Chaque moitié détruite rapporte 50 points. Le partenaire d’un ennemi abattu poursuit son mouvement un pas, puis prend la courbe (cap 1, 30 virages, pas (1, 2)) au pas suivant, même depuis l’ouverture. Au cycle 2, ou au cycle 1 sous 5 survivants, il la prend en phase de piqué et plonge au pas d’après. Au cycle 1 avec 5 survivants ou plus, il la garde en formation. Sous 5 survivants (compte `0x823c`, décrémenté au crédit des points), les ennemis en formation plongent au pas qui suit le crédit. | Module I et première vague, voir ci-dessous. `pr12a` 0x02 et 0x03 (cycle 1, 1 968 et 1 080 images de boucle) et `pr11c` 0x12 et 0x13 (430 et 424) : positions identiques à la RAM sur toute la vague, impacts et crédits relevés. |
-| Vagues 3 et 4 | Huit cibles entrent en courbe large et rapportent 30 points chacune. Boucle (cap 15, 9 virages) dans le sens d’entrée, pas (3, 3). En fin de formation, un ennemi plonge si le nombre de plongeurs (`0x823e`) est sous le maximum (`0x823d` : 1 au cycle 1, 2 au cycle 2), sinon il enchaîne une courbe de formation. Piqué : zone proche ou lointaine selon `0x822b` (x + 16) ; bande y = 128–159 en 63 virages (4, 4) avec saut de virage. Courbes de retour avec saut de virage et pas +1 tous les 16 virages. Compteurs de motifs conservés d’une vague à l’autre. | `tools/arcade/audit_waves.py` : 0x04 et 0x05 du cycle 1 (`pr12a`, 742 et 4 716 images de boucle), 0x14 et 0x15 (`pr11c`) et la vague de la démo (0x03, `pr11a`, `pr11b`) identiques à la RAM sur toute leur durée. |
-| Reprise d’une vague large du cycle 1 | Après une perte de vie avant le premier amarrage, les survivants gardent leur cadence d’entrée (2 pour les paires 1 à 3) pendant toute la vague : boucle, courbes de formation et piqués. Ailleurs, la boucle passe à la cadence 1, y compris en 0x14 reprise au cycle 2. La reprise de 0x04 n’a pas été relevée ; le prototype lui applique la même règle. | `pr1-suite` / `pr13a` 0x05 reprise à 5882, vaisseau à gauche (x = 46 à 50) : 268 pas concordants, 3 impacts. `pr14a` (`solo-docking-suite-immobile.csv`), vaisseau immobile à x = 108 : cadence 2 aussi, 442 pas concordants. La position du vaisseau n’y est pour rien. `pr11c` 0x14 reprise à 21169 : cadence 1. |
-| Étape après le premier amarrage | 0x07 et 0x08 : entrée large à 60 points, paires 3 et 4 en (3, 3) et (4, 4) à la cadence 1. Boucle toujours dans le sens +1, pas (1, 1). Un ennemi sorti reste un pas sur place, réapparaît en ((x & 63) + 80, (y & 63) + 64), attend 16 pas immobile, puis reprend sa boucle. 0x09 et 0x0a : huit objets en chute lancés par paires (k3/k7, k2/k6, k1/k5, k0/k4) à position et vitesse fixes, 16 pas d’ouverture, un pas d’arrêt, puis chute rectiligne jusqu’à la sortie par le bas ; 200 points. Puis le second amarrage. | `pr5c`, `pr6`, `pr6b`, `pr7`, `pr10c`, `pr10d`, `pr1-suite`, `pr3` : 0x07 et 0x08 identiques à la RAM (jusqu’à 1 340 images de boucle). `pr7` : 0x09 et 0x0a identiques sur 305 et 311 images. La hitbox des objets en chute et leur contact avec le vaisseau reprennent ceux des ennemis : provisoire. |
-| Étape après le second amarrage | 0x0c et 0x0d entrent en rangée à 100 points. Les objets apparaissent en y = 0 (x = 32 à 208) et descendent 16 pas à vy = 2 ou 3. Ils zigzaguent ensuite par courbes de 8 virages (caps 4 → 11 puis 26 → 19, cadence 2, pas (2, 2)), à chaque image de boucle. Le premier objet en zigzag plonge verticalement (+4 par image) quand la place de plongeur est libre. Un objet sorti réapparaît à y inchangé, en x = 0x822b + (horloge de vague & 63) − 32. | `tools/arcade/audit_waves.py` : 26 des 27 segments en rangée (`pr7`, `pr8*`, `pr9*`, `pr10a-b`, `pr11a-d`) sont identiques à la RAM sur toute leur durée, dont `pr11d` sur 1 110 images. Les 302 réapparitions relevées suivent la formule. |
-| Compteurs de motifs | Conservés d’une vague à l’autre, à l’amarrage et en fin de cycle. Remis à zéro à l’entrée du module qui suit une perte de vie. | `0x8242`-`0x8247` à zéro à `0x809b` = 0x01 ou 0x11 après chaque baisse de `0x8097` (`pr1-suite`, `pr10a-d`, `pr11a-d`), inchangés après les collisions d’amarrage de `pr8` et `pr8b` et à la fin de cycle de `pr11c`. |
-| Perte d’un module | Le compteur de vies (`0x8097`, départ à 3) baisse d’une unité après 289 images de boucle (161 + 127 + 1). Le module suivant monte en 378 images (25 caché, 136 de montée de y = 255 à 120, 137 d’arrêt à mi-hauteur, 80 de descente jusqu’à y = 200). Après la perte du module I, le II prend le relais. Après celle du vaisseau II + III, le II seul repart. Après celle du vaisseau I + II, le I seul repart. La perte du II seul, dans le relevé, ramène le compteur à 0. | Recoupé sur les traces `pr1-suite` au rythme de `0x8005`. Les 292 images murales de la dernière perte viennent de 3 frames figées. |
-| Modules II et III seuls | Tir double, écarté de 8 puis 12 unités de part et d’autre de l’axe. | Inchangé. |
-| Vaisseau II + III | Tir alterné de deux paires, les deux pouvant voler ensemble. Premier appui : écart 12, y = 212. Appui suivant : écart 8, y = 195. Après une reprise, le premier groupe part (le groupe 1 peut déjà être occupé par les projectiles figés avant l’amarrage). Un appui est refusé tant que son groupe est en vol. Un maintien commencé pendant le vol et poursuivi après la disparition ne déclenche pas de volée différée : un nouvel front d’appui est nécessaire. | `pr1-suite` (motif) et `pr2-held-fire` (maintien), au rythme de `0x8005`. |
-| Amarrage | Après la vague 4, le module monte, le suivant arrive, puis l’approche se pilote avec inertie sous un chrono de 30 secondes. Réussite, collision ou temps écoulé, puis le combat reprend. | Approche du module II, voir ci-dessous. Reprise après amarrage recoupée sur `pr1-bonus`, `pr1-collision` et `pr1-timeout`. |
-
-| Issue de l’amarrage II → III | Comportement du prototype | Source |
-| --- | --- | --- |
-| Réussite | Écran bonus 305 images, crédit du bonus, reprise en vaisseau II + III aligné à x = 112, puis vague à entrée large (vague 3). | `pr1-bonus` : `0x8004` bascule à 7417 et 7722, bonus 13 × 200 = 2600, première vague à 7753. |
-| Collision | Dès l’explosion, `0x8097` baisse d’une unité. Attente 466 images, pas de bonus, reprise avec le module III seul à x = 112, vague à entrée large. | `pr1-collision` : explosion et baisse des vies à 7452, reprise à 7918, vague à 7950. |
-| Chrono écoulé | Attente 183 images, pas de bonus, vies inchangées, reprise avec le module II seul recentré à x = 112, vague à entrée large. | `pr1-timeout` : chrono 00:0 à 7942, `0x822b` passe de 31 à 128 à 8125, vague à 8157. |
-| Valeur des ennemis | Par étape du cycle : 50 (vagues 1-2), 30 (vagues 3-4), 60 après le premier amarrage, 100 après le second. | `0x809b` et score : 30 en 0x05 (`pr1`), 60 en 0x07-0x08 (`pr7`), 100 en 0x0c-0x0d (`pr7`, `pr8b`, `pr9`, `pr11*`), 50 / 50 / 30 / 30 en 0x12-0x15 (`pr11c`). |
-| Fin de cycle | Après les deux vagues qui suivent le second amarrage : vaisseau immobile 32 images, montée de 159 unités (une par image) avec « PLUS LOIN », modules remis en réserve à +191, écran vide, entrée du module I (378 images) et combat du cycle 2 en vague 1 à +689. Vies et score inchangés, pas de bonus. | `pr11c` : dernier crédit 17603, `0x809b` = 0x0e à 17604, montée 17637–17799 (`0x822c` 216 → 57), modules à 3 à 17799, `0x809b` = 0x11 à 17921, combat 0x12 à 18304. |
-| Cycle 2 | Vagues 1 à 4 comme au cycle 1, puis amarrage si un partenaire reste. Les ouvertures des vagues 1 et 3 suivent le modèle du cycle 1. | `pr11c` : 0x12 identique au modèle sur 114 images de boucle (jusqu’au premier impact), 0x14 sur 120. L’amarrage du cycle 2 n’est pas relevé. |
-| Sans partenaire avant le second amarrage | L’étape suivante commence sans amarrage (vague à entrée large). | Non relevé : provisoire. |
-| Perte d’un module du I + II + III | Le module touché est perdu (test du III vers le I). Module I touché : le II entre seul, le III reste en réserve. Module III touché : le I entre seul, le II reste en réserve. | `pr8c`, `pr9`, `pr10b` (ennemi à y = 193-196, `0x8140` = 0) ; `pr9b`, `pr10a`, `pr11a`, `pr11b`, `pr11d` (y = 209-218, `0x814a` = 0). |
-| Hitbox II + III | Union du module II et du module III, ce dernier avec le plafond dy ≥ −3 (comme le II), pas le plafond solo −11. | `pr3-hitbox`, vaisseau immobile à x = 114 : raté du sprite 7 à (141, 204) aux frames 8233–8234 (`0x8004` = 0), contact à (140, 208) à 8235 (`0x8004` = 1). La zone du module III seul est inchangée. |
-| Limites de déplacement II + III | Butée gauche à x = 14 (`0x822b` = 30). Butée droite à x = 200 (`0x822b` = 216). | `pr3-hitbox` : palier droit tenu 70 images (7810–7879) avec la droite enfoncée et `0x8004` = 0 ; palier gauche tenu 46 images (7974–8019). |
-| Amarrage I + II | Intro et expiration comme le II → III (écran 183 images, reprise du I seul à x = 112). Le contact se teste sur la position calculée au cran, avant affichage. Sur `pr5c`, l’affichage reste à (14, −7), mais le cran donne (14, −6), où le contact a lieu ; la démo de `pr10e` accroche de même à (5, −6), affiché (6, −7), avec un bonus `10 × 100`. (13, −7) au cran précédent ne suffit pas. Zone de capture : rectangle x = 3–14, y = −6 à 1. La routine Jeutel $2289 confirme le rectangle et situe la collision à x = −8–25, y = −3–4. Écran bonus 305 images, `17 × 100 = 1700`, reprise en I + II à x = 112 (`0x822b` = 128, `0x822c` = 232), vies inchangées, sans tir figé, vague à entrée large. Butée droite x = 200 (`0x822b` = 216). Un maintien du tir commencé pendant l’approche ne tire pas à la reprise. Tir alterné : premier appui, paire à écart 8, y = 211 ; appui suivant, un projectile central à y = 199 ; les deux volées peuvent voler ensemble. Un maintien après disparition ne relance pas de volée. Butée gauche x = 14 (`0x822b` = 30), comme le II + III. Hitbox I + II : boîtes I et II abaissées de 16 (y = 208 et 216) tant que `0x822c` = 232 ; raté à (123, 231), contact à (120, 226). La même image de contact est relevée avec le vaisseau décalé à x = 106 et x = 122 (`pr10c`, `pr10d`), ce qui donne des contacts de dx = −2 à dx = 14 sous la boîte du module II. Les bords latéraux et le bas exact (entre dy = 10 et dy = 15) restent provisoires. Après expiration I + II → III, `0x822c` = 216 et l’offset revient à 0. Amarrage I + II vers le III : intro depuis y = 224 (`0x822c` = 232), montée de 76 pixels, expiration à la butée basse, écran 183 images, pas de bonus, reprise du I + II à x = 112 (`0x822c` = 216), vies inchangées. Collision I + II → III aux offsets (31, −3) et (29, −3) (les crans (32, −4) et (28, −4) sont des ratés ; (25, −7), (26, −6) et (27, −5) aussi) : écran 466 images, vies 3 → 1, pas de bonus, reprise du III seul à x = 112 (`0x822c` = 232). Zone de capture I + II → III mesurée sur la rangée y = −6, de x = 3 à x = 14 : contacts à (8, −6) (`pr8c`), (14, −6) (`pr10a`, `14 × 300 = 4200`) et (3, −6) (`pr10b`), ratés à (7, −7), (1, −6), (15, −6), (2, −5) et (15, −5). (2, −6) n’a pas été visité. Les routines Jeutel $22EF, $24FC et $2540 donnent la capture effective à x = 3–14, y = −6 à −4, et la collision à x = −17–34, y = −3–12. Écran bonus 305 images, `05 × 300 = 1500`, reprise en I + II + III à x = 112 (`0x822b` = 128, `0x822c` = 216), vies inchangées, butée gauche x = 14. Après destruction, le II + III reprend l’entrée. Tir du I + II + III : mêmes paires que le II + III (y = 195, écart 8 ; y = 212, écart 12), qui peuvent voler ensemble. Après l’amarrage I + II → III, le premier appui reprend l’index laissé par le I + II (groupe 1 dans ce parcours). Hitbox : raté à (116, 189), contacts à (116, 193) sur le nez du I et à (192, 212) sur le flanc du III, plafond du I à dy ≥ −2, `0x822c` = 216 (offset 0). Butée droite x = 200 (`0x822b` = 216). | `pr5-amarrage-i-ii` : intro (9584–9904). `pr5b-amarrage-i-ii` : expiration à 11343, reprise du I à 11526. `pr5c-amarrage-i-ii-succes` : contact 10599 (chrono `17:0`), écran 10599–10903, reprise 10904, butée droite dès 10948, destruction 12290, vies 3 → 2 à 12579, entrée du I (capture interrompue à 12968). Démo : bonus `10 × 100 = 1000`. Replay `solo-docking-i-ii-success.csv`. `pr6-tir-i-ii` : tir 11021/11036/11171–11224, butée gauche 11353–11421, contact 11889. `pr6b-hitbox-i-ii` : contact 11494. `pr7-amarrage-i-ii-iii` : intro 14853–15173, expiration 16592, reprise 16775. `pr8-amarrage-i-ii-iii-approche` : collision 15673, reprise 16139, butée gauche du III à x = 14. `pr8b-amarrage-i-ii-iii-approche` : collision 16369 à (29, −3), reprise 16835. `pr8c-amarrage-i-ii-iii-approche` : contact 16357 (8, −6), écran 16357–16661, reprise 16662, butée gauche dès 16753, destruction 16754, vies 3 → 2 à 17073, entrée du II + III (17451). Replay `solo-docking-i-ii-iii-approche-c.csv`. `pr9-tir-i-ii-iii` : à 16664, `0x822b` 128→126 (x = 110) ; tirs 16778/16793/16858 ; contact 16926, vies 3 → 2 à 17252. `pr9b-tir-i-ii-iii` : butée droite à 16711, tirs 16840/16855/16920/16990, contact 17008 à (192, 212), vies 3 → 2 à 17319. Replay `solo-docking-i-ii-iii-tir-b.csv`. `pr10a` : contact à 15977 en (14, −6), chrono `14:06`, score 4940 → 9140. `pr10b` : contact à 16333 en (3, −6), chrono `05:07`, score 4940 → 6440. `pr10c` / `pr10d` : contact à 11493 en (120, 226), vaisseau à `0x822b` = 122 / 138. |
-| Écran de fin | 31 images après la baisse à 0, puis 30 images de « JEU 1 TERMINE / ESSAYEZ A NOUVEAU / JEU TERMINE ». Le cycle d’attraction prend ensuite le relais. | `pr1-suite` : 9313 → 9344 (31), 9344 → 9374 (30), puis 869 images de texte d’attract jusqu’à la démo à 10246 (932 images de boucle au total). |
-| Attraction | Au lancement et après l’écran de fin, le texte de présentation dure 745 images, le tableau des scores 123, puis la démo rejoue les états relevés, dont les positions des ennemis et des tirs. Les deux tables sont produites par `tools/arcade/extract_attract.py`. Espace lance une partie. | `pr10e-attract` : texte 9619 → 10367 (748 images murales, 3 figées), scores 10367 → 10490, démo 10490 → 19134. Deux cycles identiques au rythme de `0x8005`. |
-| Projectiles 0x40 / 0x50 | Reproduits : la dernière volée du module II reste figée dans les créneaux logiciels, invisible pendant l’écran de résultat, puis reprend après une réussite ou une expiration. Une collision efface le drapeau à l’explosion. | `pr1-*` : dernière volée à 6177 (registres 0x40/0x50), gel à 6185 (y = 88, logiciel y = 0xa7, drapeau 0x8163 = 1). Reprise à y = 96 (7723, deux pas) ou y = 92 (8125, un pas). Collision : 0x8163 passe à 0 dès 7452. |
-
-Écarts connus avec la borne, relevés mais pas encore reproduits :
-
-- Délai entre l’impact et le crédit des points : de 9 à 14 images de boucle depuis la première image de l’explosion, sur 150 impacts. Il croît avec le nombre d’ennemis restants. Le prototype prend la valeur la plus fréquente par type de vague et par `0x823c` à l’impact : 9 ou 10 en vagues étroites et larges, 10 à 13 en rangée. Cette valeur est exacte pour 114 impacts sur 150 et décalée d’une ou deux images pour les autres. Les objets en chute gardent 10, non relevé. Le mécanisme exact (charge de la carte) n’est pas établi.
-- Maximum de plongeurs au-delà du cycle 2, et dans les vagues en rangée d’un éventuel cycle 2 : provisoires. Les compteurs de motifs sont nuls en début de partie (`pr12a-b`, depuis la mise sous tension) ; après un retour d’attraction, seul le début de la démo est relevé.
-
-Comparé à une partie vidéo du Moon Cresta original (Nichibutsu), sans en tirer de valeur, voir `tools/arcade/README.md`, « Points vérifiés d’après une vidéo » :
-
-- Aucun tir ennemi n’existe dans les relevés de Moune Creste, du cycle 1 (0x02 à 0x0e) aux vagues 0x12 à 0x15 du cycle 2. Le prototype n’en a donc pas. Les vagues qui suivent le second amarrage du cycle 2 et le cycle 3 n’ont pas été relevées.
-- Les objets en chute ne se fragmentent pas : un objet touché reste figé, explose, puis disparaît. Aucun nouvel objet ne s’active (0x09 et 0x0a, 9 passages relevés, en partie identiques).
-- Au cycle 2, le mouvement n’accélère pas : une image par pas de boucle, mêmes trajectoires, et 0x823d passe de 1 à 2. La vague 3 du cycle 2 (0x14) entre en courbes larges, comme au cycle 1. Le cycle 3 reste inconnu.
-
-La vue affiche le score, la vague, le nombre de cibles, les vies et la configuration du vaisseau. F1 affiche la grille, les zones de collision et les coordonnées.
-
-Les tests sans traces MAME se lancent ainsi, depuis la racine, avec Godot 4.7.2 :
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les onze suites.
 
 ```powershell
-& $godot --headless --path prototype --script res://tests/smoke.gd
-& $godot --headless --path prototype --script res://tests/test_post_docking.gd
-& $godot --headless --path prototype --script res://tests/test_assembled_fire.gd
-& $godot --headless --path prototype --script res://tests/test_assembled_limits.gd
-& $godot --headless --path prototype --script res://tests/test_tirs_fantomes.gd
-& $godot --headless --path prototype --script res://tests/test_i_ii_fire.gd
-& $godot --headless --path prototype --script res://tests/test_attract.gd
-& $godot --headless --path prototype --script res://tests/test_cycle.gd
-& $godot --headless --path prototype --script res://tests/test_waves.gd
-& $godot --headless --path prototype --script res://tests/test_release.gd
-& $godot --headless --path prototype --script res://tests/test_motion.gd
+& $godot --headless --editor --import --path prototype
+foreach ($test in Get-ChildItem prototype/tests/test_*.gd, prototype/tests/smoke.gd) {
+    & $godot --headless --path prototype --script "res://tests/$($test.Name)"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
 ```
 
-`test_waves.gd` rejoue dix-huit segments relevés en RAM, dont les vagues 0x02 à 0x05 du cycle 1, la reprise de 0x05 après une perte (`pr13a`, `pr14a`) et quatre vagues en rangée, soit 1 405 points de contrôle (`tests/wave_checkpoints.gd`) et compare les huit objets toutes les 8 images de boucle. L’audit complet contre toutes les sondes se lance avec `python tools/arcade/audit_waves.py .reference --godot <chemin de Godot>` ; `--checkpoints` régénère les points de contrôle.
-
-## Comparaison avec Jeutel
-
-Depuis la racine de SwarmAttack, produire les traces MAME puis lancer le comparateur Godot.
-
-```powershell
-python .\tools\arcade\capture.py --scenario idle --scenario movement --scenario opposed --scenario fire --scenario fire_tap --scenario fire_busy
-python .\tools\arcade\capture.py --replay tools\arcade\replays\module-i-combined.csv --frames 596 --output .reference\module-i-combined
-python .\tools\arcade\capture.py --replay tools\arcade\replays\module-i-expiry.csv --frames 610 --output .reference\module-i-expiry
-
-$godot = '.\.tools\godot-4.7.2\Godot_v4.7.2-stable_win64_console.exe'
-$traces = (Resolve-Path .reference).Path
-& $godot --headless --path prototype --script res://tests/compare_jeutel.gd -- `
-    "$traces\mouncrst" `
-    "$traces\module-i-combined\mouncrst\replay.csv" `
-    "$traces\module-i-expiry\mouncrst\replay.csv"
-```
-
-Les cinq fenêtres de tir sans collision correspondent à Jeutel sur 699 images au total. Le comparateur vérifie aussi les déplacements enregistrés et rapporte les écarts de position liés aux pauses de déplacement dans MAME. Dans le test isolé de traversée, le déplacement à chaque pas produit un écart temporaire de 12 pixels logiques au maximum. Les deux limites mesurées sont atteintes. La cadence du module reste à affiner pour les parties complètes.
-
-Les positions des huit cibles correspondent sur les 87 premières images de la formation. Deux séquences de tir touchent les mêmes cibles que Jeutel. Les impacts des frames 575 et 778 correspondent exactement. L’impact Jeutel de la frame 699 se produit à la frame 698 dans le prototype. Des cas de contact vérifient les limites de collision du module I. Un essai automatisé a terminé la manche avec 400 points. La cadence après l’ouverture reste approximative, car les interruptions Jeutel varient selon la situation. Les trajectoires longues et les plongeons tardifs demandent encore un relevé plus complet.
-
-## Comparaison de l’amarrage
-
-Deux replays suivent le même parcours solo jusqu’à l’approche du module II. [solo-docking.csv](../tools/arcade/replays/solo-docking.csv) réussit l’amarrage. [solo-docking-held.csv](../tools/arcade/replays/solo-docking-held.csv) maintient le bouton à partir de la frame 6750. La sonde relève, à partir de la frame 6700, l’état d’amarrage `0x8222–0x8232`, l’objet `0x8140–0x814e` et le compteur de boucle `0x8005`.
-
-```powershell
-$sonde = '--probe', '8222-8232', '--probe', '8140-814e', '--probe', '8005', '--probe-from', '6700'
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking.csv --frames 7450 @sonde --output .reference\dock-success
-python .\tools\arcade\capture.py --replay tools\arcade\replays\solo-docking-held.csv --frames 7450 @sonde --output .reference\dock-held
-
-& $godot --headless --path prototype --script res://tests/compare_docking.gd -- `
-    "$traces\dock-success\mouncrst" "$traces\dock-held\mouncrst"
-```
-
-Le comparateur avance le prototype d’un pas à chaque incrément du compteur de boucle Jeutel. Dans ces conditions, la position, les deux vitesses et le chrono du module II sont identiques à Jeutel sur 660 images pour l’amarrage réussi et 701 images avec le bouton maintenu. L’amarrage se produit à la frame 7417 avec un bonus de 2 600 points, comme sur la carte.
-
-La boucle Jeutel saute certaines frames, 17 sur 750 dans le relevé réussi et 9 sur 750 avec le bouton maintenu, à des intervalles qui dépendent de la situation. Le [carnet de relevés](../tools/arcade/README.md) en décrit le mécanisme. Le prototype en temps réel ne reproduit pas ces sauts, par choix, et avance donc un peu plus vite que la carte. Restent à comparer la montée du module II et l’arrivée du module III avant la frame 6700. L’intro d’amarrage I + II en partie est calée sur `pr5-amarrage-i-ii` (même calendrier que le II → III, depuis y = 200). L’approche à l’inertie et l’expiration sont calées sur `pr5b-amarrage-i-ii` (butée basse, écran 183 images, reprise du module I à x = 112). Le contact réussi, le bonus et la reprise en I + II sont calés sur `pr5c-amarrage-i-ii-succes` (offset (14, −7), bonus 1700, écran 305 images, reprise à x = 112). Le tir et la butée gauche du I + II sont calés sur `pr6-tir-i-ii`. La hitbox du I + II est calée sur `pr6b-hitbox-i-ii` (offset 16 tant que `0x822c` = 232). L’intro, l’expiration et la reprise I + II → III sont calées sur `pr7-amarrage-i-ii-iii`. La collision (offsets (31, −3) et (29, −3), vies 3 → 1, reprise du III) est calée sur `pr8-amarrage-i-ii-iii-approche` et `pr8b-amarrage-i-ii-iii-approche`. Le contact réussi (offset (8, −6), bonus 1500, reprise I + II + III à x = 112, butée gauche x = 14, puis II + III après destruction) est calé sur `pr8c-amarrage-i-ii-iii-approche`. Le tir, la hitbox et la butée droite du I + II + III sont calés sur `pr9-tir-i-ii-iii` et `pr9b-tir-i-ii-iii` (paires du II + III, report de l’index de groupe, contacts à (116, 193) et (192, 212), butée x = 200).
-
-La reprise après amarrage a été recoupée sur les captures `pr1-bonus`, `pr1-collision`, `pr1-timeout` et `pr1-suite`. Les comparateurs de tir, de déplacement et d’approche du module II ont été rejoués pour la livraison Windows. Les constantes encore provisoires sont listées dans le tableau ci-dessus.
+La suite de livraison joue deux amarrages et atteint le deuxième cycle. Les tests de combat couvrent 18 trajectoires et 1 405 points de contrôle. Les [outils de trace](../tools/arcade/README.md) servent au diagnostic des mouvements et des collisions.

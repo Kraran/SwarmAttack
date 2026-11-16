@@ -1,6 +1,6 @@
 extends RefCounted
 
-# Banques Jeutel indexées par 0x823a. Les banques 1 et 2 partagent des
+# Familles visuelles des vagues. Les banques 1 et 2 partagent des
 # trajectoires à entrée large mais ont des silhouettes différentes.
 enum EnemyKind { RING, INTERCEPTOR, CLAW, METEOR, ROW }
 const WAVES_PER_CYCLE := 10

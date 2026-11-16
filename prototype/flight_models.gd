@@ -101,7 +101,7 @@ static func build_enemy(kind: int, variant: int) -> Node3D:
 			_bevel(half, _half_disc(2.75), inset, 0.88, 0.31)
 			_bevel(half, _half_disc(1.68), core, 1.4, 0.75)
 		Presentation.EnemyKind.INTERCEPTOR:
-			# Le sprite Jeutel des vagues 5 et 6 a un thorax étroit et
+			# Les intercepteurs des vagues 5 et 6 ont un thorax étroit et
 			# des appendices séparés en X, visibles de face et de profil.
 			var polished_core := _finish(light, 0.85, 0.30)
 			_hull(enemy, [0, -4.8, 1.3, -3.5, 1.95, -0.5, 1.65, 2.2, 0.65, 4.35], polished_core, 1.74)

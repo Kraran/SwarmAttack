@@ -1,6 +1,6 @@
 """Extrait la démo d'attraction d'une sonde MAME vers prototype/attract_demo_data.gd.
 
-Usage : python tools/arcade/extract_attract.py .reference/pr10e-attract/mouncrst/attract-probe.csv
+Usage : python tools/arcade/extract_attract.py .reference/attract-probe.csv
 
 La sonde doit couvrir 8000-83ff depuis la frame 0 (scénario attract). La démo
 commence à la première frame où 0x8097 passe à 3 et finit quand il revient à 0.

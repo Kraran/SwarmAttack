@@ -59,7 +59,7 @@ func _check_title_lines() -> void:
 	_expect(attract.title_line_progress(0) == 0.0, "Image 20 : aucune ligne")
 	attract = _at(151)
 	_expect(attract.title_line_progress(0) == 1.0, "Image 151 : première ligne complète")
-	_expect(attract.title_line_progress(1) == 0.0, "Image 151 : « MOUNE CRESTE » pas encore")
+	_expect(attract.title_line_progress(1) == 0.0, "Image 151 : « ESCADRONS EN APPROCHE » pas encore")
 	attract = _at(661)
 	for index in range(5):
 		_expect(attract.title_line_progress(index) == 1.0, "Image 661 : ligne %d complète" % index)

@@ -736,7 +736,7 @@ func _draw_impact(combat: ArcadeRun.CombatRound) -> void:
 
 func _draw_panel() -> void:
 	_text(73, "SWARMATTACK", 39, PRIMARY)
-	_text(104, "Moune Creste · Jeutel", 18, SHIP)
+	_text(104, "Défense orbitale", 18, SHIP)
 	draw_line(Vector2(LABEL_X, 127), Vector2(PANEL_END, 127), BORDER)
 	_text(163, "SCORE", 13, MUTED)
 	_text(205, "%06d" % _run.score(), 36, PRIMARY)

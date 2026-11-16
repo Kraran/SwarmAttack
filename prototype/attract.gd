@@ -26,11 +26,11 @@ const DEMO_FRAMES := DemoData.LENGTH
 # sur les PNG pris toutes les 10 images (précision ±10) : première image où la
 # ligne est entamée, première image où elle est complète.
 const TITLE_LINES := [
-	["BATAILLE DANS L'UNIVERS", 21, 151],
-	["MOUNE CRESTE", 181, 251],
-	["ESSAYEZ VOUS AUSSI", 501, 601],
-	["SENSATIONS FORTES", 641, 641],
-	["GARANTIES", 661, 661],
+	["ALERTE ORBITALE", 21, 151],
+	["ESCADRONS EN APPROCHE", 181, 251],
+	["ASSEMBLEZ VOTRE VAISSEAU", 501, 601],
+	["TENEZ LA LIGNE", 641, 641],
+	["ESPACE POUR JOUER", 661, 661],
 ]
 
 # Valeurs de 0x801d pendant la démo.

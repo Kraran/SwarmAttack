@@ -56,7 +56,7 @@ def audit(trace, probe):
 
 def main():
     root = sys.argv[1]
-    for trace in sorted(glob.glob(os.path.join(root, '**', 'mouncrst', 'replay.csv'), recursive=True)):
+    for trace in sorted(glob.glob(os.path.join(root, '**', 'replay.csv'), recursive=True)):
         probe = trace.replace('replay.csv', 'replay-probe.csv')
         if not os.path.exists(probe):
             continue

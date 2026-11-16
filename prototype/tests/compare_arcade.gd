@@ -81,7 +81,7 @@ func _compare_movement(path: String, last_frame: int, observed_pauses: int) -> v
 		previous_x = actual
 	if pauses != observed_pauses:
 		_fail("%s : %d pauses constatées, %d attendues" % [path, pauses, observed_pauses])
-	print("%s | %d pauses Jeutel | %d positions différentes sur %d | écart max %d px" % [
+	print("%s | %d pauses référence | %d positions différentes sur %d | écart max %d px" % [
 		path.get_file(), pauses, different, last_frame - FIRST_PLAY_FRAME + 1, max_error
 	])
 
@@ -139,28 +139,28 @@ func _compare_impacts(path: String, last_frame: int, expected_count: int) -> voi
 	if rows.is_empty():
 		return
 	var round := FirstWaveRound.new()
-	var jeutel := {}
+	var reference := {}
 	var prototype := {}
 	for index in range(FIRST_PLAY_FRAME, rows.size()):
 		round.step(_input_mask(rows[index - 1]))
 		var sprites := rows[index][7]
 		for slot in range(round.wave.enemies.size()):
-			if not jeutel.has(slot) and sprites.substr(slot * 8 + 4, 2) == "0c":
-				jeutel[slot] = index
+			if not reference.has(slot) and sprites.substr(slot * 8 + 4, 2) == "0c":
+				reference[slot] = index
 			if not prototype.has(slot) and not round.wave.enemies[slot].alive:
 				prototype[slot] = index
-	if jeutel.size() != expected_count or prototype.size() != expected_count:
-		_fail("%s : %d impacts attendus, Jeutel %d, prototype %d" % [
-			path, expected_count, jeutel.size(), prototype.size()
+	if reference.size() != expected_count or prototype.size() != expected_count:
+		_fail("%s : %d impacts attendus, référence %d, prototype %d" % [
+			path, expected_count, reference.size(), prototype.size()
 		])
 		return
-	for slot in jeutel:
-		if not prototype.has(slot) or absi(prototype[slot] - jeutel[slot]) > 1:
-			_fail("%s : impact différent pour la cible %d, Jeutel %s, prototype %s" % [
-				path, slot, jeutel[slot], prototype.get(slot, "aucun")
+	for slot in reference:
+		if not prototype.has(slot) or absi(prototype[slot] - reference[slot]) > 1:
+			_fail("%s : impact différent pour la cible %d, référence %s, prototype %s" % [
+				path, slot, reference[slot], prototype.get(slot, "aucun")
 			])
 			continue
-		print("Impact cible %d | Jeutel %d | prototype %d" % [slot, jeutel[slot], prototype[slot]])
+		print("Impact cible %d | référence %d | prototype %d" % [slot, reference[slot], prototype[slot]])
 	if round.score != expected_count * 50:
 		_fail("%s : score %d, attendu %d" % [path, round.score, expected_count * 50])
 

@@ -229,7 +229,7 @@ func step(input_mask: int) -> void:
 		bonus_reserve = true
 
 
-# Jeutel $3870-$387D : le quartet haut de $809B, plus un.
+# Le nombre de plongeurs varie avec le numéro du cycle.
 func max_divers() -> int:
 	return ((cycle - 1) & 0x0F) + 1
 
