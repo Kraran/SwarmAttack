@@ -250,7 +250,7 @@ func step(input_mask: int, stop_after_exercise := false) -> void:
 				_counter_dropped = false
 			elif combat.outcome == CombatRound.Outcome.CLEARED:
 				if not stop_after_exercise:
-					_advance_from_clear()
+					_advance_from_clear(input_mask)
 		Phase.REPLACEMENT:
 			combat.step(0)
 			_advance_replacement()
@@ -285,7 +285,8 @@ func last_wave() -> int:
 	return LAST_WAVE_AFTER_FIRST_DOCK if stage == 1 else WAVES_BEFORE_DOCK
 
 
-func _advance_from_clear() -> void:
+func _advance_from_clear(input_mask := 0) -> void:
+	combat.pilot.clear_shots()
 	if wave_number < last_wave():
 		wave_number += 1
 		_begin_combat(combat.pilot.ship_x, 255)
@@ -305,6 +306,8 @@ func _advance_from_clear() -> void:
 		stage += 1
 		wave_number = WAVE_AFTER_DOCK
 		_begin_combat(combat.pilot.ship_x, 255)
+	if phase == Phase.COMBAT and input_mask & Pilot.FIRE:
+		combat.pilot.absorb_held_fire()
 
 
 func _advance_cycle_end() -> void:
@@ -366,15 +369,8 @@ func _next_attached_after_loss() -> int:
 func _resume_from_docking(input_mask: int) -> void:
 	var dock_stage := docking.stage
 	var resume_x := Pilot.START_X
-	# Créneaux encore actifs : la routine de reprise ne les efface pas
-	# (succès et expiration). La collision les a déjà vidés à l'explosion.
-	var leftover: Array[Vector2i] = []
-	if dock_stage != Docking.Stage.COLLISION:
-		leftover = combat.pilot.active_shots()
-	# Première image visible : deux pas après un bonus (7723, y registre 96),
-	# un seul après une expiration (8125, y registre 92). Les valeurs logiques
-	# correspondent à 251 − registre, soit 155 et 159 depuis un gel à 163.
-	var resume_ticks := 2 if dock_stage == Docking.Stage.SUCCESS else 1
+	# Aucun projectile de la phase précédente ne doit traverser l'amarrage.
+	combat.pilot.clear_shots()
 	if dock_stage == Docking.Stage.SUCCESS:
 		successful_dockings += 1
 		# pr5c : contact à 10599, écran « BRAVO !! » / bonus 17 × 100 = 1700
@@ -427,10 +423,6 @@ func _resume_from_docking(input_mask: int) -> void:
 		combat.pilot.assembly_y_offset = 0
 	if input_mask & Pilot.FIRE:
 		combat.pilot.absorb_held_fire()
-	if not leftover.is_empty():
-		combat.pilot.restore_shots(leftover)
-		for _tick in range(resume_ticks):
-			combat.pilot.advance_shots_only()
 
 
 func _consume_reserve() -> bool:

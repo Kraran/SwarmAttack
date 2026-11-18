@@ -14,6 +14,28 @@ const LANGUAGES := {
 # The French source text is the key. Translations follow the order below.
 const TRANSLATED_LANGUAGES := ["en", "es", "pt", "de", "it"]
 const TEXT := {
+	"À propos": ["About","Acerca de","Sobre","Über das Spiel","Informazioni"],
+	"Version": ["Version","Versión","Versão","Version","Versione"],
+	"Création": ["Created by","Creación","Criação","Entwicklung","Creazione"],
+	"Moteur": ["Engine","Motor","Motor","Engine","Motore"],
+	"Projet": ["Project","Proyecto","Projeto","Projekt","Progetto"],
+	"Fermer": ["Close","Cerrar","Fechar","Schließen","Chiudi"],
+	"Profil GitHub": ["GitHub profile","Perfil GitHub","Perfil GitHub","GitHub-Profil","Profilo GitHub"],
+	"Projet GitHub": ["GitHub project","Proyecto GitHub","Projeto GitHub","GitHub-Projekt","Progetto GitHub"],
+	"Défense orbitale en solo ou à deux, dix vagues et trois modules à assembler.": [
+		"Orbital defense for one or two players, with ten waves and three modules to assemble.",
+		"Defensa orbital para uno o dos jugadores, con diez oleadas y tres módulos para ensamblar.",
+		"Defesa orbital para um ou dois jogadores, com dez vagas e três módulos para montar.",
+		"Orbitale Verteidigung für einen oder zwei Spieler, mit zehn Wellen und drei Modulen zum Andocken.",
+		"Difesa orbitale per uno o due giocatori, con dieci ondate e tre moduli da assemblare.",
+	],
+	"Créé pour retrouver le plaisir de l’arcade.": [
+		"Created to bring back the joy of arcade games.",
+		"Creado para recuperar la diversión de los juegos arcade.",
+		"Criado para recuperar a diversão dos jogos arcade.",
+		"Entwickelt, um den Spielspaß der Arcade-Klassiker zurückzubringen.",
+		"Creato per ritrovare il divertimento dei giochi arcade.",
+	],
 	"Module %s perdu": [
 		"Module %s lost",
 		"Módulo %s perdido",

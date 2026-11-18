@@ -5,6 +5,7 @@ const Pilot = preload("res://pilot.gd")
 const ArcadeRun = preload("res://arcade_run.gd")
 const CombatRound = preload("res://combat_round.gd")
 const CombatWave = preload("res://combat_wave.gd")
+const FlightView = preload("res://flight_view.gd")
 
 var _failures := 0
 
@@ -18,6 +19,7 @@ func _run() -> void:
 	_check_dock_axes()
 	_check_falling_exit()
 	_check_capsule_exit()
+	_check_exhaust_motion()
 	var view := preload("res://main.tscn").instantiate()
 	root.add_child(view)
 	view.set_process(false)
@@ -30,6 +32,42 @@ func _run() -> void:
 	if _failures == 0:
 		print("MOUVEMENTS OK · décollage, interpolation, amarrage, météo, vitesse identique à 30/60/120/144 Hz")
 	quit(1 if _failures else 0)
+
+
+func _check_exhaust_motion() -> void:
+	var motion := FlightView.ExhaustMotion.new()
+	_expect(motion.sample(Vector2(112,200),0) == 0.0,"Réacteur au repos lors de l'apparition")
+	for frame in range(1,13):
+		motion.sample(Vector2(112+frame*2,200),frame)
+	_expect(motion.level > 0.9,"Le jet augmente progressivement pendant le déplacement")
+	var moving := motion.level
+	motion.sample(Vector2(136,200),12)
+	_expect(motion.level == moving,"La pause fige aussi la poussée visuelle")
+	motion.sample(Vector2(136,200),13)
+	_expect(motion.level > 0.0 and motion.level < moving,"Le retour au repos est progressif")
+	for frame in range(14,74):
+		motion.sample(Vector2(136,200),frame)
+	_expect(motion.level < 0.001,"À l'arrêt ou en butée, le jet retrouve sa taille normale")
+	motion.sample(Vector2(138,200),74)
+	motion.sample(Vector2(20,200),75)
+	_expect(motion.level == 0.0,"Une téléportation n'est pas une poussée")
+	motion.reset()
+	_expect(motion.sample(Vector2(112,200),0) == 0.0,"Aucune poussée héritée d'un module masqué")
+	var reference := _exhaust_at_refresh(60)
+	for frequency in [30,120,144]:
+		_expect(is_equal_approx(_exhaust_at_refresh(frequency),reference),"Poussée indépendante de la fréquence d'affichage à %d Hz" % frequency)
+
+
+func _exhaust_at_refresh(frequency: int) -> float:
+	var motion := FlightView.ExhaustMotion.new()
+	motion.sample(Vector2(100,200),0)
+	for index in range(1,frequency+1):
+		var frame := index * 60.0 / frequency
+		motion.sample(Vector2(100+frame,200),frame)
+	for index in range(1,frequency+1):
+		var frame := 60.0 + index * 12.0 / frequency
+		motion.sample(Vector2(160,200),frame)
+	return motion.level
 
 
 func _expect(ok: bool, message: String) -> void:

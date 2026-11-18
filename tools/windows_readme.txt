@@ -1,12 +1,21 @@
 SWARM ATTACK
-Version 0.3.0
+Version 0.3.1
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
 La présentation est conçue pour le Full HD (1920 × 1080), avec un champ
 vertical et des modèles spatiaux chromés.
+Les jets des réacteurs s’allongent progressivement pendant les déplacements,
+puis retrouvent leur taille normale lorsque le vaisseau s’arrête.
 La VSync suit la fréquence du moniteur. Pour jouer à 60 Hz, sélectionnez
 60 Hz dans les paramètres d’affichage Windows si nécessaire.
+Les arrêts matériels de la borne ne sont pas reproduits. Le vaisseau
+continue à se déplacer pendant le crédit final des points. Les tirs
+sont vidés aux transitions : après un amarrage ou une nouvelle vague,
+un nouvel appui est nécessaire pour tirer, même si le bouton était maintenu.
+Les collisions prennent en compte le trajet entre deux positions et excluent
+les sorties masquées. F1 affiche les zones de contact ; à l’amarrage,
+le rouge signale la collision et reste prioritaire sur la capture verte.
 
 Commandes par défaut au clavier
   Espace   Solo, tir et freinage à l’approche
@@ -23,6 +32,11 @@ Commandes par défaut au clavier
   F10      Mode portrait ou paysage
   F11      Mode plein écran ou fenêtré
 
+Cliquez sur le logo SWARM ATTACK pour ouvrir À propos. La photo à gauche
+ouvre le profil GitHub de Franck Fornasari (Kraran), comme Profil GitHub.
+Projet GitHub ouvre le dépôt du jeu. Fermer, Échap, B ou Start revient
+à l’écran précédent. Le jeu et le son sont figés pendant la consultation.
+
 Manette
   Croix ou stick gauche pour se déplacer, A pour jouer, tirer et freiner,
   Y pour démarrer une partie à deux (ou relancer un entraînement), X pour ouvrir les options, Start pour
@@ -34,7 +48,12 @@ de revenir à l’accueil ou de quitter. Les choix sont accessibles à la souris
 
 Options > Son règle le volume de 0 à 100 % et permet de couper le son.
 Sons choisit Original (par défaut) ou Moderne, avec un aperçu du tir.
-La banque Moderne comprend onze effets SF, avec plusieurs voix simultanées
+La musique de décollage revient à chaque montée automatique du vaisseau,
+y compris après une destruction, avant un amarrage et à l’arrivée du cycle suivant.
+Le départ de fin de cycle utilise son thème spécifique.
+Chaque famille d’ennemis possède ses sons de vol, de retour et d’impact.
+Une vie supplémentaire déclenche son propre signal sonore.
+La banque Moderne comprend vingt-deux effets SF, avec plusieurs voix simultanées
 et un limiteur sur son bus. Le choix sonore est enregistré.
 Utilisez gauche/droite ou cliquez sur la moitié gauche/droite du volume.
 Options > Affichage choisit le plein écran ou le mode fenêtré, ainsi que

@@ -10,20 +10,21 @@ const CombatRound = preload("res://combat_round.gd")
 const CombatWave = preload("res://combat_wave.gd")
 
 # Une partie du démarrage au cycle 2. Chaque octet code gauche, droite et tir.
-const FULL_CYCLE_FRAMES := 7939
+const FULL_CYCLE_FRAMES := 9250
 const FULL_CYCLE_INPUTS := (
-	"eJztWYuy3CAIVSb6/59clYeAaJI77XSmDZndzUPhcAA17pVeybW5XwEgZzyHlFO77J9+u91v0q+85JStXPMUVfVuaLbfY2VorkvyGpqU" +
-	"9RYK9IMsy9mAWBjvCjEvINkMeTk8XntJv+4EucaaTNu69lQkUK/ncZmqut3wWIxuhRB0wDWhK5ByQImEQ550E7v22llGPJqvUdCduGnv" +
-	"1SPWle976DjAlfcwNOiurV3VtLaPQA9MqWFPEQKPmSujxvlCNgpjdgiKw1xIf0NfDNEj03wmsdh8cTA0D2RFP65AJUmWbtIIW22qR7l0" +
-	"ECovGgSGtbBKY6ngSk24BlNTyMsGz8JRVO9DLx7kWDLaFafKAwnJFQ1je2l+CSean5uRwY4PKQ9sZFk1n5wDZYBVQbclhGTfU9wdzmig" +
-	"DMLVUMZn2KrO9OfEUtgJxjbEoYwKNTFGUOXMs38q+cCB5+9bAMwxa2X3S/Z8RzEKwgU6XMU0wN4qXEYnQ0fWRzCy88GFq+k/hQtMuNjS" +
-	"iQY3bPgqwyZqLscS5aPImcWrY0ReHkGQXElZBTv0VtArCusBrENPVSWchOPtgsGm1E4izE9m64wpIrYpzsnojLEk9mybhZ98Ekk9ycjc" +
-	"l78niQDcVdPfFMb8oHjvq/uFTd/PY3iCk/t98lb2U7khWG7gb+1vBYkpl18KQxQMmn0KrcRdiZS1AwOTuJvpdpdCdTP7bLrI624HVvCZ" +
-	"NzOJcDqUofsZb1MAzXF5tYnsIFnz+QxKVWafjSv9hSSo7rEVMqII+X5KXcLS11WQUAXQxyQF9cKFT5gcyARCmy8w2M3m51wk+9c5mxZl" +
-	"eIJrc8VoFKi57EiXVjGzk9NgG8J8YRIBt7QSpoMsLHlVw15HrdcwZLXGdVFOT9ZfFRQtRtsS6Z04s3QU3OvYd7E+agYmGCSEDo3l7NRM" +
-	"QBjf1ToUe6QionecssQT4/tqeqEX5AEDUhk6HQ+FUpM+flSb+aFpWEDHkfY8gOMhgBsLm1DczKTPYOr9k/9XHm7P7iUeWX+f/BQHVtPP" +
-	"1qNRm0/+hNA4KNfMt93N532d3jzzDpv598cIaSo4Yx1ySpJfq8j636Lkp+qSVWM/MK9ZWY+5czdPT52nCinKIyJrYUYbPKhaPZCJZFsg" +
-	"6wZXx+RQSKvQRwdi3QX+SvCTf0F+AQalGpo="
+	"eJztWYuO7CAIVaP+/ydv5aGA+JhJbrK5W2Y7mW2V1wFEm8NHlP3bNaUUYwhJU02WnjsxPANDXNAzBrgg37IaJmeENniIaPfavAB34Ul/" +
+	"ivcSa8DPZzKat9FrnTsV9AHqHmMONA9ktauAzDPthNTYR7VPZJntqs22KPh0vT0AJ7Efwn8BTtPXs9i5Bz4SIvD/C5cviQ1KbG1I+cb7" +
+	"MwpaivQTcF1iWiErFkkzOxWZ909u39aoRcAauX6SUSjG++Dfw+07f4zey7HVwU8yT4ZMMpfKPHrIKV7ob3wJGFQRDl3zMKWXkyUHQpZ5" +
+	"aNR/IW+RDJcAtLTnoDdBOhfkC/PZ0mEm/lr4XmsWhN9WVhhbEhXoTZrFpD2+8PnCpOdJCSTpQAYrBznW/BPMreYnufvZRsfu7UYymrgU" +
+	"bVEwmFDpxO9tqRPBMmByiPVcVp8EOn5o91IKSSpmMg/Z44ajmhcQlDRLIm+W4EcTVJ9u8ey9mhQvHxtsWZoqOSrdHDSCuNx050zO0kKX" +
+	"qK2aJPsR1O/jE5nNoA2j7UkqF5konUY+STq+N9VS1Enhg6it7zHzRGCrQBJFxtHDEFcIkKujR+kwoj13jHp7RhfNyQ4WFH2dC/On2PPJ" +
+	"aYCcVYA9p1rVNtkJH6WnQVhTpggcza+mzSIpFvfexpjhmQ0a5sn5fId3AXU4LllgNBXrBg3hw6cKKasINeGBC7Igq/Wi14SfKXKXv9JM" +
+	"ieo4QVOh2wpKmjlMILS7T/d2cRDmCy9oxOK5bZjcgHhJTtqEctUQg1zQQlitSqWvPW3pejQetUetO0pGi4myJ/uwN4oG/3n8fYn3dNfR" +
+	"PQ9j/OvQrWnBnxVVTyRqu40jpwg5jdjI6QIN8IWhjllXjc5mUZWsXnrpmpZZc6J9oH9P38rHZNAG/U9jXvqOVtvzCn9BntSetsM59BF1" +
+	"BuUQ18SA1t0xRwmdNaiw5oBkI21eS7j/VNOBLfZvQ+b+9PJpRf1OwJhz53MaW+RmNAS/8mi3+igsfF3Yt33rOB6RyhbYyU9CTnbljEaF" +
+	"h+9B92bjGwInpy8OaydMqN/SfepqNltUgupAp+0i/+LOSvLxUONc4o1iFFvYY6y4djPfvutQOuJOiI8HLplHPrWosomjUyk2eLhEh/vC" +
+	"JX0j4rokGZdYmNaaSw7W/MLnAXu7X/oD9MWhuqkf/5i+1QMiP7zN0+8kKlzk88D/BT7kCeOowBx/XgRBFS/JDZqm1HKJ3YezPkq5Mswh" +
+	"eUYLy27Coz1xinqKe3yP53DsN9ZEb++Nrbv36NqUj94LvvTSr6AfTjQeSA=="
 )
 
 var _failures := 0
@@ -66,7 +67,7 @@ func _test_full_cycle() -> void:
 	_expect(successes == 2, "Le cycle complet doit réussir les deux amarrages.")
 	_expect(run.successful_dockings == 2, "Le bilan conserve les deux amarrages du cycle complet.")
 	_expect(run.cycle == 2 and run.phase == ArcadeRun.Phase.COMBAT, "Le cycle 2 doit être jouable.")
-	_expect(run.frame == FULL_CYCLE_FRAMES and run.score() == 14240, "Le replay complet a divergé.")
+	_expect(run.frame == FULL_CYCLE_FRAMES and run.score() == 14340, "Le replay complet a divergé.")
 
 
 func _test_assembled_contact_edges() -> void:

@@ -127,16 +127,16 @@ func _check_rows_and_pattern_reset() -> void:
 
 
 func _check_score_delays() -> void:
-	# Délai impact -> crédit selon le type de vague et 0x823c (150 impacts).
+	# Le crédit garde un bref délai d'effet, sans variation de charge matérielle.
 	const CombatRound = preload("res://combat_round.gd")
-	var cases := [[1, 0, 8, 10], [1, 0, 4, 9], [3, 0, 8, 10], [3, 0, 3, 9], [3, 2, 8, 13], [3, 2, 2, 10]]
-	for c in cases:
-		var round := CombatRound.new(c[0], 1, 112, 255, 0, -1, c[1])
-		round.wave.credited_remaining = c[2]
-		if round.score_delay() != c[3]:
-			_fail("délai de crédit vague %d étape %d, %d restants : %d au lieu de %d" % [c[0], c[1], c[2], round.score_delay(), c[3]])
-			return
-	print("OK délais de crédit : 9-10 (étroite, large), 10-13 (rangée)")
+	for configuration in [[1,0],[3,0],[3,1],[5,1],[3,2]]:
+		var round := CombatRound.new(configuration[0],1,112,255,0,-1,configuration[1])
+		for remaining in range(1,9):
+			round.wave.credited_remaining = remaining
+			if round.score_delay() != CombatRound.SCORE_DELAY:
+				_fail("Le crédit dépend encore du type de vague ou du nombre d'ennemis")
+				return
+	print("OK délai de crédit constant : 10 pas, toutes familles et tous effectifs")
 
 
 func _fail(message: String) -> void:
