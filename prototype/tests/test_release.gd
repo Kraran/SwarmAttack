@@ -10,23 +10,20 @@ const CombatRound = preload("res://combat_round.gd")
 const CombatWave = preload("res://combat_wave.gd")
 
 # Une partie du démarrage au cycle 2. Chaque octet code gauche, droite et tir.
-const FULL_CYCLE_FRAMES := 10432
+const FULL_CYCLE_FRAMES := 7939
 const FULL_CYCLE_INPUTS := (
-	"eJztWoty7CAIRUbz/598o4AgosnutrftTE5mmt1EEQ7H5zbDS8iL5wcipgRAf897vRDr4/MJvZkAkEZk87mZTVBL1WbpodRh" +
-	"A6f55G0sgemQenhU8+pIbQYjD6vvvoGiDpJzxtJYQh09CyZYuVoSsiG6ETWRNx3HTCWyfW4tagd2diuxkhCs+TpQPAEX5Rkn" +
-	"XWSWqy+gTLR0grjeSQS+3RJe5x7NdcAcsDaBKseBPl+BNNDyVHrmOO6LbMQRr1A01bZw4U4i/ifAoGkt3r41C9j7yWhPRE6U" +
-	"kSXmiknf+glpEPsuL7M02iXfY9aoc2GgZuVeYrrytWzfsvi0gx1XHcy5GtLDmHPUazWuF0oOoUa78cNoUOtywSyO7FLEr09v" +
-	"MtHKHhuvlQ0ayHXgmj2cBrJoGC4ylpjn1V9U+S1Thb0BsgIgcu1OB8lXFxGC5HaN0ShHXQZBOyKzLFQsNLkTCfFlxUG0r2O1" +
-	"sl0IUu2EtWwEIvJbyD2Zt6tMKPKh+qcZV/vDzNHuo/jlqaMxA3TadJVA5AK7zMTWzzkNo3tMOPSEZ+Ityl5vyMFok7NSdlm1" +
-	"+SI3sz4h3k1QkYqcBFLvB+D4ymLN6qyQmu7N9Ra6Ennw4C6OHZqmv/BeG8wn7P1VbLrujwNRNwGf4pU2fT3vg6/zVeJ5wGgj" +
-	"P68h6IFTwvAOSMXQ7jnMPkCodJ4ZoO5aZOPUJlaSAtAurRakLYhsGMRc5mUkt9GVMbS2W47LuyaqZiRWb7wCiyxt4axbRtet" +
-	"2B3u/xTBgwfvIpgKF9oeuxkV9Tofe4yUMX1u3EL6ll0X7d9lL0Bdeahhai169jp27coXZcbQFzOkqyW7CzdUaDkdHH34FMva" +
-	"p/3QpcdQ0+h0E25nfIsV3FSYTnsa5dSIOX5cQm0s+ACxs2dJ9bGMYmCJmAwObMPg07B53SGPXwbzRi5TkxdSjYNOWaZu+gsa" +
-	"m1CRhgOHzkALX3IzZMma36cOg7ky8Bmmvi/zKOrqgiovJdvtUROFxxplRVr3nh9Lq0OcgJPEegQgHmOZo5xjngmK8jhTacM1" +
-	"gN1pc31bvPmKdY8yrSxy2nIzRtTOv2E4xeieSiG+7q2OrA1bu/0YIKOnjcXGLBeT9izJHvwNbI8mZn2PCi9Jzvw+RbNEaxg5" +
-	"RldIn0T9RcANlmaQ5SuMI9xHSSMa337OWzOmJr+brgcPKi4PNd/F9frk+1ED/CSGV2OJ6nkfojo/K4E/j8V4yoT374VH5vF3" +
-	"JD5AbMUP+/NktEStY29haQU/efr8LzuQzjaR73hr43TNxzwHbsWr/5jRnAD77ySNmFJXzEbEbZbcEBCET8XmYw+c9jgBDFeY" +
-	"joAf9Kvmt342efDg1+EftqAeHg=="
+	"eJztWYuy3CAIVSb6/59clYeAaJI77XSmDZndzUPhcAA17pVeybW5XwEgZzyHlFO77J9+u91v0q+85JStXPMUVfVuaLbfY2VorkvyGpqU" +
+	"9RYK9IMsy9mAWBjvCjEvINkMeTk8XntJv+4EucaaTNu69lQkUK/ncZmqut3wWIxuhRB0wDWhK5ByQImEQ550E7v22llGPJqvUdCduGnv" +
+	"1SPWle976DjAlfcwNOiurV3VtLaPQA9MqWFPEQKPmSujxvlCNgpjdgiKw1xIf0NfDNEj03wmsdh8cTA0D2RFP65AJUmWbtIIW22qR7l0" +
+	"ECovGgSGtbBKY6ngSk24BlNTyMsGz8JRVO9DLx7kWDLaFafKAwnJFQ1je2l+CSean5uRwY4PKQ9sZFk1n5wDZYBVQbclhGTfU9wdzmig" +
+	"DMLVUMZn2KrO9OfEUtgJxjbEoYwKNTFGUOXMs38q+cCB5+9bAMwxa2X3S/Z8RzEKwgU6XMU0wN4qXEYnQ0fWRzCy88GFq+k/hQtMuNjS" +
+	"iQY3bPgqwyZqLscS5aPImcWrY0ReHkGQXElZBTv0VtArCusBrENPVSWchOPtgsGm1E4izE9m64wpIrYpzsnojLEk9mybhZ98Ekk9ycjc" +
+	"l78niQDcVdPfFMb8oHjvq/uFTd/PY3iCk/t98lb2U7khWG7gb+1vBYkpl18KQxQMmn0KrcRdiZS1AwOTuJvpdpdCdTP7bLrI624HVvCZ" +
+	"NzOJcDqUofsZb1MAzXF5tYnsIFnz+QxKVWafjSv9hSSo7rEVMqII+X5KXcLS11WQUAXQxyQF9cKFT5gcyARCmy8w2M3m51wk+9c5mxZl" +
+	"eIJrc8VoFKi57EiXVjGzk9NgG8J8YRIBt7QSpoMsLHlVw15HrdcwZLXGdVFOT9ZfFRQtRtsS6Z04s3QU3OvYd7E+agYmGCSEDo3l7NRM" +
+	"QBjf1ToUe6QionecssQT4/tqeqEX5AEDUhk6HQ+FUpM+flSb+aFpWEDHkfY8gOMhgBsLm1DczKTPYOr9k/9XHm7P7iUeWX+f/BQHVtPP" +
+	"1qNRm0/+hNA4KNfMt93N532d3jzzDpv598cIaSo4Yx1ySpJfq8j636Lkp+qSVWM/MK9ZWY+5czdPT52nCinKIyJrYUYbPKhaPZCJZFsg" +
+	"6wZXx+RQSKvQRwdi3QX+SvCTf0F+AQalGpo="
 )
 
 var _failures := 0
@@ -39,7 +36,9 @@ func _initialize() -> void:
 	_test_ring_halves()
 	_test_duo()
 	_test_reserve()
+	_test_difficulties()
 	_test_profile()
+	_test_separate_scores()
 	_test_attraction_objects()
 	if _failures == 0:
 		print("LIVRAISON OK · cycle complet, duo, réserve, profil, démo")
@@ -65,8 +64,9 @@ func _test_full_cycle() -> void:
 			successes += 1
 		was_success = in_success
 	_expect(successes == 2, "Le cycle complet doit réussir les deux amarrages.")
+	_expect(run.successful_dockings == 2, "Le bilan conserve les deux amarrages du cycle complet.")
 	_expect(run.cycle == 2 and run.phase == ArcadeRun.Phase.COMBAT, "Le cycle 2 doit être jouable.")
-	_expect(run.frame == FULL_CYCLE_FRAMES and run.score() == 11340, "Le replay complet a divergé.")
+	_expect(run.frame == FULL_CYCLE_FRAMES and run.score() == 14240, "Le replay complet a divergé.")
 
 
 func _test_assembled_contact_edges() -> void:
@@ -110,6 +110,22 @@ func _test_wave_presentation() -> void:
 		_expect(size > last and size == Presentation.capsule_scale(15 - 2 * tier), "Palier d'entrée de capsule incorrect.")
 		last = size
 	_expect(Presentation.capsule_scale(0) == 1.0, "Capsule hors échelle après l'entrée.")
+	var interceptor := CombatWave.Enemy.new()
+	interceptor.phase = CombatWave.Flight.ENTRY_CURVE
+	var reveal := -1.0
+	for turns in range(CombatWave.WIDE_ENTRY_TURNS, 0, -1):
+		interceptor.turns_left = turns
+		var next := Presentation.interceptor_reveal(interceptor)
+		_expect(next > reveal, "Chaque palier révèle de nouveaux points de l’intercepteur.")
+		reveal = next
+	_expect(reveal == 1.0, "La coque est pleine au dernier palier de l’entrée.")
+	interceptor.phase = CombatWave.Flight.RETURNING
+	interceptor.return_wait = CombatWave.WIDE_RETURN_WAIT
+	_expect(Presentation.interceptor_reveal(interceptor) == 0.0, "La coque se reforme au point de retour.")
+	interceptor.return_wait = 1
+	_expect(Presentation.interceptor_reveal(interceptor) < 1.0, "Le retour conserve son dernier palier de points.")
+	interceptor.phase = CombatWave.Flight.CIRCLING
+	_expect(Presentation.interceptor_reveal(interceptor) == 1.0, "La coque est pleine à la reprise de la boucle.")
 	_expect(Presentation.docked_module_origin(1, 2, 216) == Vector2(112, 216), "Module I non aligné sur le II.")
 	for module in range(1, 4):
 		var expected := Vector2(112, 192 + 8 * module)
@@ -193,6 +209,12 @@ func _test_reserve() -> void:
 			break
 	_expect(run.lives == 3 and run.cycle == 2 and not run.bonus_reserve, "Réserve de trois modules incorrecte.")
 	_expect(run.score() == 30000, "Score effacé par la réserve.")
+	for tick in range(ArcadeRun.RESERVE_MESSAGE_FRAMES):
+		_expect(run.reserve_shows_message() and run.entrance_elapsed() == 0 and not session.finished,
+			"L’annonce de la réserve précède le retour des trois modules.")
+		session.step(0)
+	_expect(not run.reserve_shows_message() and run.entrance_modules() == 7,
+		"Après l’annonce, le porteur complet entame son retour.")
 	for tick in range(50000):
 		session.step(0)
 		if session.finished:
@@ -204,19 +226,105 @@ func _test_reserve() -> void:
 	_expect(run.max_divers() == 1, "Le quartet de cycle de la limite de plongeurs doit revenir à zéro.")
 
 
+func _test_difficulties() -> void:
+	var profile := ArcadeProfile.new()
+	_expect(profile.starting_cycle() == 1 and profile.bonus_threshold() == 30000, "Configuration normale par défaut.")
+	profile.difficulty = ArcadeProfile.Difficulty.VETERANS
+	var session := ArcadeSession.new(2, profile.bonus_threshold(), false, profile.starting_cycle())
+	for run in session.runs:
+		_expect(run.cycle == 2 and run.stage == 0 and run.wave_number == 1 and run.combat.wave.max_divers == 2,
+			"Chaque joueur vétéran commence à la première vague du cycle 2 avec sa difficulté.")
+		_expect(run.score() == 0 and run.lives == 3 and run.attached == 1, "État initial du mode Vétérans.")
+		run.combat.score = 49999
+		run.step(0)
+		_expect(not run.bonus_reserve, "La réserve vétéran reste indisponible à 49 999 points.")
+		run.combat.score = 50000
+		run.step(0)
+		_expect(run.bonus_reserve, "La réserve vétéran est acquise à 50 000 points.")
+
+
 func _test_profile() -> void:
 	var path := "user://test-release-%d.cfg" % OS.get_process_id()
 	var profile := ArcadeProfile.new()
-	_expect(profile.record(6100) and profile.record(7200) and not profile.record(10), "Insertion de scores incorrecte.")
+	_expect(profile.language == "en" and ArcadeProfile.Language.LANGUAGES.keys()[0] == "en",
+		"L’anglais est proposé en premier et par défaut pour un nouveau profil.")
+	_expect(profile.scores.size() == 10 and profile.qualifies(10) and not profile.qualifies(0),
+		"Dix places, dont cinq libres, au premier lancement.")
+	_expect(profile.submit_score(6100, "ONE", path) == OK and profile.submit_score(7200, "TWO", path) == OK
+		and profile.submit_score(7200, "TIE", path) == OK, "Insertion et égalité des scores.")
+	_expect(profile.submit_score(8300, "A@Z", path) == ERR_INVALID_PARAMETER, "Initiales invalides rejetées.")
+	_expect(profile.submit_score(8300, "BAD", path + "/invalid.cfg") != OK
+		and profile.scores[0] == 7200 and profile.initials[0] == "TWO", "Un échec d’écriture laisse le classement intact.")
 	profile.muted = true
 	profile.portrait = true
 	profile.fullscreen = true
-	profile.bonus_index = 1
+	profile.difficulty = ArcadeProfile.Difficulty.VETERANS
 	_expect(profile.write(path) == OK, "Échec à l’écriture du profil.")
 	var reloaded := ArcadeProfile.new()
 	reloaded.read(path)
-	_expect(reloaded.scores == PackedInt32Array([7200, 6100, 5000, 5000, 5000]), "Scores mal rechargés.")
-	_expect(reloaded.muted and reloaded.portrait and reloaded.fullscreen and reloaded.bonus_index == 1, "Réglages mal rechargés.")
+	_expect(reloaded.scores_for(ArcadeProfile.Difficulty.NORMAL) == PackedInt32Array([7200, 7200, 6100, 5000, 5000, 5000, 5000, 5000, 0, 0])
+		and reloaded.initials_for(ArcadeProfile.Difficulty.NORMAL).slice(0, 3) == PackedStringArray(["TWO", "TIE", "ONE"]), "Scores ou initiales mal rechargés.")
+	_expect(reloaded.muted and reloaded.portrait and reloaded.fullscreen
+		and reloaded.difficulty == ArcadeProfile.Difficulty.VETERANS, "Réglages mal rechargés.")
+	for language in ArcadeProfile.Language.LANGUAGES:
+		profile.language = language
+		_expect(profile.write(path) == OK, "Écriture du profil dans la langue %s." % language)
+		reloaded.read(path)
+		_expect(reloaded.language == language and reloaded.scores == profile.scores and reloaded.initials == profile.initials
+			and reloaded.difficulty == profile.difficulty, "Langue ou données du profil perdues à la relecture.")
+	var legacy := ConfigFile.new()
+	var legacy_path := path + ".legacy"
+	legacy.set_value("options", "bonus_index", 1)
+	legacy.set_value("records", "scores", PackedInt32Array([3400, 5000, 2200, 4300, 7200]))
+	_expect(legacy.save(legacy_path) == OK, "Écriture du profil précédent.")
+	reloaded.read(legacy_path)
+	_expect(reloaded.difficulty == ArcadeProfile.Difficulty.NORMAL
+		and reloaded.scores == PackedInt32Array([7200, 5000, 4300, 3400, 2200, 0, 0, 0, 0, 0]),
+		"Le profil précédent conserve ses scores et démarre en Normal.")
+	_expect(reloaded.initials == PackedStringArray(["---", "---", "---", "---", "---", "---", "---", "---", "---", "---"]),
+		"Les anciens scores ne reçoivent pas d’initiales arbitraires.")
+	for score in range(11, 16):
+		_expect(reloaded.submit_score(score, "NEW", legacy_path) == OK, "Les cinq nouvelles places sont utilisables.")
+	_expect(not reloaded.qualifies(11) and not reloaded.qualifies(10) and reloaded.qualifies(12),
+		"La qualification exige de battre le dixième score.")
+	_expect(reloaded.language == "fr", "Le profil précédent conserve le français par défaut.")
+	legacy.set_value("options", "language", "invalid")
+	_expect(legacy.save(legacy_path + ".invalid") == OK, "Écriture du profil avec une langue inconnue.")
+	reloaded.read(legacy_path + ".invalid")
+	_expect(reloaded.language == "en", "Une langue inconnue revient à la langue par défaut.")
+	DirAccess.remove_absolute(path)
+
+
+func _test_separate_scores() -> void:
+	var path := "user://test-separate-records-%d.cfg" % OS.get_process_id()
+	var profile := ArcadeProfile.new()
+	_expect(profile.submit_score(9000, "NOR", path) == OK, "Score Normal enregistré.")
+	profile.difficulty = ArcadeProfile.Difficulty.VETERANS
+	_expect(profile.scores == PackedInt32Array(ArcadeProfile.DEFAULT_SCORES), "Vétérans possède son classement indépendant.")
+	_expect(profile.submit_score(7000, "VET", path) == OK, "Score Vétérans enregistré.")
+	_expect(profile.scores_for(0)[0] == 9000 and profile.initials_for(0)[0] == "NOR"
+		and profile.scores[0] == 7000 and profile.initials[0] == "VET", "Les scores et initiales sont séparés.")
+	_expect(profile.submit_score(10000, "ERR", path + "/invalid.cfg", 0) != OK
+		and profile.scores_for(0)[0] == 9000 and profile.scores_for(1)[0] == 7000, "Échec d’écriture sans perte dans les deux classements.")
+	var loaded := ArcadeProfile.new()
+	loaded.read(path)
+	for mode in [0, 1]:
+		_expect(loaded.scores_for(mode) == profile.scores_for(mode)
+			and loaded.initials_for(mode) == profile.initials_for(mode), "Relecture des deux classements.")
+	# Shared scores cannot be attributed retrospectively to a difficulty.
+	var legacy := ConfigFile.new()
+	var legacy_path := path + ".legacy"
+	legacy.set_value("records", "scores", PackedInt32Array([8000, 7500, 5000, 5000, 5000]))
+	legacy.set_value("records", "initials", PackedStringArray(["OLD", "ABC", "---", "---", "---"]))
+	legacy.set_value("options", "difficulty", 1)
+	_expect(legacy.save(legacy_path) == OK, "Écriture d’un ancien profil partagé.")
+	loaded.read(legacy_path)
+	_expect(loaded.difficulty == 1 and loaded.scores_for(0)[0] == 8000
+		and loaded.initials_for(0)[0] == "OLD" and loaded.scores_for(1) == PackedInt32Array(ArcadeProfile.DEFAULT_SCORES),
+		"Migration des scores partagés vers Normal et création du classement Vétérans.")
+	_expect(loaded.write(legacy_path) == OK, "Sauvegarde après migration.")
+	loaded.read(legacy_path)
+	_expect(loaded.scores_for(0)[0] == 8000 and loaded.scores_for(1)[0] == 5000, "Migration stable après relecture.")
 	DirAccess.remove_absolute(path)
 
 

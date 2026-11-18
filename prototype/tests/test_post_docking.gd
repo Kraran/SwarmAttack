@@ -19,6 +19,7 @@ func _expect(condition: bool, message: String) -> void:
 
 
 func _initialize() -> void:
+	_check_docking_clock_and_thrust()
 	_check_success_resumes_as_two_and_three()
 	_check_collision_resumes_as_three()
 	_check_timeout_resumes_as_two()
@@ -44,6 +45,33 @@ func _initialize() -> void:
 	else:
 		print("POST-DOCKING OK")
 		quit(0)
+
+
+func _check_docking_clock_and_thrust() -> void:
+	for attached in [1, 2, 3]:
+		var module := 2 if attached == 2 else 1
+		var dock := Docking.new(module, Pilot.START_X, true, attached)
+		while dock.briefing_visible():
+			dock.step(0)
+		_expect(dock.stage == Docking.Stage.INTRO and dock.target_y == 256 and dock.display_clock() == "30:0",
+			"Le chrono apparaît à 30:0 avant l’arrivée du module cible")
+		var held_clock_frames := dock._intro_duration() - Docking.LIFT_END
+		held_clock_frames -= (Docking.START_CLOCK_TENTHS - Docking.APPROACH_CLOCK_TENTHS) * Docking.BOARD_FRAMES_PER_CONTROL
+		for tick in range(held_clock_frames):
+			dock.step(0)
+			_expect(dock.display_clock() == "30:0", "Le chrono reste à 30:0 pendant la montée de la cible")
+		_expect(dock.target_y < 256, "La cible est entrée à l’écran avant le premier cran du chrono")
+		for digit in [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]:
+			for tick in range(Docking.BOARD_FRAMES_PER_CONTROL):
+				dock.step(0)
+			var clock := "29:0" if digit == 0 else "30:%d" % digit
+			_expect(dock.display_clock() == clock, "Chrono attendu %s, obtenu %s" % [clock, dock.display_clock()])
+		_expect(dock.stage == Docking.Stage.APPROACH and not dock.thrusting, "Début d’approche en roue libre")
+		dock.step(Pilot.FIRE)
+		_expect(dock.thrusting, "Le moteur s’allume au freinage")
+		for tick in range(Docking.BOARD_FRAMES_PER_CONTROL):
+			dock.step(0)
+		_expect(not dock.thrusting, "Le moteur s’éteint au relâchement")
 
 
 func _start_docking(attached: int) -> ArcadeRun:
@@ -104,11 +132,15 @@ func _check_collision_resumes_as_three() -> void:
 	run.step(0)
 	_expect(run.lives == ArcadeRun.STARTING_LIVES - 1, "La collision baisse le compteur dès l'explosion, obtenu %d" % run.lives)
 	_expect(run.phase == ArcadeRun.Phase.DOCKING, "L'écran de collision doit durer 466 images")
+	_expect(not run.docking.collision_shows_message(), "L’explosion précède le message de collision")
 	for index in range(Docking.COLLISION_HOLD - 1):
 		if run.phase != ArcadeRun.Phase.DOCKING:
 			_fail("Reprise anticipée pendant la collision à l'image %d" % (index + 1))
 			return
 		run.step(0)
+		if run.phase == ArcadeRun.Phase.DOCKING:
+			_expect(run.docking.collision_shows_message() == (index + 2 >= Docking.COLLISION_MESSAGE_FROM),
+				"Le message de collision apparaît à l’image relevée et reste jusqu’à la reprise")
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après 466 images")
 	_expect(run.attached == 4, "Après collision, le module III seul continue, masque=%d" % run.attached)
 	_expect(run.front_module() == 3, "Le module repris est le III")
@@ -144,6 +176,7 @@ func _check_life_lost_after_assembled_ship() -> void:
 	run.lives = 2
 	run.combat = CombatRound.new(1, 2, Pilot.START_X, 255, 6)
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	run.combat.lost_module = 3
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "La perte du vaisseau ouvre le remplacement")
 	_expect(run.lives == 2, "Le compteur 0x8097 ne baisse qu'après %d images" % ArcadeRun.COUNTER_DROP_FRAMES)
@@ -155,10 +188,12 @@ func _check_life_lost_after_assembled_ship() -> void:
 	_expect(run.lives == 1, "Vies 2 → 1 à la baisse du compteur, obtenu %d" % run.lives)
 	_expect(run.attached == 2, "Le module II seul succède au vaisseau II + III, masque=%d" % run.attached)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "L'entrée suit la baisse du compteur")
-	_expect(run.entrance_ship_y() < 0, "Le module reste caché pendant les 25 premières images")
+	_expect(run.entrance_module_y(2, run.entrance_elapsed(), 2) >= Pilot.FIELD_SIZE.y,
+		"Le module reste caché pendant les 25 premières images")
 	for index in range(ArcadeRun.ENTRANCE_HIDDEN + ArcadeRun.ENTRANCE_RISE - 1):
 		run.step(0)
-	_expect(run.entrance_ship_y() == ArcadeRun.ENTRANCE_MID_Y, "Le module s'arrête à y = 120, obtenu %d" % run.entrance_ship_y())
+	_expect(run.entrance_module_y(2, run.entrance_elapsed(), 2) == ArcadeRun.ENTRANCE_MID_Y + 8,
+		"Le module II tient son palier après la montée")
 	for index in range(ArcadeRun.ENTRANCE_PAUSE + ArcadeRun.ENTRANCE_DESCENT + 1):
 		run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.COMBAT, "Le combat reprend après 378 images d'entrée")
@@ -198,8 +233,16 @@ func _check_cycle_continues_without_partner() -> void:
 func _check_timeout_resumes_as_one() -> void:
 	# pr5b-amarrage-i-ii : expiration I + II à 11343, reprise à 11526.
 	var run := _start_docking(1)
-	run.docking.stage = Docking.Stage.TIMED_OUT
-	_hold_until_resume(run, Docking.TIMEOUT_HOLD)
+	var dock := run.docking
+	dock.remaining_tenths = 1
+	var before := dock.position
+	run.step(Pilot.RIGHT | Pilot.FIRE)
+	_expect(dock.stage == Docking.Stage.TIMED_OUT and dock.display_clock() == "00:0"
+		and not dock.timeout_shows_message(), "Le chrono atteint 00:0 avant d’afficher le résultat")
+	run.step(Pilot.LEFT | Pilot.FIRE)
+	_expect(dock.timeout_shows_message() and dock.position == before and dock.target_y == Docking.TARGET.y,
+		"Après une image, le message apparaît et les deux modules gardent leur position")
+	_hold_until_resume(run, Docking.TIMEOUT_HOLD - 1)
 	if run.phase != ArcadeRun.Phase.COMBAT:
 		return
 	_expect(run.attached == 1, "Après expiration, le module I seul continue, masque=%d" % run.attached)
@@ -345,6 +388,7 @@ func _check_life_lost_after_i_and_ii() -> void:
 	run.lives = 3
 	run.combat = CombatRound.new(3, 1, Pilot.MAX_X, 255, 3)
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	run.combat.lost_module = 2
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT, "La perte du I + II ouvre le remplacement")
 	for index in range(ArcadeRun.COUNTER_DROP_FRAMES - 1):
@@ -553,18 +597,18 @@ func _check_success_resumes_as_one_two_and_three() -> void:
 		run.step(0)
 	_expect(run.attached == 7 and run.combat.pilot._next_group == 1, "L'index 1 survit à l'amarrage réussi")
 	run.combat.pilot.ship_x = 200
-	run.combat.pilot.step(Pilot.FIRE)
+	run.step(Pilot.FIRE)
 	var shots := run.combat.pilot.active_shots()
 	var left := Vector2i(191, 195)
 	var right := Vector2i(207, 195)
-	_expect(shots.size() == 2 and left in shots and right in shots, "Premier tir après reprise : groupe 1 à x = 200, obtenu %s" % str(shots))
-	print("OK réussite I + II → III : bonus 1500, 305 images, reprise à x = 112, vies 3, butée 14, premier tir groupe 1")
+	var center := Vector2i(199, Pilot.SHOT_START_Y)
+	_expect(shots.size() == 3 and left in shots and right in shots and center in shots,
+		"Premier tir après reprise : paire du groupe 1 et tir central, obtenu %s" % str(shots))
+	print("OK réussite I + II → III : bonus 1500, reprise à x = 112, vies 3, butée 14, paire et tir central")
 
 
 func _check_life_lost_after_i_ii_and_iii() -> void:
-	# pr8c : destruction du I + II + III à la butée gauche (16754), module I
-	# touché, vies 3 → 2 à 17073, puis entrée du module II seul (0x8145 = 1,
-	# 0x814a = 3 en réserve, à 17451).
+	# Une seule coque est perdue ; les survivants se séparent avant le relais.
 	var run := ArcadeRun.new()
 	run.attached = 7
 	run.lives = 3
@@ -579,5 +623,5 @@ func _check_life_lost_after_i_ii_and_iii() -> void:
 	_expect(run.attached == 7, "Le masque reste I + II + III tant que le compteur n'a pas baissé")
 	run.step(0)
 	_expect(run.lives == 2, "Vies 3 → 2 à la baisse du compteur, obtenu %d" % run.lives)
-	_expect(run.attached == 2, "Le module II seul succède au I + II + III, masque=%d" % run.attached)
-	print("OK perte du I + II + III par le module I : vies 3 → 2, puis module II seul")
+	_expect(run.attached == 2, "Le II reprend seul après perte du I, III en réserve, masque=%d" % run.attached)
+	print("OK perte du I + II + III par le module I : vies 3 → 2, puis II seul")

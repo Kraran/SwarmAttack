@@ -23,6 +23,8 @@ func _initialize() -> void:
 	_check_points_by_stage()
 	_check_points_after_second_docking()
 	_check_cycle_end_timeline()
+	_check_second_attempt_after_timeout()
+	_check_cycle_with_module_three_only()
 	_check_second_cycle_waves()
 	_check_life_loss_keeps_cycle()
 	_check_lost_module_of_assembled_ship()
@@ -89,6 +91,7 @@ func _check_points_after_second_docking() -> void:
 
 func _check_cycle_end_timeline() -> void:
 	var run := _cleared_after_second_dock(8040)
+	run.combat.impact_age = CombatRound.IMPACT_FRAMES - 2
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.CYCLE_END, "pr11c : fin de cycle après la vague 0x0d, phase=%s" % ArcadeRun.Phase.keys()[run.phase])
 	_expect(run.cycle_end_elapsed == 0, "Image du dernier crédit = image 0")
@@ -118,6 +121,8 @@ func _check_cycle_end_timeline() -> void:
 			_expect(run.cycle_end_shows_message() == expected[2], "Image %d : PLUS LOIN = %s" % [at, expected[2]])
 			_expect(run.attached == expected[3], "Image %d : modules %d, obtenu %d" % [at, expected[3], run.attached])
 		_expect(run.score() == 8040, "Score inchangé pendant la fin de cycle (8040), obtenu %d" % run.score())
+		_expect(run.combat.impact_age == mini(CombatRound.IMPACT_FRAMES, CombatRound.IMPACT_FRAMES - 2 + elapsed),
+			"L’explosion du dernier ennemi doit se dissiper pendant le passage de cycle")
 		_expect(run.lives == lives, "Vies inchangées")
 		_expect(run.combat.pilot.ship_x == 146, "Le vaisseau ne se déplace pas")
 	run.step(0)
@@ -139,6 +144,99 @@ func _check_cycle_end_timeline() -> void:
 	_expect(run.combat.wave.points_per_hit == 50, "0x12 : 50 points")
 	_expect(run.score() == 8040, "Score conservé")
 	print("OK fin de cycle pr11c : montée 159 images, PLUS LOIN, modules remis, combat du cycle 2 à +689")
+
+
+func _check_second_attempt_after_timeout() -> void:
+	# Longplay, 3:40 à 4:53 : délai dépassé au premier amarrage puis I → II
+	# au second, départ à deux modules et retour avec le porteur complet.
+	var run := ArcadeRun.new()
+	run.cycle = 2
+	run.wave_number = ArcadeRun.WAVES_BEFORE_DOCK
+	run.combat.score = 16320
+	run.combat.outcome = CombatRound.Outcome.CLEARED
+	run.step(0)
+	if run.phase != ArcadeRun.Phase.DOCKING:
+		_fail("Premier amarrage du cycle 2 attendu")
+		return
+	while run.docking.stage == Docking.Stage.INTRO:
+		run.step(0)
+	run.docking.remaining_tenths = 1
+	run.step(0)
+	for tick in range(Docking.TIMEOUT_HOLD):
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT and run.score() == 16320 and run.lives == 3,
+		"Le module I repart après expiration avec le score et ses vies")
+	for points in [60, 60, 200, 200]:
+		_expect(run.combat.wave.points_per_hit == points, "Les intercepteurs puis les météorites suivent l’amarrage manqué")
+		run.combat.score = 8 * points
+		run.combat.outcome = CombatRound.Outcome.CLEARED
+		run.step(0)
+	if run.phase != ArcadeRun.Phase.DOCKING:
+		_fail("Second amarrage du cycle 2 attendu")
+		return
+	_expect(run.docking_target() == 2 and run.attached == 1 and run.score() == 20480,
+		"Le module I tente encore d’amarrer le II à 20 480 points")
+	while run.docking.stage == Docking.Stage.INTRO:
+		run.step(0)
+	run.docking.remaining_tenths = 211
+	run.docking.position = Docking.TARGET + Vector2i(8, -5)
+	run.docking._resolve_contact()
+	_expect(run.docking.stage == Docking.Stage.SUCCESS and run.docking.bonus == 2100,
+		"Le bonus du second amarrage correspond à 21 × 100")
+	for tick in range(Docking.BONUS_HOLD):
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT and run.attached == 3 and run.score() == 22580,
+		"Le combat reprend avec I + II après crédit du bonus")
+	for wave in range(2):
+		_expect(run.combat.wave.rows and run.combat.wave.points_per_hit == 100, "Dernières vagues de capsules")
+		run.combat.score = 800
+		run.combat.outcome = CombatRound.Outcome.CLEARED
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.CYCLE_END and run.attached == 3 and run.score() == 24180,
+		"Seuls I et II quittent le terrain à la fin du cycle")
+	for tick in range(ArcadeRun.CYCLE_ENTRANCE_START):
+		run.step(0)
+	_expect(run.is_cycle_entrance() and run.cycle == 3 and run.entrance_modules() == 7 and run.attached == 1,
+		"Le porteur complet revient puis libère le module I au troisième cycle")
+
+
+func _check_cycle_with_module_three_only() -> void:
+	var run := ArcadeRun.new()
+	run.cycle = 4
+	run._previous_score = 43560
+	run.wave_number = ArcadeRun.LAST_WAVE_AFTER_FIRST_DOCK
+	run.stage = 1
+	run.attached = 2
+	run._lost_modules = 1
+	run.lives = 2
+	run.combat = CombatRound.new(run.wave_number, 2, Pilot.START_X, 255, run.attached, 200, run.stage)
+	run.combat.outcome = CombatRound.Outcome.CLEARED
+	run.step(0)
+	if run.phase != ArcadeRun.Phase.DOCKING:
+		_fail("Amarrage II → III attendu au cycle 4")
+		return
+	run.docking.stage = Docking.Stage.COLLISION
+	for tick in range(Docking.COLLISION_HOLD):
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT and run.attached == 4 and run.available_modules() == 4 and run.lives == 1,
+		"Après les deux collisions d’amarrage, seul le III est disponible")
+	for wave in range(2):
+		run.combat.score = 800
+		run.combat.outcome = CombatRound.Outcome.CLEARED
+		run.step(0)
+	for tick in range(ArcadeRun.CYCLE_ENTRANCE_START):
+		run.step(0)
+	_expect(run.is_cycle_entrance() and run.cycle == 5 and run.entrance_modules() == 4 and run.attached == 4,
+		"Au cinquième cycle, seul le III remonte")
+	for tick in range(ArcadeRun.ENTRANCE_FRAMES):
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT and run.combat.pilot.module == 3 and run.score() == 45160 and run.lives == 1,
+		"Le III reprend le combat avec le score et la vie conservés")
+	for wave in range(ArcadeRun.WAVES_BEFORE_DOCK):
+		run.combat.outcome = CombatRound.Outcome.CLEARED
+		run.step(0)
+	_expect(run.phase == ArcadeRun.Phase.COMBAT and run.stage == 1 and run.docking == null,
+		"Le III seul enchaîne sur les intercepteurs sans ouvrir d’amarrage")
 
 
 func _check_second_cycle_waves() -> void:
@@ -192,6 +290,19 @@ func _check_life_loss_keeps_cycle() -> void:
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT and not run.is_cycle_entrance(), "Perte de vie ordinaire")
+	_expect(run.entrance_modules() == 0, "L'entrée commence après la perte de vie.")
+	var separation := ArcadeRun.ENTRANCE_HIDDEN + ArcadeRun.ENTRANCE_RISE - 1
+	for tick in range(ArcadeRun.COUNTER_DROP_FRAMES + separation):
+		run.step(0)
+	_expect(run.entrance_modules() == 6, "Les modules II et III montent ensemble après la perte du I.")
+	var elapsed := run.entrance_elapsed()
+	_expect(run.entrance_module_y(2, elapsed - 1, 2) == 129.0
+		and run.entrance_module_y(3, elapsed - 1, 2) == 137.0, "Montée solidaire des deux modules.")
+	_expect(run.entrance_module_y(2, elapsed + 0.5, 2) == 128.0
+		and run.entrance_module_y(3, elapsed + 0.5, 2) == 136.5, "Le III redescend dès le largage du II.")
+	elapsed += ArcadeRun.ENTRANCE_PAUSE + 1
+	_expect(run.entrance_module_y(3, elapsed, 2) >= Pilot.FIELD_SIZE.y
+		and run.entrance_module_y(2, elapsed, 2) == 129.0, "Le II descend après la sortie du III.")
 	while run.phase == ArcadeRun.Phase.REPLACEMENT:
 		run.step(0)
 	_expect(run.lives == 2 and run.attached == 2, "Vies 2, module II")
@@ -202,6 +313,9 @@ func _check_life_loss_keeps_cycle() -> void:
 	run.combat = CombatRound.new(3, 2, Pilot.START_X, 0b11100000, 2, 30)
 	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
 	run.step(0)
+	for tick in range(ArcadeRun.COUNTER_DROP_FRAMES):
+		run.step(0)
+	_expect(run.entrance_modules() == 4, "Le dernier module entre seul.")
 	while run.phase == ArcadeRun.Phase.REPLACEMENT:
 		run.step(0)
 	_expect(run.lives == 1 and run.attached == 4, "pr11c : le module III succède au II, masque %d" % run.attached)
@@ -247,8 +361,16 @@ func _check_lost_module_of_assembled_ship() -> void:
 	run.combat.wave._wave_clock = 100
 	run.step(0)
 	_expect(run.phase == ArcadeRun.Phase.REPLACEMENT and run.combat.lost_module == 3, "Contact bas : module III perdu, obtenu %d" % run.combat.lost_module)
+	for tick in range(ArcadeRun.COUNTER_DROP_FRAMES):
+		run.step(0)
+	_expect(run.entrance_modules() == 3, "Les modules I et II remontent après la perte du III.")
 	while run.phase == ArcadeRun.Phase.REPLACEMENT:
 		run.step(0)
-	_expect(run.lives == 2 and run.attached == 1, "pr11a : le module I seul reprend, masque %d" % run.attached)
+	_expect(run.lives == 2 and run.attached == 1, "Le module I reprend seul, II en réserve, masque %d" % run.attached)
 	_expect(run.combat.wave.points_per_hit == 100, "Même étape (0x0c) : 100 points")
+	run.combat.outcome = CombatRound.Outcome.MODULE_LOST
+	run.step(0)
+	for tick in range(ArcadeRun.COUNTER_DROP_FRAMES):
+		run.step(0)
+	_expect(run.entrance_modules() == 2, "Un module III déjà perdu ne réapparaît pas quand le II est déployé.")
 	print("OK perte d'un module du I + II + III : I touché → II seul, III touché → I seul")

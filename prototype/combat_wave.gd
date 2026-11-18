@@ -2,6 +2,8 @@ extends RefCounted
 
 const SPAWN_FRAME := 32
 const OPENING_LENGTH := 16
+const WIDE_ENTRY_TURNS := 9
+const WIDE_RETURN_WAIT := 16
 # The startup trace includes three board frames without a wave-clock increment.
 const OPENING_CLOCK_HOLDS := [34, 118, 212]
 const INITIAL_POSITIONS := [
@@ -74,9 +76,9 @@ class Enemy:
 		return Vector2(position.x - 8, position.y + 8)
 
 	func has_visible_pose() -> bool:
-		# FALL_EXIT encode la sortie par le bas dans les traces de référence.
-		# Son y = 0 est conservé jusqu'au retrait, pour le tempo de la paire.
-		return alive and phase != Flight.FALL_EXIT
+		# Lors de la sortie, le compteur vertical peut déjà être revenu à 0
+		# alors que l'objet occupe encore son créneau de vol.
+		return alive and phase != Flight.FALL_EXIT and phase != Flight.ROW_EXIT
 
 var enemies: Array[Enemy] = []
 # Vague d'objets en chute (0x809b = 0x09 et 0x0a, numéros de vague 5 et 6).
@@ -232,12 +234,12 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 	return hit_module(ship_x, attached, y_offset) != 0
 
 
-# Module touché, testé du III vers le I (0 si aucun contact). Relevé sur le
-# I + II + III : ennemi à y = 193 ou 196 au contact (pr8c, pr9, pr10b), le
-# module I est détruit (0x8140 = 0) ; à y = 209, 212 ou 218 (pr9b, pr10a,
-# pr11a, pr11b), le module III l'est (0x814a = 0), alors que la boîte du II
-# couvre aussi ces points. Un contact attribué au II n'a pas été relevé.
+# Conserver l'union des hitboxes, puis attribuer le contact à la coque
+# la plus proche. La priorité systématique au III rendait le II intouchable
+# dans le trio, sa boîte étant entièrement recouverte par celle du III.
 func hit_module(ship_x: int, attached: int, y_offset := 0) -> int:
+	var hit := 0
+	var nearest := 1 << 30
 	for module in range(3, 0, -1):
 		if not (attached & (1 << (module - 1))):
 			continue
@@ -248,23 +250,31 @@ func hit_module(ship_x: int, attached: int, y_offset := 0) -> int:
 		# dy >= -3 du I, seul, compterait déjà 16925 ; on le resserre à -2.
 		if attached == 7 and module == 1:
 			top = -2
-		if _hits_module_box(ship_x, module, top, y_offset if attached == 3 else 0):
-			return module
-	return 0
+		var offset := y_offset if attached == 3 else 0
+		for enemy in enemies:
+			if not enemy.alive or not _enemy_hits_module_box(enemy, ship_x, module, top, offset):
+				continue
+			var distance := absi(enemy.position.y + 8 - (200 + (module - 1) * 8 + offset))
+			if distance < nearest:
+				nearest = distance
+				hit = module
+	return hit
 
 
 func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool:
+	for enemy in enemies:
+		if enemy.alive and _enemy_hits_module_box(enemy, ship_x, module, top, y_offset):
+			return true
+	return false
+
+
+func _enemy_hits_module_box(enemy: Enemy, ship_x: int, module: int, top: int, y_offset: int) -> bool:
 	var raw_position := Vector2i(ship_x + 8, 192) if module == 1 else Vector2i(ship_x, 192 + (module - 1) * 8)
 	raw_position.y += y_offset
 	const LEFT_LIMITS := [-9, -5, -10]
 	const RIGHT_LIMITS := [11, 23, 28]
-	for enemy in enemies:
-		if not enemy.alive:
-			continue
-		var delta := enemy.position - raw_position
-		if delta.x >= LEFT_LIMITS[module - 1] and delta.x <= RIGHT_LIMITS[module - 1] and delta.y >= top and delta.y <= 12:
-			return true
-	return false
+	var delta := enemy.position - raw_position
+	return delta.x >= LEFT_LIMITS[module - 1] and delta.x <= RIGHT_LIMITS[module - 1] and delta.y >= top and delta.y <= 12
 
 
 func _advance_enemy(enemy: Enemy, ship: int) -> void:
@@ -303,7 +313,7 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 		# Relevé sur 130 sorties (pr1-suite, pr2, pr3, pr5b, pr6, pr7, pr10c-d).
 		if enemy.return_wait == 0:
 			enemy.position = Vector2i((enemy.position.x & 63) + 80, (enemy.position.y & 63) + 64)
-			enemy.return_wait = 16
+			enemy.return_wait = WIDE_RETURN_WAIT
 			return
 		enemy.return_wait -= 1
 		if enemy.return_wait == 0:
@@ -503,7 +513,7 @@ func _start_entry(enemy: Enemy, index: int) -> void:
 		length = LENGTHS_AFTER_FIRST_DOCK[pair]
 		cadence = CADENCES_AFTER_FIRST_DOCK[pair]
 	enemy.cadence = cadence
-	_start_curve(enemy, 8 if turn > 0 else 22, turn, 9, length.x, length.y, 0, false, cadence)
+	_start_curve(enemy, 8 if turn > 0 else 22, turn, WIDE_ENTRY_TURNS, length.x, length.y, 0, false, cadence)
 
 
 func _start_wide_formation(enemy: Enemy) -> void:

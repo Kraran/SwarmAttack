@@ -138,9 +138,9 @@ static func _build_capsule(enemy: Node3D, variant: int) -> void:
 	_bar(enemy, Vector2(0, 2.06), Vector2(1.48, 1.91), alloy, 1.59)
 	_bar(enemy, Vector2(0, 3.03), Vector2(1.25, 0.50), gasket, 1.68)
 
-	var hot := Color("#ecbbff") if magenta else Color("#fff4a4")
-	var trail := Color("#ba45ff") if magenta else Color("#8bd134")
-	_add_exhaust(enemy, "Wake", 2.75, 2.05, 14.0, hot, trail).hide()
+	var hot := Color("#98ffb6") if magenta else Color("#56eddd")
+	var trail := Color("#cf43ee") if magenta else Color("#94e849")
+	_add_exhaust(enemy, "Wake", 2.75, 2.05, 18.0, hot, trail).hide()
 
 
 static func _finish(tint: Color, polish := 0.9, emission := 0.0) -> ShaderMaterial:
@@ -153,10 +153,11 @@ static func _finish(tint: Color, polish := 0.9, emission := 0.0) -> ShaderMateri
 
 
 static func _thruster(ship: Node3D, start: float, width: float, length: float) -> void:
-	_add_exhaust(ship, "Exhaust", start, width * 1.35, length, Color("#fff4d3"), Color("#ff6829"))
+	_add_exhaust(ship, "Exhaust", start, width * 2.1, length * 1.8, Color("#fff3b8"), Color("#ff7d27"), true)
 
 
-static func _add_exhaust(parent: Node3D, label: String, start: float, width: float, length: float, hot: Color, trail: Color) -> Node3D:
+static func _add_exhaust(parent: Node3D, label: String, start: float, width: float, length: float,
+		hot: Color, trail: Color, rocket := false) -> Node3D:
 	var exhaust := Node3D.new()
 	exhaust.name = label
 	exhaust.position.z = start
@@ -165,6 +166,7 @@ static func _add_exhaust(parent: Node3D, label: String, start: float, width: flo
 	material.shader = ExhaustShader
 	material.set_shader_parameter(&"hot", hot)
 	material.set_shader_parameter(&"trail", trail)
+	material.set_shader_parameter(&"rocket", rocket)
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(width * 2.0, length)
 	var plume := MeshInstance3D.new()

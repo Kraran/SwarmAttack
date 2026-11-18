@@ -2,46 +2,43 @@ extends SubViewport
 
 const Models = preload("res://flight_models.gd")
 const Presentation = preload("res://flight_presentation.gd")
-const SpaceShader = preload("res://space.gdshader")
-const ScrollShader = preload("res://space_scroll.gdshader")
 const X_SCALE := 192.0 / 224.0
+const ENEMY_POOL_SIZE := 8
 
 var _ships: Array[Node3D] = []
+var _enemy_pools: Dictionary[Vector2i, Array] = {}
 var _enemies: Array[Node3D] = []
 var _enemy_count := 0
 var _enemy_style := Vector2i(-1, -1)
 var _ship_mask := 0
-var _backdrop_material := ShaderMaterial.new()
 
 
 func _ready() -> void:
 	own_world_3d = true
+	transparent_bg = true
 	# Le champ occupe 756 × 1008 pixels dans la composition Full HD.
 	size = Vector2i(756, 1008)
 	msaa_3d = Viewport.MSAA_2X
 	render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_add_camera(self)
 
-	# Calcule le champ périodique d'étoiles une seule fois. En jeu,
-	# un échantillonnage bilinéaire suffit pour le défilement sous-pixel.
-	var sky := SubViewport.new()
-	sky.own_world_3d = true
-	sky.size = size
-	sky.render_target_update_mode = SubViewport.UPDATE_ONCE
-	add_child(sky)
-	_add_camera(sky)
-	var sky_material := ShaderMaterial.new()
-	sky_material.shader = SpaceShader
-	_add_backdrop(sky, sky_material)
-
-	_backdrop_material.shader = ScrollShader
-	_backdrop_material.set_shader_parameter(&"star_map", sky.get_texture())
-	_add_backdrop(self, _backdrop_material)
-
 	for module in range(1, 4):
 		var model := Models.build_ship(module)
 		add_child(model)
 		_ships.append(model)
+
+	# Préparer les maillages et partager leurs ressources entre instances
+	# avant l'affichage, pour éviter leur création au changement de vague.
+	for wave in range(1, Presentation.WAVES_PER_CYCLE + 1):
+		var style := Vector2i(Presentation.enemy_kind(wave), (wave - 1) % 2)
+		var template := Models.build_enemy(style.x, style.y)
+		var pool: Array[Node3D] = [template]
+		for index in range(1, ENEMY_POOL_SIZE):
+			pool.append(template.duplicate() as Node3D)
+		for enemy in pool:
+			enemy.hide()
+			add_child(enemy)
+		_enemy_pools[style] = pool
 
 
 func _add_camera(viewport: SubViewport) -> void:
@@ -55,20 +52,7 @@ func _add_camera(viewport: SubViewport) -> void:
 	camera.make_current()
 
 
-func _add_backdrop(viewport: SubViewport, material: Material) -> void:
-	var backdrop := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(192, 256)
-	backdrop.mesh = plane
-	backdrop.position.y = -12.0
-	backdrop.material_override = material
-	viewport.add_child(backdrop)
-
-
-func start_frame(star_frame: float) -> void:
-	# Le fond décale verticalement les étoiles de 5 pixels
-	# logiques en 10 images, y compris en démo et pendant l'amarrage.
-	_backdrop_material.set_shader_parameter(&"vertical_scroll", fposmod(star_frame, 512.0) / 512.0)
+func start_frame() -> void:
 	_ship_mask = 0
 	_enemy_count = 0
 
@@ -89,7 +73,10 @@ func ship(point: Vector2, module: int, bank: float, thrust: bool, frame: float) 
 	model.rotation.z = deg_to_rad(bank)
 	var exhaust := model.get_node(^"Exhaust") as Node3D
 	exhaust.visible = thrust
-	exhaust.scale.z = 0.87 + 0.13 * sin(frame * 2.39)
+	if thrust:
+		exhaust.scale.z = 0.86 + 0.14 * sin(frame * 0.26)
+		var plume := exhaust.get_child(0) as MeshInstance3D
+		(plume.material_override as ShaderMaterial).set_shader_parameter(&"frame", fposmod(frame, 12000.0))
 
 
 func enemy(point: Vector2, kind: int, variant: int, heading: Vector2, frame: float, growth := 1.0, diving := false, slot := 0) -> void:
@@ -97,14 +84,9 @@ func enemy(point: Vector2, kind: int, variant: int, heading: Vector2, frame: flo
 	if _enemy_style != style:
 		for item in _enemies:
 			item.hide()
-			item.queue_free()
-		_enemies.clear()
+		_enemies = _enemy_pools[style]
 		_enemy_count = 0
 		_enemy_style = style
-	if _enemy_count == _enemies.size():
-		var new_model := Models.build_enemy(kind, variant) if _enemies.is_empty() else _enemies[0].duplicate() as Node3D
-		add_child(new_model)
-		_enemies.append(new_model)
 	var model := _enemies[_enemy_count]
 	_enemy_count += 1
 	_place(model, point)
@@ -125,7 +107,9 @@ func enemy(point: Vector2, kind: int, variant: int, heading: Vector2, frame: flo
 		orientation = 0.0
 		var wake := model.get_node(^"Wake") as Node3D
 		wake.visible = diving
-		wake.scale.z = 0.85 + 0.15 * sin(frame * 1.9)
+		if diving:
+			var plume := wake.get_child(0) as MeshInstance3D
+			(plume.material_override as ShaderMaterial).set_shader_parameter(&"frame", fposmod(frame, 12000.0))
 	model.rotation.x = pitch
 	model.rotation.y = orientation
 	var flies_level := kind == Presentation.EnemyKind.RING or kind == Presentation.EnemyKind.ROW

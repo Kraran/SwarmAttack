@@ -1,5 +1,7 @@
 extends RefCounted
 
+const CombatWave = preload("res://combat_wave.gd")
+
 # Familles visuelles des vagues. Les banques 1 et 2 partagent des
 # trajectoires à entrée large mais ont des silhouettes différentes.
 enum EnemyKind { RING, INTERCEPTOR, CLAW, METEOR, ROW }
@@ -46,6 +48,15 @@ static func ring_axis(heading: Vector2, opening_left: int) -> Vector2:
 static func capsule_scale(opening_left: int) -> float:
 	var tier := clampi((16 - opening_left) >> 1, 0, 7)
 	return CAPSULE_SCALES[tier]
+
+
+static func interceptor_reveal(enemy: CombatWave.Enemy) -> float:
+	# Les sprites 0x2f à 0x28 précèdent la coque pleine (pr5b, vague 0x07).
+	if enemy.phase == CombatWave.Flight.ENTRY_CURVE:
+		return float(CombatWave.WIDE_ENTRY_TURNS - enemy.turns_left) / (CombatWave.WIDE_ENTRY_TURNS - 1)
+	if enemy.phase == CombatWave.Flight.RETURNING and enemy.return_wait > 0:
+		return 1.0 - float(enemy.return_wait) / CombatWave.WIDE_RETURN_WAIT
+	return 1.0
 
 
 static func docking_module_origin(module: int, target_y: float, x := 112) -> Vector2:

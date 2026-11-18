@@ -75,11 +75,13 @@ func step(input_mask: int) -> void:
 	if wave.remaining == 0:
 		if _pending_points.is_empty():
 			outcome = Outcome.CLEARED
-	elif wave.hits_attached(pilot.ship_x, pilot.attached, pilot.assembly_y_offset):
-		outcome = Outcome.MODULE_LOST
+	else:
 		lost_module = wave.hit_module(pilot.ship_x, pilot.attached, pilot.assembly_y_offset)
+		if lost_module == 0:
+			return
+		outcome = Outcome.MODULE_LOST
 		pilot.clear_shots()
-		impact_position = Vector2(pilot.ship_x, pilot.ship_y() + 6)
+		impact_position = Vector2(pilot.ship_x, pilot.module_y(lost_module) + pilot.assembly_y_offset + 6)
 		impacted_enemy = null
 		impact_age = 0
 

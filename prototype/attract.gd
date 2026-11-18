@@ -5,6 +5,7 @@ extends RefCounted
 # 0x8005 : texte de présentation, tableau des scores, démo, puis retour au texte.
 const DemoData = preload("res://attract_demo_data.gd")
 const VisualData = preload("res://attract_visual_data.gd")
+const Language = preload("res://arcade_language.gd")
 const VISUAL_STRIDE := VisualData.STRIDE
 const MODULE_OFFSET := VisualData.MODULE_OFFSET
 const STYLE_OFFSET := VisualData.STYLE_OFFSET
@@ -15,9 +16,9 @@ const THRUST_OFFSET := VisualData.THRUST_OFFSET
 # 748 images murales dont 3 figées (745 au rythme de 0x8005). Depuis la mise
 # sous tension : 107 → 855, 748 images dont 4 figées.
 const TITLE_TEXT_FRAMES := 745
-# Tableau des scores (« SCORE NOM », NO1 à NO5 à 005000) : 10367 → 10490 et
-# 855 → 978, 123 images sans frame figée.
-const SCORE_TABLE_FRAMES := 123
+# Keep the ten-entry table visible for about eight seconds.
+# The reference board displayed five entries for 123 logic frames.
+const SCORE_TABLE_FRAMES := 480
 # Démo : de 0x8097 = 3 (978, 10490) au retour à 0 (9619, 19134) ; 8641 et 8644
 # images murales, 8526 images de boucle dans les deux cycles.
 const DEMO_FRAMES := DemoData.LENGTH
@@ -27,7 +28,7 @@ const DEMO_FRAMES := DemoData.LENGTH
 # ligne est entamée, première image où elle est complète.
 const TITLE_LINES := [
 	["ALERTE ORBITALE", 21, 151],
-	["ESCADRONS EN APPROCHE", 181, 251],
+	[Language.TITLE, 181, 251],
 	["ASSEMBLEZ VOTRE VAISSEAU", 501, 601],
 	["TENEZ LA LIGNE", 641, 641],
 	["ESPACE POUR JOUER", 661, 661],
@@ -73,7 +74,7 @@ func demo_frame() -> int:
 
 
 # Fraction visible d'une ligne du texte (0 à 1).
-func title_line_progress(index: int) -> float:
+func title_line_progress(index: int, fraction := 0.0) -> float:
 	if screen() != Screen.TITLE_TEXT:
 		return 0.0
 	var line: Array = TITLE_LINES[index]
@@ -81,7 +82,7 @@ func title_line_progress(index: int) -> float:
 		return 0.0
 	if frame >= line[2]:
 		return 1.0
-	return float(frame - line[1] + 1) / float(line[2] - line[1] + 1)
+	return (float(frame - line[1]) + fraction) / float(line[2] - line[1])
 
 
 # État relevé de la démo à l'image courante (dernière ligne de la table).

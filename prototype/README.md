@@ -11,22 +11,41 @@ Décompressez la [version Windows x64](https://github.com/Kraran/SwarmAttack/rel
 | Choisir et valider dans la pause | ↑/↓ et Entrée | Croix et A |
 | Revenir à l’accueil depuis la pause | T | B |
 | Recommencer | R | |
-| S’entraîner à l’amarrage | F2 | |
-| Régler le seuil de la réserve depuis l’accueil | F3 | |
+| Choisir un entraînement ; relancer l’exercice en entraînement | F2 | Y pour relancer |
+| Ouvrir les options depuis l’accueil ou la pause | F3 | X |
+| Choisir et valider dans les options | ↑/↓ et Entrée | Croix et A |
 | Activer ou couper le son | F5 | |
 | Alterner entre paysage et portrait | F10 | |
 | Alterner entre plein écran et fenêtré | F11 | |
 | Activer le diagnostic visuel | F1 | |
 
-Le menu de pause propose « Reprendre », « Accueil » et « Quitter ». La souris permet également de choisir ces options.
+Le menu de pause propose « Reprendre », « Options », « Entraînement », « Accueil » et « Quitter ». La souris permet également de choisir ces options. En jeu, le curseur disparaît après trois secondes sans mouvement de la souris et réapparaît dès qu’elle bouge.
+
+**Entraînement**, depuis l’accueil, les options, la pause ou F2, propose les dix vagues et les deux amarrages en Normal ou Vétérans. L’exercice s’arrête après réussite ou échec, hors classement. R, F2 ou Y relance le même exercice ; le bilan permet de changer d’exercice. Annuler le sélecteur conserve la partie en pause.
+
+**Options > Son > Sons** choisit Original (par défaut) ou Moderne, avec un aperçu du tir et sauvegarde du choix. La banque moderne comprend onze effets SF en PCM 48 kHz sans perte, huit voix d’effets indépendantes des séquences et un limiteur sur son bus. `tools/build_modern_audio.py` régénère cette banque de façon déterministe.
+
+Les sous-menus Options regroupent le volume (0 à 100 %), la coupure du son, l’affichage plein écran ou fenêtré, l’orientation portrait ou paysage et la langue. Commandes permet de réaffecter le déplacement, le tir/freinage et la pause au clavier et aux boutons de manette. Sélectionnez une action puis appuyez sur la touche ou le bouton voulu. Échap ou Back annule la saisie. Une affectation déjà utilisée échange les deux commandes. Le stick gauche déplace le vaisseau et permet de naviguer dans les options. Les commandes par défaut peuvent être rétablies pour le clavier, la manette ou les deux. Les indications du jeu affichent les affectations choisies.
+
+Le menu Options de l’accueil enregistre la difficulté des prochaines parties, en solo comme en duo. En **Normal**, la partie débute au cycle 1 et la réserve est acquise à 30 000 points. En **Vétérans**, elle débute à la première vague du cycle 2 et la réserve est acquise à 50 000 points.
 
 ## En jeu
 
+Le score, le record et l’état des modules s’affichent dans le terrain. Le record est mis à jour à la fin de la partie. Avant l’approche d’amarrage, les instructions rappellent comment diriger et freiner. Le chrono affiche 30:0 pendant la montée du module cible.
+
+Au départ, le vaisseau monte avec ses trois modules. Les deux modules inférieurs se détachent, puis le module I rejoint sa position de combat avant l’ouverture de la première vague. Après la perte du module I, les modules II et III remontent ensemble. Le III redescend hors champ pendant que le II prend le relais.
+
+Après une collision d’amarrage, « AUCUN BONUS » s’affiche avant que le module cible reprenne seul. Les modules intacts forment le porteur au cycle suivant. Si la réserve est acquise, « UNE PARTIE DE PLUS » annonce le retour des trois modules à la perte de la dernière vie, avec le score conservé.
+
+En combat, un impact sur un assemblage détruit uniquement le module touché et retire une seule vie. Les survivants se séparent. Après la perte du II dans le trio, **seul le I se redéploie**, le III intact restant en réserve. Au prochain amarrage, le I peut rejoindre le III ; **I + III** n’est formé qu’après réussite. Cet assemblage tire au centre avec le I et en paire large avec le III. Le II détruit ne revient pas et ne tire pas. Une expiration laisse le I seul ; une collision d’approche laisse le III seul.
+
 Le cycle compte dix vagues et deux amarrages. Les premières formations comportent des rotors en deux demi-coques, puis viennent les chasseurs à pinces et les intercepteurs. Les météorites des vagues 7 et 8 descendent en diagonale. Les capsules des deux dernières vagues zigzaguent avant de plonger.
 
-Les modules assemblés élargissent les possibilités de tir. En duo, chacun joue à son tour avec ses propres vies et son score. Les réglages et les cinq meilleurs scores sont conservés dans `%APPDATA%\Godot\app_userdata\SwarmAttack\arcade.cfg`.
+Les modules assemblés élargissent les possibilités de tir. Une fois les trois modules réunis, le petit module tire au centre et les deux paires latérales alternent. En duo, chacun joue à son tour avec ses propres vies et son score. Les réglages et les classements sont conservés dans `%APPDATA%\Godot\app_userdata\SwarmAttack\arcade.cfg.saves`. Le fichier historique `arcade.cfg` est importé automatiquement. Chaque sauvegarde est vérifiée par SHA-256 puis publiée sous un nom unique. Les deux dernières versions valides servent de sauvegarde principale et de secours. Une version illisible provoque la récupération automatique de la précédente, signalée à l’accueil.
 
-Le pas logique est de 16,5 ms. Le rendu interpole les positions et suit le rafraîchissement de l’écran via la VSync. La composition paysage est prévue pour 1920 × 1080. F1 affiche les positions et les zones de collision du diagnostic.
+Après chaque partie, le bilan affiche le score, le rang enregistré, le cycle atteint et les amarrages réussis de chaque joueur. Les nouvelles entrées sont surlignées dans le classement. Haut/bas choisit Voir le classement ou Accueil, puis Entrée/A valide. Échap/B revient au bilan depuis le classement, puis à l’accueil depuis le bilan. Le tableau de l’accueil reste visible environ huit secondes.
+
+Le pas logique est de 16,5 ms. Le rendu interpole les positions et suit le rafraîchissement de l’écran via la VSync. Les trois plans d’étoiles descendent de 1, 2 et 3 pixels physiques par image. Le fond se fige en pause et sa cadence suit la fréquence de l’écran. La composition paysage est prévue pour 1920 × 1080. F1 affiche les positions et les zones de collision du diagnostic.
 
 ## Développement
 
@@ -42,7 +61,7 @@ L’archive produite se trouve dans `dist/SwarmAttack-Windows-x64.zip`.
 
 ## Tests
 
-Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les onze suites.
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les vingt suites.
 
 ```powershell
 & $godot --headless --editor --import --path prototype

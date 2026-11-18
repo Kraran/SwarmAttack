@@ -11,10 +11,10 @@ var current: ArcadeRun:
 		return runs[player]
 
 
-func _init(players := 1, bonus_threshold := 30000, practice_mode := false) -> void:
+func _init(players := 1, bonus_threshold := 30000, practice_mode := false, starting_cycle := 1) -> void:
 	practice = practice_mode
 	for index in range(players):
-		var run := ArcadeRun.new()
+		var run := ArcadeRun.new(1 if practice else starting_cycle)
 		run.bonus_threshold = bonus_threshold
 		runs.append(run)
 	if practice:

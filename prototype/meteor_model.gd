@@ -53,7 +53,8 @@ static func build(variant: int) -> MeshInstance3D:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var material := ShaderMaterial.new()
 	material.shader = Stone
-	material.set_shader_parameter(&"minerals", Color("#847a86") if variant == 0 else Color("#988562"))
+	material.set_shader_parameter(&"minerals", Color("#9271ad") if variant == 0 else Color("#989954"))
+	material.set_shader_parameter(&"veins", Color("#86c573") if variant == 0 else Color("#7f9bd2"))
 	var model := MeshInstance3D.new()
 	model.mesh = mesh
 	model.material_override = material

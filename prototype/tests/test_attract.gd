@@ -39,19 +39,19 @@ func _demo_at(loop: int) -> Attract:
 
 
 func _check_cycle() -> void:
-	# pr10e : texte 745 images de boucle, tableau 123, démo 8526.
+	# The ten-entry table gets a longer reading time; demo timing is relative.
 	var attract := Attract.new()
-	_expect(attract.cycle_length() == 745 + 123 + 8526, "Cycle de 9394 images de boucle, obtenu %d" % attract.cycle_length())
+	_expect(attract.cycle_length() == 745 + 480 + 8526, "Durée du cycle d’attraction, obtenu %d" % attract.cycle_length())
 	_expect(attract.screen() == Attract.Screen.TITLE_TEXT, "Le cycle commence par le texte")
 	_expect(_at(744).screen() == Attract.Screen.TITLE_TEXT, "Image 744 : texte")
 	_expect(_at(745).screen() == Attract.Screen.SCORE_TABLE, "Image 745 : tableau des scores")
-	_expect(_at(867).screen() == Attract.Screen.SCORE_TABLE, "Image 867 : tableau des scores")
-	_expect(_at(868).screen() == Attract.Screen.DEMO, "Image 868 : démo")
+	_expect(_at(1224).screen() == Attract.Screen.SCORE_TABLE, "Dernière image du tableau des scores")
+	_expect(_at(1225).screen() == Attract.Screen.DEMO, "Début de la démo après le tableau")
 	var wrap := _at(attract.cycle_length() - 1)
 	_expect(wrap.screen() == Attract.Screen.DEMO, "Dernière image : démo")
 	wrap.step()
 	_expect(wrap.frame == 0 and wrap.screen() == Attract.Screen.TITLE_TEXT, "Après la démo, retour au texte")
-	print("OK cycle d'attraction : texte 745, scores 123, démo 8526, puis retour au texte")
+	print("OK cycle d’attraction : texte 745, scores 480, démo 8526, puis retour au texte")
 
 
 func _check_title_lines() -> void:
@@ -59,7 +59,12 @@ func _check_title_lines() -> void:
 	_expect(attract.title_line_progress(0) == 0.0, "Image 20 : aucune ligne")
 	attract = _at(151)
 	_expect(attract.title_line_progress(0) == 1.0, "Image 151 : première ligne complète")
-	_expect(attract.title_line_progress(1) == 0.0, "Image 151 : « ESCADRONS EN APPROCHE » pas encore")
+	_expect(attract.title_line_progress(1) == 0.0, "Image 151 : le titre est encore hors champ")
+	attract = _at(181)
+	_expect(attract.title_line_progress(1) == 0.0, "Le titre commence hors champ à droite")
+	_expect(attract.title_line_progress(1, 0.5) > 0.0, "Le titre défile entre deux pas")
+	_expect(is_equal_approx(_at(216).title_line_progress(1), 0.5), "Image 216 : titre à mi-course")
+	_expect(_at(251).title_line_progress(1) == 1.0, "Image 251 : titre centré")
 	attract = _at(661)
 	for index in range(5):
 		_expect(attract.title_line_progress(index) == 1.0, "Image 661 : ligne %d complète" % index)

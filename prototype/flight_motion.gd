@@ -106,7 +106,9 @@ func capture_live(run: ArcadeRun, tick: int, bank_angle: float, shots_before: Ar
 	_phase = run.phase
 	_wave = run.combat.wave
 	_dock = run.docking
-	bank.sample(Vector2(bank_angle, 0), tick, 3)
+	var automatic_flight := run.phase in [ArcadeRun.Phase.LAUNCH, ArcadeRun.Phase.REPLACEMENT, ArcadeRun.Phase.CYCLE_END]
+	var docking_timed_out := run.phase == ArcadeRun.Phase.DOCKING and _dock.stage == Docking.Stage.TIMED_OUT
+	bank.sample(Vector2(0.0 if automatic_flight or docking_timed_out else bank_angle, 0), tick, 3)
 
 	var pilot := run.combat.pilot
 	match run.phase:
@@ -119,10 +121,6 @@ func capture_live(run: ArcadeRun, tick: int, bank_angle: float, shots_before: Ar
 			_dock_x.sample(Vector2(position.x, 0), tick, intervals.x)
 			_dock_y.sample(Vector2(0, position.y), tick, intervals.y)
 			dock_target.sample(Vector2(0, _dock.target_y), tick, Docking.BOARD_FRAMES_PER_CONTROL)
-		ArcadeRun.Phase.REPLACEMENT:
-			var y := run.entrance_ship_y()
-			if y >= 0:
-				ship.sample(Vector2(Pilot.START_X, y), tick, 1)
 		ArcadeRun.Phase.CYCLE_END:
 			ship.sample(Vector2(pilot.ship_x, pilot.assembly_y_offset - run.cycle_end_rise()), tick, 1)
 

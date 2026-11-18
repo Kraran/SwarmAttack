@@ -27,6 +27,8 @@ const STARTING_LIVES := 3
 # Le cycle d'attraction (attract.gd) reprend ensuite au texte de présentation.
 const GAME_OVER_CLEAR := 31
 const GAME_OVER_MESSAGE := 30
+# Le message de partie supplémentaire reste visible avant l'entrée du porteur.
+const RESERVE_MESSAGE_FRAMES := 31
 # Valeur d'un ennemi abattu selon l'étape du cycle (0x809b), relevée sur les sondes :
 # vagues 1-2 à 50 et 3-4 à 30 avant le premier amarrage (cycle 2 de pr11c, 0x12 à 0x15,
 # identique au cycle 1) ; 60 après le premier amarrage (pr7, 0x809b = 7 et 8) ;
@@ -59,7 +61,7 @@ const CYCLE_RESET := 191
 const CYCLE_ENTRANCE_START := 311
 const CYCLE_ENTRANCE_DONE := CYCLE_ENTRANCE_START + ENTRANCE_FRAMES
 
-enum Phase { COMBAT, REPLACEMENT, DOCKING, GAME_OVER, CYCLE_END }
+enum Phase { COMBAT, REPLACEMENT, DOCKING, GAME_OVER, CYCLE_END, LAUNCH }
 
 var phase := Phase.COMBAT
 var wave_number := 1
@@ -74,16 +76,20 @@ var lives := STARTING_LIVES
 var bonus_threshold := 30000
 var bonus_reserve := false
 var _bonus_used := false
+var _reserve_message_left := 0
 var turn_ended := false
-var combat := CombatRound.new()
+var combat: CombatRound
 var docking: Docking
 var frame := 0
+var successful_dockings := 0
 var _previous_score := 0
 var _replacement_left := 0
 var _counter_dropped := false
 var _game_over_elapsed := 0
 var _docking_life_taken := false
 var _entrance_alive_mask := -1
+# Modules exclus du porteur après leur destruction, y compris aux cycles suivants.
+var _lost_modules := 0
 # Compteurs de motifs 0x8242-0x8247, conservés d'une vague à l'autre et à
 # travers l'amarrage et la fin de cycle (pr7, pr8, pr8b, pr11c). Ils sont remis
 # à zéro à l'entrée du module qui suit une perte de vie (0x809b = 0x01 ou 0x11 :
@@ -94,6 +100,12 @@ var _patterns: Array = [0, 0, 0, 0, 0, 0]
 var _reset_patterns := false
 
 
+func _init(starting_cycle := 1) -> void:
+	cycle = starting_cycle
+	combat = CombatRound.new()
+	combat.wave.max_divers = max_divers()
+
+
 func front_module() -> int:
 	for module in range(1, 4):
 		if attached & (1 << (module - 1)):
@@ -101,11 +113,16 @@ func front_module() -> int:
 	return 1
 
 
+func available_modules() -> int:
+	return 7 & ~_lost_modules
+
+
 func docking_target() -> int:
-	if attached & 1 and not (attached & 2):
-		return 2
-	if attached & 2 and not (attached & 4):
-		return 3
+	# Le prochain partenaire est une coque intacte, jamais un module détruit.
+	for module in range(front_module() + 1, 4):
+		var mask := 1 << (module - 1)
+		if available_modules() & mask and not (attached & mask):
+			return module
 	return 0
 
 
@@ -135,18 +152,33 @@ func replacement_elapsed() -> int:
 	return COUNTER_DROP_FRAMES + ENTRANCE_FRAMES - _replacement_left
 
 
-func entrance_ship_y() -> int:
-	var elapsed := entrance_elapsed()
+func begin_launch() -> void:
+	phase = Phase.LAUNCH
+
+
+func entrance_modules() -> int:
+	if phase == Phase.LAUNCH:
+		return 7
+	if entrance_elapsed() < 0:
+		return 0
+	if combat.lost_module == 2 and available_modules() == 5 and not is_cycle_entrance():
+		# Après la perte du II, seul le I se redéploie. Le III reste en réserve.
+		return attached
+	var lower_modules := 7 & ~((1 << front_module()) - 1)
+	return attached | (lower_modules & available_modules())
+
+
+func entrance_module_y(module: int, elapsed: float, released_module := 1) -> float:
 	if elapsed < ENTRANCE_HIDDEN:
-		return -1
-	var rise := elapsed - ENTRANCE_HIDDEN
-	if rise < ENTRANCE_RISE:
-		return ENTRANCE_START_Y - rise
-	var pause := rise - ENTRANCE_RISE
-	if pause < ENTRANCE_PAUSE:
-		return ENTRANCE_MID_Y
-	var descent := pause - ENTRANCE_PAUSE
-	return mini(ENTRANCE_REST_Y, ENTRANCE_MID_Y + 1 + descent)
+		return Pilot.FIELD_SIZE.y
+	var separation := ENTRANCE_HIDDEN + ENTRANCE_RISE - 1
+	var offset := (module - 1) * 8
+	if elapsed <= separation:
+		return ENTRANCE_START_Y - (elapsed - ENTRANCE_HIDDEN) + offset
+	if module != released_module:
+		return ENTRANCE_MID_Y + offset + elapsed - separation
+	var descent_start := separation + ENTRANCE_PAUSE
+	return clampf(ENTRANCE_MID_Y + elapsed - descent_start, ENTRANCE_MID_Y, ENTRANCE_REST_Y) + offset
 
 
 # Montée du vaisseau en fin de cycle (0x822c diminue d'une unité par image).
@@ -158,6 +190,10 @@ func cycle_end_rise() -> int:
 
 func is_cycle_entrance() -> bool:
 	return phase == Phase.REPLACEMENT and _entrance_alive_mask >= 0
+
+
+func reserve_shows_message() -> bool:
+	return phase == Phase.REPLACEMENT and _reserve_message_left > 0
 
 
 func cycle_end_shows_ship() -> bool:
@@ -194,18 +230,27 @@ func practice_docking() -> void:
 	_docking_life_taken = false
 
 
-func step(input_mask: int) -> void:
+func step(input_mask: int, stop_after_exercise := false) -> void:
 	turn_ended = false
 	frame += 1
 	match phase:
+		Phase.LAUNCH:
+			if frame >= ENTRANCE_FRAMES:
+				phase = Phase.COMBAT
+				if input_mask & Pilot.FIRE:
+					combat.pilot.absorb_held_fire()
 		Phase.COMBAT:
 			combat.step(input_mask)
 			if combat.outcome == CombatRound.Outcome.MODULE_LOST:
+				var lost := combat.lost_module if combat.lost_module > 0 else front_module()
+				combat.lost_module = lost
+				_lost_modules |= 1 << (lost - 1)
 				phase = Phase.REPLACEMENT
 				_replacement_left = COUNTER_DROP_FRAMES + ENTRANCE_FRAMES
 				_counter_dropped = false
 			elif combat.outcome == CombatRound.Outcome.CLEARED:
-				_advance_from_clear()
+				if not stop_after_exercise:
+					_advance_from_clear()
 		Phase.REPLACEMENT:
 			combat.step(0)
 			_advance_replacement()
@@ -217,13 +262,15 @@ func step(input_mask: int) -> void:
 				# en collision avec le III, 0x8097 passe de 3 à 1 dès l'explosion.
 				lives -= 2 if attached == 3 else 1
 				_docking_life_taken = true
+				_lost_modules |= attached
 				# pr1-collision, frame 7452 : le drapeau 0x8163 passe de 1 à 0.
 				combat.pilot.clear_shots()
-			if docking.is_ready_to_resume():
+			if docking.is_ready_to_resume() and not stop_after_exercise:
 				_resume_from_docking(input_mask)
 		Phase.GAME_OVER:
 			_game_over_elapsed += 1
 		Phase.CYCLE_END:
+			combat.step(0)
 			_advance_cycle_end()
 	if not _bonus_used and score() >= bonus_threshold:
 		bonus_reserve = true
@@ -250,11 +297,11 @@ func _advance_from_clear() -> void:
 	elif docking_target() != 0:
 		phase = Phase.DOCKING
 		# pr7 : l'assemblage I + II s'approche du III depuis 0x822c = 232.
-		docking = Docking.new(front_module(), combat.pilot.ship_x, true, attached)
+		docking = Docking.new(front_module(), combat.pilot.ship_x, true, attached, docking_target())
 		_docking_life_taken = false
 	else:
-		# Aucun partenaire restant avant le second amarrage : l'étape suivante
-		# commence sans amarrage. PROVISOIRE (non relevé).
+		# Sans partenaire, la vague suivante commence directement (module III
+		# seul au cinquième cycle du longplay).
 		stage += 1
 		wave_number = WAVE_AFTER_DOCK
 		_begin_combat(combat.pilot.ship_x, 255)
@@ -263,10 +310,14 @@ func _advance_from_clear() -> void:
 func _advance_cycle_end() -> void:
 	cycle_end_elapsed += 1
 	if cycle_end_elapsed == CYCLE_RESET:
-		# pr11c, 17799 : les trois modules repassent en réserve, le module I
-		# reprend seul. Relevé avec les trois modules encore en jeu ; avec un
-		# module perdu, la remise à neuf reste PROVISOIRE.
-		attached = 1
+		# Le premier module intact prend la main. À 9:12 et à 10:37 dans le
+		# longplay, le III remonte seul après la destruction des I et II.
+		var available := available_modules()
+		for module in range(3):
+			var mask := 1 << module
+			if available & mask:
+				attached = mask
+				break
 		combat.pilot.clear_shots()
 	if cycle_end_elapsed == CYCLE_ENTRANCE_START:
 		cycle += 1
@@ -279,6 +330,9 @@ func _advance_cycle_end() -> void:
 
 
 func _advance_replacement() -> void:
+	if reserve_shows_message():
+		_reserve_message_left -= 1
+		return
 	_replacement_left -= 1
 	var elapsed := replacement_elapsed()
 	if not _counter_dropped and elapsed >= COUNTER_DROP_FRAMES:
@@ -296,39 +350,17 @@ func _advance_replacement() -> void:
 
 
 func _next_attached_after_loss() -> int:
-	if attached == 1:
-		# Relevé : après la perte du module I, le module II prend le relais.
-		return 2
-	if attached == 6:
-		# Relevé : après la destruction du vaisseau II + III, le module II seul repart.
-		return 2
-	if attached == 3:
-		# pr5c : après la destruction du I + II à la butée droite (frame 12290,
-		# vies 3 → 2 à 12579), le module I reprend l'entrée (0x822c vers 200,
-		# sprite 0x78, visible à 12968).
-		return 1
-	if attached == 2:
-		# pr11c : destruction du module II seul (cycle 2, 0x809b = 0x14) à
-		# 20461, vies 2 → 1 à 20750, puis entrée du module III (0x814a 2 → 1)
-		# et reprise à 21137 (0x822c = 224).
-		return 4
-	if attached == 7:
-		# Le module touché est perdu et les deux autres se séparent : le plus
-		# haut entre seul, l'autre reste en réserve (0x8140/0x8145/0x814a).
-		# Module I touché (pr8c 16754, pr9 16926, pr10b 16903) : le II entre
-		# seul (0x8145 = 1, 0x814a = 3, un seul module sur les PNG de pr8c à
-		# 17470), puis le III après sa perte (pr9, 18443).
-		# Module III touché (pr9b 17008, pr10a 16553, pr11a 16974, pr11b 17010,
-		# pr11d 17819) : le I entre seul à y = 200 (0x8140 = 1, 0x8145 = 3),
-		# puis le II après sa perte (pr11a, 18618).
-		if combat.lost_module == 3:
-			return 1
-		if combat.lost_module == 1:
-			return 2
-		# Module II touché : non relevé. PROVISOIRE : le I entre seul.
-		return 1
-	# Vaisseau assemblé : ne garder que le module supérieur (mesuré pour II + III).
-	return 1 << (front_module() - 1)
+	# Les survivants de l'assemblage passent avant les modules de réserve.
+	# Une perte ne doit jamais recréer le module qui vient d'être détruit.
+	var available := available_modules()
+	var survivors := attached & available
+	var following := available & ~((1 << combat.lost_module) - 1)
+	for candidates in [survivors, following, available]:
+		for module in range(3):
+			var mask := 1 << module
+			if candidates & mask:
+				return mask
+	return 0
 
 
 func _resume_from_docking(input_mask: int) -> void:
@@ -344,6 +376,7 @@ func _resume_from_docking(input_mask: int) -> void:
 	# correspondent à 251 − registre, soit 155 et 159 depuis un gel à 163.
 	var resume_ticks := 2 if dock_stage == Docking.Stage.SUCCESS else 1
 	if dock_stage == Docking.Stage.SUCCESS:
+		successful_dockings += 1
 		# pr5c : contact à 10599, écran « BRAVO !! » / bonus 17 × 100 = 1700
 		# pendant 305 images (10599–10903), crédit et reprise à 10904 :
 		# I + II à x = 112 (0x822b = 128, 0x822c = 232), vies = 3, pas de
@@ -352,13 +385,14 @@ func _resume_from_docking(input_mask: int) -> void:
 		# pr8c : contact à 16357, bonus 05 × 300 = 1500 pendant 305 images
 		# (16357–16661), crédit et reprise à 16662 : I + II + III à x = 112
 		# (0x822b = 128, 0x822c = 216), vies = 3, butée gauche x = 14.
-		attached |= 1 << (docking_target() - 1)
+		attached |= 1 << (docking.target_module - 1)
+		_lost_modules &= ~attached
 		resume_x = Docking.TARGET.x
 	elif dock_stage == Docking.Stage.COLLISION:
 		# II → III : le module cible poursuit seul, déjà aligné à x = 112.
 		# I + II → III (pr8, 16139) : le module III seul reprend à x = 112
 		# (0x822b = 128, 0x822c = 232), vies 1, sans bonus.
-		attached = 1 << (docking_target() - 1)
+		attached = 1 << (docking.target_module - 1)
 		resume_x = Docking.TARGET.x
 	else:
 		# Temps écoulé : le module en approche poursuit, recentré à x = 112.
@@ -407,8 +441,10 @@ func _consume_reserve() -> bool:
 		return false
 	bonus_reserve = false
 	_bonus_used = true
+	_reserve_message_left = RESERVE_MESSAGE_FRAMES
 	lives = STARTING_LIVES
 	attached = 1
+	_lost_modules = 0
 	cycle += 1
 	stage = 0
 	wave_number = 1

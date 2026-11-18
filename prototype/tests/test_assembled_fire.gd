@@ -23,7 +23,7 @@ func _initialize() -> void:
 	_check_tap_does_not_repeat()
 	_check_hold_does_not_queue()
 	_check_resume_starts_with_first_group()
-	_check_i_ii_iii_same_groups()
+	_check_full_ship_cannons()
 	if failures:
 		printerr("%d échecs" % failures)
 		quit(1)
@@ -190,21 +190,27 @@ func _full_ship(start_x := 110) -> Pilot:
 	return Pilot.new(2, start_x, 7)
 
 
-func _check_i_ii_iii_same_groups() -> void:
-	# pr9-tir-i-ii-iii, vaisseau à x = 110 (0x822b = 126). Les deux paires
-	# sont celles du II + III. Un Pilot neuf commence par le groupe 0 ; dans
-	# le relevé, le premier appui (16778) a formé le groupe 1 (y = 195, écart 8),
-	# sans qu'on isole un report du groupe depuis le I + II.
+func _check_full_ship_cannons() -> void:
 	var pilot := _full_ship()
 	_expect(pilot.is_assembled() and pilot._next_group == 0, "I + II + III : is_assembled, prochain groupe 0")
 	pilot.step(Pilot.FIRE)
-	_expect_pair(pilot.active_shots(), 12, 212, 110, "I + II + III, groupe 0")
+	var first := pilot.active_shots()
+	var center := Vector2i(109, Pilot.SHOT_START_Y)
+	_expect(first.size() == 3 and first.back() == center, "Le premier appui lance aussi le tir du module I")
+	_expect_pair(first, 12, 212, 110, "I + II + III, groupe 0")
 	pilot.step(0)
 	pilot.step(Pilot.FIRE)
 	var both := pilot.active_shots()
-	_expect(both.size() == 4, "I + II + III : les deux paires volent ensemble, obtenu %d" % both.size())
+	_expect(both.size() == 5 and both.back() == center - Vector2i(0, 2 * Pilot.SHOT_STEP), "Les deux paires partagent l'écran avec un seul tir central")
 	_expect_pair(both, 12, 204, 110, "Groupe 0 encore en vol")
 	_expect_pair(both, 8, 195, 110, "Groupe 1 (pr9, 16779 : 101 et 117 à y = 195)")
+	pilot.deactivate_shot(4)
+	_expect(pilot.active_shots().size() == 4, "Un impact central consomme uniquement le projectile du module I")
+	pilot.step(0)
+	pilot.step(Pilot.RIGHT | Pilot.FIRE)
+	_expect(pilot.active_shots().size() == 5 and pilot.active_shots().back() == center + Vector2i(Pilot.MOVE_STEP, 0),
+		"Le module I peut tirer depuis la nouvelle position pendant le vol des deux paires")
+	_expect(pilot._next_group == 0, "Le tir central ne change pas l'alternance des paires")
 	# Durée de la paire y = 212 : dernière paire formée à y = 4 à 16846,
 	# y logiciel correspondant à 0 à 16847, créneaux vides à 16848.
 	pilot = _full_ship()
@@ -228,4 +234,4 @@ func _check_i_ii_iii_same_groups() -> void:
 		if point.x == 97 or point.x == 121:
 			gone.append(point)
 	_expect(gone.is_empty(), "La paire y = 212 disparaît à la 55e image")
-	print("OK I + II + III : mêmes paires que le II + III, superposition, durée 54 images")
+	print("OK I + II + III : tir central indépendant, superposition et cadence des paires")

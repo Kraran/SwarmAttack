@@ -19,7 +19,7 @@ const SHOT_LENGTH := 4
 # Vaisseau II + III, relevé sur pr1-suite au rythme de 0x8005.
 # Groupe 0 : paire à y = 212 (registre 0x27), écart 12. Groupe 1 : paire à y = 195
 # (registre 0x38), écart 8. L'abscisse logique vaut le registre de projectile moins 17.
-# I + II + III (pr9 et pr9b) : les mêmes deux paires, qui peuvent voler ensemble.
+# I + II + III : ces deux paires peuvent voler avec le tir central du module I.
 # Après un amarrage I + II → III réussi, le premier appui reprend l'index laissé
 # par le I + II : dernier groupe 0 à 14721 (pr7, même préfixe), premier tir
 # assemblé = groupe 1 (pr9 à x = 110, pr9b à x = 200, y = 195, écart 8).
@@ -79,8 +79,12 @@ func is_i_and_ii() -> bool:
 	return has_module(1) and has_module(2) and not has_module(3)
 
 
+func is_i_and_iii() -> bool:
+	return attached == 5
+
+
 func uses_fire_groups() -> bool:
-	return is_assembled() or is_i_and_ii()
+	return is_assembled() or is_i_and_ii() or is_i_and_iii()
 
 
 func module_y(number: int) -> int:
@@ -105,11 +109,14 @@ func restore_shots(shots: Array[Vector2i]) -> void:
 	clear_shots()
 	if shots.is_empty():
 		return
-	if is_assembled():
-		var base := 2
+	if is_assembled() or is_i_and_iii():
+		var base := 0 if is_i_and_iii() else 2
 		for index in range(mini(shots.size(), 2)):
 			_group_position[base + index] = shots[index]
 			_group_active[base + index] = true
+		if is_i_and_iii() and shots.size() > 2:
+			shot_position = shots[2]
+			shot_active = true
 	else:
 		shot_position = shots[0]
 		shot_active = true
@@ -134,7 +141,8 @@ func active_shots() -> Array[Vector2i]:
 		for index in range(_group_active.size()):
 			if _group_active[index]:
 				result.append(_group_position[index])
-		return result
+		if not is_assembled() and not is_i_and_iii():
+			return result
 	if shot_active:
 		result.append(shot_position)
 	if second_shot_active:
@@ -152,7 +160,8 @@ func deactivate_shot(index: int) -> void:
 				_group_active[slot] = false
 				return
 			current += 1
-		return
+		if not is_assembled() and not is_i_and_iii():
+			return
 	if shot_active:
 		if current == index:
 			shot_active = false
@@ -186,12 +195,17 @@ func step(input_mask: int, accept_input := true) -> void:
 	# Un nouvel front d'appui est nécessaire, comme pour le module I (fire_busy).
 	if fire and not _fire_held:
 		if uses_fire_groups():
-			if not group_busy[_next_group]:
-				if is_assembled():
-					_fire_assembled_group(_next_group)
+			# Le canon du module I se libère indépendamment des paires latérales.
+			if (is_assembled() or is_i_and_iii()) and has_module(1) and not slot_was_busy:
+				shot_position = Vector2i(ship_x - 1, SHOT_START_Y + assembly_y_offset)
+				shot_active = true
+			var group := 0 if is_i_and_iii() else _next_group
+			if not group_busy[group]:
+				if is_assembled() or is_i_and_iii():
+					_fire_assembled_group(group)
 				else:
 					_fire_i_ii_group(_next_group)
-				_next_group = 1 - _next_group
+				_next_group = 0 if is_i_and_iii() else 1 - _next_group
 		elif not slot_was_busy:
 			var spread := 4 * module if module > 1 else 0
 			const START_HEIGHTS := [SHOT_START_Y, 195, 204]
