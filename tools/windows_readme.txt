@@ -1,4 +1,5 @@
 SWARM ATTACK
+Version 0.3.0
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
