@@ -102,9 +102,8 @@ func clear_shots() -> void:
 		_group_active[index] = false
 
 
-# Reprend des projectiles figés dans les créneaux logiciels 0x8161–0x8168.
-# Après amarrage réussi, le vaisseau assemblé les replace dans le groupe 1
-# (même paire que le module II, écart 8, registres 0x40/0x50 sur pr1).
+# Restauration explicite d'une liste de tirs. Les transitions de jeu
+# repartent toujours sans projectiles et n'utilisent pas cette fonction.
 func restore_shots(shots: Array[Vector2i]) -> void:
 	clear_shots()
 	if shots.is_empty():

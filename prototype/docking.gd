@@ -202,14 +202,23 @@ func _advance_approach(input_mask: int) -> void:
 
 
 func _in_capture_area(offset: Vector2i) -> bool:
+	return capture_rect().has_point(offset)
+
+
+func capture_rect() -> Rect2i:
 	# Les trois séquences utilisent le même test de capture
 	# après le test de collision $2540. Les bornes basses en RAM sont
 	# strictes et les hautes inclusives. Pour I + II, le registre logique
 	# pointe un cran de 8 pixels après le module II sur les deux axes.
 	if is_i_and_ii() or is_i_to_iii():
-		return Rect2i(3, -6, 12, 16).has_point(offset)
-	var capture_area := Rect2i(3, -6, 12, 8) if module == 1 else Rect2i(-5, -14, 12, 16)
-	return capture_area.has_point(offset)
+		return Rect2i(3, -6, 12, 16)
+	return Rect2i(3, -6, 12, 8) if module == 1 else Rect2i(-5, -14, 12, 16)
+
+
+func collision_rect() -> Rect2i:
+	if is_i_and_ii() or is_i_to_iii():
+		return Rect2i(-17, -3, 52, 16)
+	return Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)
 
 
 func _resolve_contact() -> void:
@@ -217,7 +226,7 @@ func _resolve_contact() -> void:
 	if is_i_and_ii() or is_i_to_iii():
 		# Même paire II et III que pour le module II seul, après translation
 		# depuis le module II vers la position logique de l'assemblage.
-		if Rect2i(-17, -3, 52, 16).has_point(offset):
+		if collision_rect().has_point(offset):
 			stage = Stage.COLLISION
 		elif _in_capture_area(offset):
 			# Pendant l'écran bonus, 0x822c garde la position du contact
@@ -229,8 +238,7 @@ func _resolve_contact() -> void:
 				position = TARGET + Vector2i(8, -8)
 			stage = Stage.SUCCESS
 		return
-	var crash_area := Rect2i(-8, -3, 34, 8) if module == 1 else Rect2i(-25, -11, 52, 16)
-	if crash_area.has_point(offset):
+	if collision_rect().has_point(offset):
 		stage = Stage.COLLISION
 	elif _in_capture_area(offset):
 		position = TARGET + (Vector2i(8, -8) if module == 1 else Vector2i(0, -16))

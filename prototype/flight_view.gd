@@ -5,7 +5,35 @@ const Presentation = preload("res://flight_presentation.gd")
 const X_SCALE := 192.0 / 224.0
 const ENEMY_POOL_SIZE := 8
 
+class ExhaustMotion:
+	const ATTACK_FRAMES := 4.0
+	const RELEASE_FRAMES := 8.0
+	var level := 0.0
+	var _point := Vector2.ZERO
+	var _frame := -1.0
+
+	func reset() -> void:
+		level = 0.0
+		_frame = -1.0
+
+	func sample(point: Vector2, frame: float) -> float:
+		var elapsed := frame - _frame
+		# Ignorer les réapparitions et les changements de séquence.
+		if _frame < 0.0 or elapsed < 0.0 or elapsed > 8.0 or point.distance_squared_to(_point) > 24.0 * 24.0:
+			level = 0.0
+		elif elapsed > 0.0:
+			var target := 1.0 if point.distance_squared_to(_point) > 0.000001 else 0.0
+			var duration := ATTACK_FRAMES if target > level else RELEASE_FRAMES
+			level = lerpf(target, level, exp(-elapsed / duration))
+		else:
+			# Plusieurs rendus à la même date, notamment en pause.
+			return level
+		_point = point
+		_frame = frame
+		return level
+
 var _ships: Array[Node3D] = []
+var _exhaust_motion: Array[ExhaustMotion] = [ExhaustMotion.new(),ExhaustMotion.new(),ExhaustMotion.new()]
 var _enemy_pools: Dictionary[Vector2i, Array] = {}
 var _enemies: Array[Node3D] = []
 var _enemy_count := 0
@@ -61,6 +89,7 @@ func finish_frame() -> void:
 	for index in range(_ships.size()):
 		if not (_ship_mask & (1 << index)):
 			_ships[index].hide()
+			_exhaust_motion[index].reset()
 	for index in range(_enemy_count, _enemies.size()):
 		_enemies[index].hide()
 	render_target_update_mode = SubViewport.UPDATE_ONCE
@@ -71,10 +100,13 @@ func ship(point: Vector2, module: int, bank: float, thrust: bool, frame: float) 
 	_ship_mask |= 1 << (module - 1)
 	_place(model, point)
 	model.rotation.z = deg_to_rad(bank)
+	var boost := _exhaust_motion[module - 1].sample(point, frame)
 	var exhaust := model.get_node(^"Exhaust") as Node3D
 	exhaust.visible = thrust
 	if thrust:
-		exhaust.scale.z = 0.86 + 0.14 * sin(frame * 0.26)
+		# Allonger le jet depuis la tuyère, sans déplacer ni agrandir la coque.
+		exhaust.scale = Vector3(1.0 + 0.18 * boost, 1.0,
+			(0.86 + 0.14 * sin(frame * 0.26)) * (1.0 + boost))
 		var plume := exhaust.get_child(0) as MeshInstance3D
 		(plume.material_override as ShaderMaterial).set_shader_parameter(&"frame", fposmod(frame, 12000.0))
 

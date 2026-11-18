@@ -19,6 +19,7 @@ const Language = preload("res://arcade_language.gd")
 const ArcadeSession = preload("res://arcade_session.gd")
 const TrainingSession = preload("res://training_session.gd")
 const Effects = preload("res://arcade_effects.gd")
+const AboutPanel = preload("res://about_panel.gd")
 const SHIP_BURST_FRAMES := 36
 const MAX_CATCHUP_USEC := 8 * Pilot.FRAME_USEC
 const CURSOR_HIDE_USEC := 3_000_000
@@ -29,6 +30,8 @@ const FIELD := Rect2(124, 24, 504, 672)
 const PORTRAIT_FIELD := Rect2(28, 65, 504, 672)
 const LABEL_X := 704
 const PANEL_END := 1156
+const HEADER_LOGO := Rect2(LABEL_X, 0, 224, 126)
+const PORTRAIT_HEADER_LOGO := Rect2(83, 0, 100, 56.25)
 const SOLO_BUTTON := Rect2(LABEL_X, 468, PANEL_END - LABEL_X, 50)
 const DUO_BUTTON := Rect2(LABEL_X, 529, PANEL_END - LABEL_X, 45)
 const OPTIONS_BUTTON := Rect2(LABEL_X, 588, PANEL_END - LABEL_X, 42)
@@ -140,6 +143,9 @@ var _pause_layer: InterfaceLayer
 var _frame_layer: InterfaceLayer
 var _panel_layer: InterfaceLayer
 var _logo_layer: InterfaceLayer
+var _about: AboutPanel
+var _about_audio_was_paused := false
+var _logo_hovered := false
 
 
 func _ready() -> void:
@@ -165,6 +171,10 @@ func _ready() -> void:
 	_pause_layer = _add_interface_layer(_draw_pause_overlay)
 	_frame_layer = _add_interface_layer(_draw_static_interface)
 	_panel_layer = _add_interface_layer(_draw_panel)
+	_about = AboutPanel.new()
+	_about.closed.connect(_close_about)
+	_about.link_requested.connect(_open_about_link)
+	add_child(_about)
 	if _flight_view != null:
 		_apply_display()
 	Controls.apply(_profile.key_bindings, _profile.button_bindings)
@@ -193,7 +203,16 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_last_mouse_motion_usec = Time.get_ticks_usec()
 		_update_cursor()
+		_update_logo_hover(event.position)
 	if not _focused:
+		return
+	if _about_is_open():
+		if _about.handle_input(event):
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and _logo_contains(event.position):
+		_open_about()
+		get_viewport().set_input_as_handled()
 		return
 	if _score_entry != null:
 		_handle_score_entry(event)
@@ -327,6 +346,77 @@ func _toggle_pause() -> void:
 	_held = _read_controls()
 	_wait_for_fire_release = bool(_held & Pilot.FIRE)
 	_redraw()
+
+
+func _about_is_open() -> bool:
+	return _about != null and _about.visible
+
+
+func _logo_regions() -> Array[Rect2]:
+	var regions: Array[Rect2] = []
+	if not _focused or _about_is_open() or _score_entry != null or _score_results_open or _scores_menu_open:
+		return regions
+	regions.append(PORTRAIT_HEADER_LOGO if _profile.portrait else HEADER_LOGO)
+	if not _attract_active or _paused or _options_open or _training_open or _training_result_open or _attract.screen() != Attract.Screen.TITLE_TEXT:
+		return regions
+	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)
+	if progress <= 0.0:
+		return regions
+	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var scale := field.size / Vector2(Pilot.FIELD_SIZE)
+	var height := 184.0 * TITLE_LOGO.get_height() / TITLE_LOGO.get_width() * scale.x / scale.y
+	var target := Rect2(lerpf(224,20,progress),58,184,height)
+	var visible := target.intersection(Rect2(Vector2.ZERO,Vector2(Pilot.FIELD_SIZE)))
+	regions.append(Rect2(field.position + visible.position * scale,visible.size * scale))
+	return regions
+
+
+func _logo_contains(point: Vector2) -> bool:
+	for region in _logo_regions():
+		if region.has_point(point):
+			return true
+	return false
+
+
+func _update_logo_hover(point: Vector2) -> void:
+	var hovered := _logo_contains(point)
+	if hovered == _logo_hovered:
+		return
+	_logo_hovered = hovered
+	if DisplayServer.get_name() != "headless":
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hovered else Input.CURSOR_ARROW)
+	_redraw()
+
+
+func _open_about() -> void:
+	if _about_is_open():
+		return
+	_about_audio_was_paused = _audio.is_paused()
+	_audio.set_paused(true)
+	_about.present(PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE,_profile.language)
+	_pressed = 0
+	_held = 0
+	_update_logo_hover(Vector2(-1,-1))
+	_update_cursor()
+	_redraw()
+
+
+func _close_about() -> void:
+	_about.hide()
+	_audio.set_paused(_about_audio_was_paused or not _focused)
+	_last_usec = Time.get_ticks_usec()
+	_pressed = 0
+	_last_input = 0
+	_held = _read_controls()
+	_wait_for_fire_release = bool(_held & Pilot.FIRE)
+	_update_logo_hover(get_global_mouse_position())
+	_update_cursor()
+	_redraw()
+
+
+func _open_about_link(url: String) -> void:
+	if url in [AboutPanel.AUTHOR_URL,AboutPanel.REPOSITORY_URL] and DisplayServer.get_name() != "headless":
+		OS.shell_open(url)
 
 
 func _pause_button(index: int) -> Rect2:
@@ -827,7 +917,8 @@ func _restart(practice: bool, players := 1) -> void:
 	_visual_tick = float(_simulation_tick)
 	_audio.stop()
 	_audio.set_paused(false)
-	_audio.play(("dock" if _exercise_kind == TrainingSession.Kind.DOCKING else "wave") if practice else "launch")
+	if not practice or _exercise_kind == TrainingSession.Kind.DOCKING:
+		_audio.play("dock" if practice else "launch")
 	_elapsed_usec = 0
 	_last_usec = Time.get_ticks_usec()
 	_pressed = 0
@@ -1015,6 +1106,7 @@ func _in_play() -> bool:
 		_focused and not _attract_active and not _paused and not _options_open
 		and _score_entry == null and not _score_results_open and not _scores_menu_open
 		and not _training_open and not _training_result_open
+		and not _about_is_open()
 	)
 
 
@@ -1043,14 +1135,15 @@ func _notification(what: int) -> void:
 			_redraw()
 		NOTIFICATION_APPLICATION_FOCUS_IN:
 			_focused = true
-			_audio.set_paused(_paused or _options_open)
+			_audio.set_paused(_paused or _options_open or _about_is_open())
 			_last_usec = Time.get_ticks_usec()
 			_redraw()
 
 
 func _process(delta: float) -> void:
 	_update_cursor()
-	if not _focused or _paused or _options_open or _score_results_open or _scores_menu_open or _training_open or _training_result_open:
+	_update_logo_hover(get_global_mouse_position())
+	if not _focused or _paused or _options_open or _score_results_open or _scores_menu_open or _training_open or _training_result_open or _about_is_open():
 		return
 	if _score_entry != null:
 		if _score_entry.repeat(delta):
@@ -1064,7 +1157,7 @@ func _process(delta: float) -> void:
 
 func _advance_starfield() -> void:
 	# Une mise à jour par image de rendu. La VSync cadence sa présentation.
-	if _focused and not _paused and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
+	if _focused and not _paused and not _about_is_open() and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
 		_starfield.advance()
 
 
@@ -1101,8 +1194,11 @@ func _step_session(input_mask: int) -> void:
 	var previous := _run
 	var previous_combat := previous.combat
 	var alive_before := previous_combat.wave.survivors()
+	var flight_sound_before := previous_combat.wave.flight_sound_serial
 	var number := _cycle_wave()
 	var phase := previous.phase
+	var was_ascending := _ship_ascending(previous)
+	var had_reserve := previous.bonus_reserve
 	var wave := previous.wave_number
 	var dock_stage := previous.docking.stage if previous.docking != null else -1
 	var frame := previous.combat.pilot.frame
@@ -1116,6 +1212,10 @@ func _step_session(input_mask: int) -> void:
 		if _simulation_tick - _combat_impacts[index].tick >= Effects.IMPACT_LIFETIME:
 			_combat_impacts.remove_at(index)
 	_motion.capture_live(_run, _simulation_tick, _bank_command() if _run == previous else 0.0, shots)
+	if _run != previous or _run.combat != previous_combat or _run.phase != ArcadeRun.Phase.COMBAT:
+		_audio.stop_enemy()
+	elif previous_combat.wave.flight_sound_serial != flight_sound_before:
+		_audio.play(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave())))
 	if _session is TrainingSession:
 		var training := _session as TrainingSession
 		if training.completed:
@@ -1131,17 +1231,16 @@ func _step_session(input_mask: int) -> void:
 			return
 	if _run != previous:
 		_audio.stop()
-		_audio.play("launch" if _run.phase == ArcadeRun.Phase.LAUNCH else "start")
+		_audio.play("launch" if _ship_ascending(_run) else "start")
+		return
+	if not was_ascending and _ship_ascending(_run):
+		_audio.play("cycle" if _run.phase == ArcadeRun.Phase.CYCLE_END else "launch")
 		return
 	if _run.phase != phase:
 		if _run.phase == ArcadeRun.Phase.REPLACEMENT and phase == ArcadeRun.Phase.COMBAT:
 			_audio.play("loss")
 		elif _run.phase == ArcadeRun.Phase.DOCKING:
 			_audio.play("dock")
-		elif _run.phase == ArcadeRun.Phase.CYCLE_END:
-			_audio.play("cycle")
-		elif _run.phase == ArcadeRun.Phase.COMBAT:
-			_audio.play("wave")
 	elif _run.docking != null and _run.docking.stage != dock_stage:
 		match _run.docking.stage:
 			Docking.Stage.SUCCESS:
@@ -1150,15 +1249,29 @@ func _step_session(input_mask: int) -> void:
 				_audio.play("crash")
 			Docking.Stage.TIMED_OUT:
 				_audio.play("timeout")
-	elif phase == ArcadeRun.Phase.COMBAT and _run.wave_number != wave:
-		_audio.play("wave")
-	elif phase == ArcadeRun.Phase.COMBAT and _run.combat.pilot.frame > frame:
+	elif phase == ArcadeRun.Phase.COMBAT and _run.wave_number == wave and _run.combat.pilot.frame > frame:
 		if _run.combat.impact_age == 0:
-			_audio.play("impact")
+			_audio.play(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave()), true))
 		for shot in _run.combat.pilot.active_shots():
 			if (shot + Vector2i(0, Pilot.SHOT_STEP)) not in shots:
 				_audio.play("shot")
 				break
+	if not had_reserve and _run.bonus_reserve:
+		_audio.play("bonus")
+
+
+func _ship_ascending(run: ArcadeRun) -> bool:
+	match run.phase:
+		ArcadeRun.Phase.LAUNCH:
+			return true # La musique commence dès le lancement de la séquence.
+		ArcadeRun.Phase.REPLACEMENT:
+			var elapsed := run.entrance_elapsed()
+			return elapsed >= ArcadeRun.ENTRANCE_HIDDEN and elapsed < ArcadeRun.ENTRANCE_HIDDEN + ArcadeRun.ENTRANCE_RISE
+		ArcadeRun.Phase.CYCLE_END:
+			return run.cycle_end_elapsed >= ArcadeRun.CYCLE_RISE_START and run.cycle_end_elapsed < ArcadeRun.CYCLE_RESET
+		ArcadeRun.Phase.DOCKING:
+			return run.docking.lifting()
+	return false
 
 
 func _capture_combat_impacts(combat: ArcadeRun.CombatRound, alive_before: int, number: int) -> void:
@@ -1183,7 +1296,7 @@ func _refresh_interface() -> void:
 	var portrait := _profile.portrait
 	var language := _profile.language
 	var title_visible := _attract_active and not _scores_menu_open and _score_entry == null and _attract.screen() == Attract.Screen.TITLE_TEXT
-	_logo_layer.refresh([portrait, title_visible,
+	_logo_layer.refresh([portrait, title_visible, _logo_hovered,
 		_attract.title_line_progress(1, _visual_tick - _simulation_tick) if title_visible else 0.0])
 	var controls_state := [hash(_profile.key_bindings), hash(_profile.button_bindings)]
 	_frame_layer.refresh([portrait, _uses_hd(), language, controls_state])
@@ -1598,6 +1711,12 @@ func _draw_combat() -> void:
 	if _run.phase == ArcadeRun.Phase.COMBAT:
 		for point in pilot.active_shots():
 			_draw_shot(_motion.projectile(point, _visual_tick) if _uses_hd() else Vector2(point))
+		if _diagnostics:
+			for module in range(1, 4):
+				if pilot.has_module(module):
+					var contact := Rect2(CombatWave.module_contact_rect(pilot.ship_x, module, pilot.attached, pilot.assembly_y_offset))
+					contact.position += Vector2(-8, 8)
+					draw_rect(contact, Color(ARCADE_RED, 0.65), false, 0.5)
 	_draw_impact(combat)
 
 
@@ -1669,6 +1788,13 @@ func _draw_docking() -> void:
 		_draw_module(point + Vector2(0, 8), 2, SHIP, thrust)
 	if _diagnostics:
 		draw_line(Vector2(Docking.TARGET.x, 36), Vector2(Docking.TARGET.x, 238), BORDER)
+		var delta := dock.display_position() - Vector2(dock.position) - Vector2(0, 16 if stack else 0)
+		var capture := Rect2(dock.capture_rect())
+		capture.position += Vector2(Docking.TARGET) + delta
+		var collision := Rect2(dock.collision_rect())
+		collision.position += Vector2(Docking.TARGET) + delta
+		draw_rect(collision, Color(ARCADE_RED, 0.65), false, 0.5)
+		draw_rect(capture, Color(SHIP, 0.8), false, 0.5)
 
 
 func _draw_docking_collision(dock: Docking) -> void:
@@ -1815,7 +1941,7 @@ func _draw_enemies() -> void:
 
 
 func _draw_enemy_bounds(position: Vector2i) -> void:
-	var hitbox := Rect2(Vector2(position) - Vector2(17, 4), Vector2(16, 12))
+	var hitbox := Rect2(CombatWave.shot_contact_rect(position))
 	draw_rect(hitbox.intersection(Rect2(Vector2.ZERO, Vector2(Pilot.FIELD_SIZE))), ENEMY.darkened(0.65), false)
 
 
@@ -1888,10 +2014,11 @@ func _draw_static_interface(canvas: Node2D) -> void:
 
 
 func _draw_logos(canvas: Node2D) -> void:
+	var tint := Color(1.12,1.12,1.12) if _logo_hovered else Color.WHITE
 	if _profile.portrait:
-		canvas.draw_texture_rect(TITLE_LOGO, Rect2(83, 0, 100, 56.25), false)
+		canvas.draw_texture_rect(TITLE_LOGO, PORTRAIT_HEADER_LOGO, false, tint)
 	else:
-		canvas.draw_texture_rect(TITLE_LOGO, Rect2(LABEL_X, 0, 224, 126), false)
+		canvas.draw_texture_rect(TITLE_LOGO, HEADER_LOGO, false, tint)
 	if not _attract_active or _scores_menu_open or _score_entry != null or _attract.screen() != Attract.Screen.TITLE_TEXT:
 		return
 	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)

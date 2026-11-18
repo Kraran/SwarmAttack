@@ -1,11 +1,11 @@
 extends RefCounted
 
+const CollisionGeometry = preload("res://collision_geometry.gd")
+
 const SPAWN_FRAME := 32
 const OPENING_LENGTH := 16
 const WIDE_ENTRY_TURNS := 9
 const WIDE_RETURN_WAIT := 16
-# The startup trace includes three board frames without a wave-clock increment.
-const OPENING_CLOCK_HOLDS := [34, 118, 212]
 const INITIAL_POSITIONS := [
 	Vector2i(112, 96), Vector2i(120, 96), Vector2i(128, 96), Vector2i(120, 88)
 ]
@@ -108,6 +108,8 @@ var max_divers := 1
 var divers := 0
 # 0x823c : survivants, décrémenté au crédit des points.
 var credited_remaining := 0
+# Événements de vol : apparition et réapparition, sans modifier la simulation.
+var flight_sound_serial := 0
 
 
 func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> void:
@@ -165,9 +167,8 @@ func survivors() -> int:
 	return _alive_mask
 
 
-func advance(frame: int, ship_x: int) -> void:
-	if frame in OPENING_CLOCK_HOLDS:
-		return
+func advance(_frame: int, ship_x: int) -> void:
+	# Chaque pas logique compte ; les arrêts matériels de la borne sont exclus.
 	_wave_clock += 1
 	if falling:
 		_advance_falling()
@@ -187,6 +188,8 @@ func advance(frame: int, ship_x: int) -> void:
 				enemy.position = INITIAL_POSITIONS[index >> 1]
 				enemy.velocity = OPENING_STEPS[index >> 1]
 			enemies.append(enemy)
+			if enemy.alive:
+				flight_sound_serial += 1
 		return
 	if enemies.is_empty() or remaining == 0:
 		return
@@ -199,19 +202,36 @@ func advance(frame: int, ship_x: int) -> void:
 			_advance_enemy(enemy, ship_x + 16)
 
 
-func hit_by(shot: Vector2i) -> Enemy:
-	var bullet := shot + Vector2i(17, 4)
-	if bullet.y < 12:
-		return null
+func hit_by(shot: Vector2i, previous_shot := Vector2.INF, previous_enemies: Dictionary = {}) -> Enemy:
+	var selected := -1
+	var first_time := INF
 	for index in range(enemies.size()):
 		var enemy := enemies[index]
-		if not enemy.alive:
+		if not enemy.has_visible_pose():
 			continue
-		var distance := bullet - enemy.position
-		if distance.x >= 0 and distance.x < 16 and distance.y >= 0 and distance.y < 12:
-			kill(index)
-			return enemy
-	return null
+		var from := Vector2(shot) if previous_shot == Vector2.INF else previous_shot
+		var before := Vector2(previous_enemies.get(enemy, enemy.position))
+		if not previous_enemies.has(enemy):
+			# Une apparition n'a aucune trajectoire de collision antérieure.
+			from = Vector2(shot)
+		if not CollisionGeometry.continuous(before, Vector2(enemy.position)):
+			before = Vector2(enemy.position)
+			from = Vector2(shot)
+		var start := from + Vector2(17, 4) - before
+		var end := Vector2(shot + Vector2i(17, 4) - enemy.position)
+		var time := CollisionGeometry.sweep_time(start, end, Rect2(0, 0, 16, 12))
+		if is_inf(time):
+			continue
+		# Dans une superposition, le tir montant rencontre la cible du bas.
+		if selected < 0 or time < first_time - CollisionGeometry.EPSILON or (
+				absf(time - first_time) <= CollisionGeometry.EPSILON and enemy.position.y > enemies[selected].position.y):
+			selected = index
+			first_time = time
+	if selected < 0:
+		return null
+	var hit := enemies[selected]
+	kill(selected)
+	return hit
 
 
 func hits_ship(ship_x: int, module := 1) -> bool:
@@ -237,44 +257,62 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 # Conserver l'union des hitboxes, puis attribuer le contact à la coque
 # la plus proche. La priorité systématique au III rendait le II intouchable
 # dans le trio, sa boîte étant entièrement recouverte par celle du III.
-func hit_module(ship_x: int, attached: int, y_offset := 0) -> int:
+func hit_module(ship_x: int, attached: int, y_offset := 0, previous_ship_x := -1, previous_enemies: Dictionary = {}) -> int:
 	var hit := 0
-	var nearest := 1 << 30
+	var nearest := INF
+	var first_time := INF
 	for module in range(3, 0, -1):
 		if not (attached & (1 << (module - 1))):
 			continue
-		var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
-		# pr9-tir-i-ii-iii, vaisseau I + II + III immobile à x = 110
-		# (0x822b = 126, 0x822c = 216) : (116, 189) à 16925 est un raté,
-		# (116, 193) à 16926 un contact sur le nez du module I. Le plafond
-		# dy >= -3 du I, seul, compterait déjà 16925 ; on le resserre à -2.
-		if attached == 7 and module == 1:
-			top = -2
 		var offset := y_offset if attached == 3 else 0
+		var bounds := module_contact_rect(0, module, attached, y_offset)
 		for enemy in enemies:
-			if not enemy.alive or not _enemy_hits_module_box(enemy, ship_x, module, top, offset):
+			if not enemy.has_visible_pose():
 				continue
-			var distance := absi(enemy.position.y + 8 - (200 + (module - 1) * 8 + offset))
-			if distance < nearest:
+			var before := Vector2(previous_enemies.get(enemy, enemy.position))
+			var old_ship := ship_x if previous_ship_x < 0 else previous_ship_x
+			if not CollisionGeometry.continuous(before, Vector2(enemy.position)) or absi(ship_x - old_ship) > CollisionGeometry.MAX_CONTINUOUS_STEP:
+				before = Vector2(enemy.position)
+				old_ship = ship_x
+			var time := CollisionGeometry.sweep_time(before - Vector2(old_ship, 0),
+				Vector2(enemy.position) - Vector2(ship_x, 0), Rect2(bounds))
+			if is_inf(time):
+				continue
+			var contact_y := lerpf(before.y, enemy.position.y, time) + 8
+			var distance := absf(contact_y - (200 + (module - 1) * 8 + offset))
+			if time < first_time - CollisionGeometry.EPSILON or (absf(time - first_time) <= CollisionGeometry.EPSILON and distance < nearest):
+				first_time = time
 				nearest = distance
 				hit = module
 	return hit
 
 
+static func module_contact_rect(ship_x: int, module: int, attached: int, y_offset := 0) -> Rect2i:
+	var top := -3 if attached == 6 and module == 3 else (-11 if module == 3 else -3)
+	if attached == 7 and module == 1:
+		top = -2
+	return _module_box(ship_x, module, top, y_offset if attached == 3 else 0)
+
+
+static func shot_contact_rect(position: Vector2i) -> Rect2i:
+	return Rect2i(position - Vector2i(17, 4), Vector2i(16, 12))
+
+
 func _hits_module_box(ship_x: int, module: int, top: int, y_offset := 0) -> bool:
+	var bounds := _module_box(ship_x, module, top, y_offset)
 	for enemy in enemies:
-		if enemy.alive and _enemy_hits_module_box(enemy, ship_x, module, top, y_offset):
+		if enemy.has_visible_pose() and bounds.has_point(enemy.position):
 			return true
 	return false
 
 
-func _enemy_hits_module_box(enemy: Enemy, ship_x: int, module: int, top: int, y_offset: int) -> bool:
+static func _module_box(ship_x: int, module: int, top: int, y_offset: int) -> Rect2i:
 	var raw_position := Vector2i(ship_x + 8, 192) if module == 1 else Vector2i(ship_x, 192 + (module - 1) * 8)
 	raw_position.y += y_offset
 	const LEFT_LIMITS := [-9, -5, -10]
 	const RIGHT_LIMITS := [11, 23, 28]
-	var delta := enemy.position - raw_position
-	return delta.x >= LEFT_LIMITS[module - 1] and delta.x <= RIGHT_LIMITS[module - 1] and delta.y >= top and delta.y <= 12
+	return Rect2i(raw_position + Vector2i(LEFT_LIMITS[module - 1], top),
+		Vector2i(RIGHT_LIMITS[module - 1] - LEFT_LIMITS[module - 1] + 1, 13 - top))
 
 
 func _advance_enemy(enemy: Enemy, ship: int) -> void:
@@ -312,6 +350,7 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 		# passe en phase 1 au pas où le compteur s'annule, puis lance sa boucle.
 		# Relevé sur 130 sorties (pr1-suite, pr2, pr3, pr5b, pr6, pr7, pr10c-d).
 		if enemy.return_wait == 0:
+			flight_sound_serial += 1
 			enemy.position = Vector2i((enemy.position.x & 63) + 80, (enemy.position.y & 63) + 64)
 			enemy.return_wait = WIDE_RETURN_WAIT
 			return
@@ -334,6 +373,7 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 			Flight.DIVE:
 				_start_dive(enemy, ship)
 			Flight.RETURNING:
+				flight_sound_serial += 1
 				enemy.position = Vector2i(120, 80)
 				_return_pattern ^= 2
 				if _return_pattern:
@@ -377,6 +417,8 @@ func _advance_rows(ship: int) -> void:
 			enemy.velocity = Vector2i(0, ROW_OPENING_VY[index])
 			enemy.turn = 0
 			enemies.append(enemy)
+			if enemy.alive:
+				flight_sound_serial += 1
 		return
 	if enemies.is_empty():
 		return
@@ -422,6 +464,7 @@ func _advance_rows(ship: int) -> void:
 				if _row_exit(enemy):
 					divers -= 1
 			Flight.ROW_EXIT:
+				flight_sound_serial += 1
 				# Réapparition au pas suivant la sortie, y inchangé, en
 				# x = 0x822b + (0x8227 & 63) - 32 (302 réapparitions sur pr7, pr8*,
 				# pr9*, pr10a-b et pr11a-d, toutes conformes).
@@ -458,6 +501,7 @@ func _advance_falling() -> void:
 				if _alive_mask & (1 << index):
 					var enemy := enemies[index]
 					enemy.alive = true
+					flight_sound_serial += 1
 					enemy.position = FALL_STARTS[index]
 					enemy.velocity = FALL_STEPS[index]
 					enemy.phase = Flight.OPENING

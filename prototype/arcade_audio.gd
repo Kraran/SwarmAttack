@@ -13,6 +13,17 @@ const CUES := {
 	"launch": preload("res://audio/arcade/launch.wav"),
 	"wave": preload("res://audio/arcade/wave.wav"),
 	"cycle": preload("res://audio/arcade/cycle.wav"),
+	"enemy_ring": preload("res://audio/arcade/enemy_ring.wav"),
+	"enemy_claw": preload("res://audio/arcade/enemy_claw.wav"),
+	"enemy_interceptor": preload("res://audio/arcade/enemy_interceptor.wav"),
+	"enemy_meteor": preload("res://audio/arcade/enemy_meteor.wav"),
+	"enemy_row": preload("res://audio/arcade/enemy_row.wav"),
+	"hit_ring": preload("res://audio/arcade/hit_ring.wav"),
+	"hit_claw": preload("res://audio/arcade/hit_claw.wav"),
+	"hit_interceptor": preload("res://audio/arcade/hit_interceptor.wav"),
+	"hit_meteor": preload("res://audio/arcade/hit_meteor.wav"),
+	"hit_row": preload("res://audio/arcade/hit_row.wav"),
+	"bonus": preload("res://audio/arcade/bonus.wav"),
 }
 const MODERN_CUES := {
 	"shot": preload("res://audio/modern/shot.wav"),
@@ -26,6 +37,17 @@ const MODERN_CUES := {
 	"launch": preload("res://audio/modern/launch.wav"),
 	"wave": preload("res://audio/modern/wave.wav"),
 	"cycle": preload("res://audio/modern/cycle.wav"),
+	"enemy_ring": preload("res://audio/modern/enemy_ring.wav"),
+	"enemy_claw": preload("res://audio/modern/enemy_claw.wav"),
+	"enemy_interceptor": preload("res://audio/modern/enemy_interceptor.wav"),
+	"enemy_meteor": preload("res://audio/modern/enemy_meteor.wav"),
+	"enemy_row": preload("res://audio/modern/enemy_row.wav"),
+	"hit_ring": preload("res://audio/modern/hit_ring.wav"),
+	"hit_claw": preload("res://audio/modern/hit_claw.wav"),
+	"hit_interceptor": preload("res://audio/modern/hit_interceptor.wav"),
+	"hit_meteor": preload("res://audio/modern/hit_meteor.wav"),
+	"hit_row": preload("res://audio/modern/hit_row.wav"),
+	"bonus": preload("res://audio/modern/bonus.wav"),
 }
 const EFFECT_VOICES := 8
 const MODERN_BUS := "SwarmModern"
@@ -37,10 +59,19 @@ var _shot: AudioStreamPlayer
 var _muted := false
 var _volume := 100
 var _bank := "original"
+var _paused := false
 var _effects: Array[AudioStreamPlayer] = []
 var _effect_cursor := 0
 var _jingle: AudioStreamPlayer
 var _preview: AudioStreamPlayer
+var _enemy: AudioStreamPlayer
+var _tone_cue := ""
+
+# Ordre des familles de FlightPresentation.EnemyKind.
+const ENEMY_FAMILIES := ["ring", "interceptor", "claw", "meteor", "row"]
+
+static func enemy_cue(kind: int, hit := false) -> String:
+	return ("hit_" if hit else "enemy_") + ENEMY_FAMILIES[kind]
 
 
 func _ready() -> void:
@@ -51,6 +82,7 @@ func _ready() -> void:
 	_voices.assign([_tone, _shot])
 	_jingle = AudioStreamPlayer.new()
 	_preview = AudioStreamPlayer.new()
+	_enemy = AudioStreamPlayer.new()
 	if AudioServer.get_bus_index(MODERN_BUS) < 0:
 		AudioServer.add_bus()
 		var bus := AudioServer.bus_count - 1
@@ -60,8 +92,10 @@ func _ready() -> void:
 		limiter.release = 0.08
 		AudioServer.add_bus_effect(bus, limiter)
 	_jingle.bus = MODERN_BUS
+	_enemy.bus = MODERN_BUS
 	_voices.append(_jingle)
 	_voices.append(_preview)
+	_voices.append(_enemy)
 	for index in EFFECT_VOICES:
 		var effect := AudioStreamPlayer.new()
 		effect.bus = MODERN_BUS
@@ -76,8 +110,13 @@ func play(cue: String) -> void:
 	if _voices.is_empty():
 		return
 	if _bank == "modern":
+		if cue.begins_with("enemy_"):
+			if not _jingle.playing:
+				_enemy.stream = MODERN_CUES[cue]
+				_enemy.play()
+			return
 		var modern_voice := _jingle
-		if cue in ["shot", "impact", "loss", "crash"]:
+		if cue in ["shot", "impact", "loss", "crash"] or cue.begins_with("hit_"):
 			for offset in EFFECT_VOICES:
 				var index := (_effect_cursor + offset) % EFFECT_VOICES
 				if not _effects[index].playing:
@@ -85,13 +124,30 @@ func play(cue: String) -> void:
 					break
 			modern_voice = _effects[_effect_cursor]
 			_effect_cursor = (_effect_cursor + 1) % EFFECT_VOICES
+		else:
+			stop_enemy()
 		modern_voice.stream = MODERN_CUES[cue]
 		modern_voice.play()
 		return
 	# Le tir a son propre circuit. Les séquences et les impacts partagent la voix tonale.
+	# Un vol peut remplacer un autre vol, jamais un impact ou une musique en cours.
+	if cue.begins_with("enemy_") and _tone.playing and not _tone_cue.begins_with("enemy_"):
+		return
+	if cue.begins_with("hit_") and _tone.playing and _tone_cue == "bonus":
+		return
 	var voice := _shot if cue == "shot" else _tone
+	if voice == _tone:
+		_tone_cue = cue
 	voice.stream = CUES[cue]
 	voice.play()
+
+
+func stop_enemy() -> void:
+	if _enemy != null:
+		_enemy.stop()
+	if _tone != null and _tone_cue.begins_with("enemy_"):
+		_tone.stop()
+		_tone_cue = ""
 
 
 func set_bank(value: String) -> void:
@@ -131,5 +187,10 @@ func _update_volume() -> void:
 
 
 func set_paused(value: bool) -> void:
+	_paused = value
 	for voice in _voices:
 		voice.stream_paused = value
+
+
+func is_paused() -> bool:
+	return _paused

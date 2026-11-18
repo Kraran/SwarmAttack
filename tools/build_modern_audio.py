@@ -44,7 +44,20 @@ def build(name, duration):
     seed = sum((index + 1) * ord(char) for index, char in enumerate(name)) + 1980
     air = noise(time, seed)
     body = noise(time, seed + 1, high=1500)
-    if name == "shot":
+    if name.startswith("enemy_") or name.startswith("hit_"):
+        family = ["ring", "claw", "interceptor", "meteor", "row"].index(name.split("_", 1)[1])
+        base = [220, 145, 340, 78, 460][family]
+        if name.startswith("enemy_"):
+            envelope = np.sin(np.pi * time / duration) ** 2
+            flutter = 0.55 + 0.45 * np.sin(2 * np.pi * (3 + family * 1.7) * time)
+            sound = envelope * (0.22 * sweep(time, base * 2.5, base, duration / 3) * flutter
+                                + 0.07 * body + 0.08 * metal(time, [base, base*1.51, base*2.73], duration))
+        else:
+            sound = 0.30 * body * np.exp(-time / (0.07 + 0.015 * family))
+            sound += 0.20 * air * np.exp(-time / 0.04)
+            sound += 0.30 * sweep(time, base * 3, base / 2, 0.04) * np.exp(-time / 0.12)
+            sound += 0.18 * metal(time, [base*2.1, base*3.3, base*5.7], 0.15)
+    elif name == "shot":
         sound = 0.52 * sweep(time, 1200, 230, 0.022) * np.exp(-time / 0.037)
         sound += 0.22 * air * np.exp(-time / 0.013)
         sound += 0.18 * metal(time, [470, 790, 1370], 0.055)
@@ -74,6 +87,9 @@ def build(name, duration):
     elif name == "start":
         sound = 0.9 * chord(time, [110, 165, 220, 330], 0.13, 0.20)
         sound += 0.13 * body * np.exp(-time / 0.12)
+    elif name == "bonus":
+        sound = 0.9 * chord(time, [330, 440, 554.37, 660], 0.08, 0.18)
+        sound += 0.08 * metal(time, [990, 1320, 1980], 0.16)
     elif name == "success":
         sound = 0.9 * chord(time, [220, 277.18, 329.63, 440], 0.12, 0.24)
         sound += 0.06 * metal(time, [880, 1320, 1760], 0.20)
@@ -106,5 +122,10 @@ if __name__ == "__main__":
         "shot": 0.22, "impact": 0.32, "loss": 0.95, "crash": 1.10,
         "wave": 0.40, "launch": 1.10, "dock": 0.75, "start": 1.0,
         "success": 1.05, "timeout": 0.65, "cycle": 1.30,
+        "enemy_ring": 1.40, "enemy_claw": 0.90, "enemy_interceptor": 1.05,
+        "enemy_meteor": 0.85, "enemy_row": 1.10,
+        "hit_ring": 0.38, "hit_claw": 0.42, "hit_interceptor": 0.36,
+        "hit_meteor": 0.52, "hit_row": 0.34,
+        "bonus": 0.90,
     }.items():
         build(cue, length)
