@@ -10,16 +10,26 @@ const FlightMotion = preload("res://flight_motion.gd")
 const Presentation = preload("res://flight_presentation.gd")
 const CombatWave = preload("res://combat_wave.gd")
 const ArcadeAudio = preload("res://arcade_audio.gd")
+const ArcadeHaptics = preload("res://arcade_haptics.gd")
 const ArcadeProfile = preload("res://arcade_profile.gd")
 const Controls = preload("res://arcade_controls.gd")
-const ScoreEntry = preload("res://score_entry.gd")
 const TITLE_LOGO = preload("res://art/swarm_attack_logo.png")
 const LOGO_SHADER = preload("res://logo.gdshader")
 const Language = preload("res://arcade_language.gd")
 const ArcadeSession = preload("res://arcade_session.gd")
 const TrainingSession = preload("res://training_session.gd")
 const Effects = preload("res://arcade_effects.gd")
+const MenuScreen = preload("res://ui/menu_screen.gd")
+const MenuNavigation = preload("res://ui/menu_navigation.gd")
+const OptionsMenu = preload("res://ui/options_menu.gd")
+const PauseMenu = preload("res://ui/pause_menu.gd")
+const TrainingMenu = preload("res://ui/training_menu.gd")
+const TitleMenu = preload("res://ui/title_menu.gd")
+const ScoresMenu = preload("res://ui/scores_menu.gd")
+const MenuOverlay = preload("res://ui/menu_overlay.gd")
+const MenuInput = preload("res://ui/menu_input.gd")
 const AboutPanel = preload("res://about_panel.gd")
+const FpsCounter = preload("res://ui/fps_counter.gd")
 const SHIP_BURST_FRAMES := 36
 const MAX_CATCHUP_USEC := 8 * Pilot.FRAME_USEC
 const CURSOR_HIDE_USEC := 3_000_000
@@ -32,45 +42,17 @@ const LABEL_X := 704
 const PANEL_END := 1156
 const HEADER_LOGO := Rect2(LABEL_X, 0, 224, 126)
 const PORTRAIT_HEADER_LOGO := Rect2(83, 0, 100, 56.25)
-const SOLO_BUTTON := Rect2(LABEL_X, 468, PANEL_END - LABEL_X, 50)
-const DUO_BUTTON := Rect2(LABEL_X, 529, PANEL_END - LABEL_X, 45)
-const OPTIONS_BUTTON := Rect2(LABEL_X, 588, PANEL_END - LABEL_X, 42)
-const PORTRAIT_OPTIONS_BUTTON := Rect2(312, 17, 220, 34)
-const SCORES_BUTTON := Rect2(LABEL_X, 308, 216, 42)
-const TRAINING_BUTTON := Rect2(LABEL_X + 232, 308, 220, 42)
-const PORTRAIT_SCORES_BUTTON := Rect2(28, 740, 244, 30)
-const PORTRAIT_TRAINING_BUTTON := Rect2(288, 740, 244, 30)
-const OPTIONS_LANGUAGE := 2
-const OPTIONS_AUDIO := 3
-const OPTIONS_DISPLAY := 4
-const OPTIONS_CONTROLS := 5
-const OPTIONS_TRAINING := 6
-const OPTIONS_BACK := 7
-enum OptionsPage { MAIN, LANGUAGES, AUDIO, DISPLAY, CONTROLS, KEYBOARD, GAMEPAD }
-const PAUSE_LABELS := ["Reprendre", "Options", "Entraînement", "Accueil", "Quitter"]
-const PAUSE_BUTTON := Rect2(52, 107, 120, 17)
-const PAUSE_SPACING := 20.0
-const SCORE_LETTER := Rect2(57, 96, 32, 33)
-const SCORE_SAVE := Rect2(25, 179, 84, 20)
-const SCORE_SKIP := Rect2(115, 179, 84, 20)
-const SCORE_BACK := Rect2(62, 212, 100, 20)
-const RESULT_SCORES := Rect2(35, 207, 154, 20)
-const RESULT_HOME := Rect2(62, 233, 100, 17)
-const BACKGROUND := Color("#080f1c")
-const GRID := Color("#142239")
-const BORDER := Color("#314765")
-const PRIMARY := Color("#edf5ff")
-const MUTED := Color("#9eafc6")
-const SHIP := Color("#70edcd")
-const SHOT := Color("#ffe59a")
+const BACKGROUND = MenuScreen.BACKGROUND
+const GRID = MenuScreen.GRID
+const BORDER = MenuScreen.BORDER
+const PRIMARY = MenuScreen.PRIMARY
+const MUTED = MenuScreen.MUTED
+const SHIP = MenuScreen.SHIP
+const SHOT = MenuScreen.SHOT
 const ARCADE_CYAN := Color("#67d8ff")
 const ARCADE_GREEN := Color("#99dd68")
 const ARCADE_PINK := Color("#e786ef")
-const ARCADE_RED := Color("#ff735d")
-const SCORE_RANK_COLORS := [
-	ARCADE_RED, Color("#ff9b61"), Color("#ffc16c"), SHOT, Color("#c9e97b"),
-	ARCADE_GREEN, Color("#69e4b8"), ARCADE_CYAN, Color("#91aeff"), Color("#bc87ff"),
-]
+const ARCADE_RED = MenuScreen.ARCADE_RED
 const MODULE_COLORS := [Color("#b482ef"), ARCADE_CYAN, ARCADE_GREEN]
 const ENEMY := Color("#bc87ff")
 const ENEMY_CORE := Color("#b7e9ff")
@@ -91,6 +73,7 @@ var _run: ArcadeRun:
 var _attract := Attract.new()
 var _profile := ArcadeProfile.new()
 var _audio := ArcadeAudio.new()
+var _haptics := ArcadeHaptics.new()
 var _attract_active := true
 var _last_usec := 0
 var _elapsed_usec := 0
@@ -101,32 +84,7 @@ var _simulation_tick := 0
 var _visual_tick := 0.0
 var _motion := FlightMotion.new()
 var _focused := true
-var _paused := false
-var _pause_choice := 0
-var _options_open := false
-var _languages_open := false
-var _options_page := OptionsPage.MAIN
-var _binding_waiting := -1
-var _binding_error := false
-var _options_save_failed := false
-var _options_stick := Vector2i.ZERO
-var _options_choice := 0
-var _score_entry: ScoreEntry
-var _score_candidates: Array[Dictionary] = []
-var _score_results_open := false
-var _result_rows: Array[Dictionary] = []
-var _results_page := 0
-var _result_choice := 0
-var _scores_menu_open := false
 var _run_difficulty := ArcadeProfile.Difficulty.NORMAL
-var _training_open := false
-var _training_result_open := false
-var _training_from_options := false
-var _training_return_result := false
-var _training_choice := 0
-var _training_kind := TrainingSession.Kind.WAVE
-var _training_target := 1
-var _training_difficulty := ArcadeProfile.Difficulty.NORMAL
 var _exercise_kind := TrainingSession.Kind.DOCKING
 var _exercise_target := 1
 var _exercise_difficulty := ArcadeProfile.Difficulty.NORMAL
@@ -139,13 +97,21 @@ var _flight_view: FlightView
 var _starfield: Starfield
 var _dock_layer: InterfaceLayer
 var _hud_layer: InterfaceLayer
-var _pause_layer: InterfaceLayer
+var _pause_layer: MenuOverlay
 var _frame_layer: InterfaceLayer
 var _panel_layer: InterfaceLayer
 var _logo_layer: InterfaceLayer
 var _about: AboutPanel
+var _fps_counter := FpsCounter.new()
 var _about_audio_was_paused := false
 var _logo_hovered := false
+var _navigation := MenuNavigation.new()
+var _pause := PauseMenu.new(self,_navigation)
+var _options := OptionsMenu.new(self,_navigation)
+var _training := TrainingMenu.new(self,_navigation)
+var _title := TitleMenu.new(self,_navigation)
+var _scores := ScoresMenu.new(self,_navigation)
+var _menu_input := MenuInput.new(self,_navigation)
 
 
 func _ready() -> void:
@@ -153,6 +119,8 @@ func _ready() -> void:
 	_profile.read()
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	add_child(_audio)
+	add_child(_haptics)
+	_haptics.configure(_profile.vibration_enabled, _profile.vibration_intensity)
 	_audio.set_muted(_profile.muted)
 	_audio.set_volume(_profile.volume)
 	_audio.set_bank(_profile.audio_bank)
@@ -168,13 +136,16 @@ func _ready() -> void:
 	var logo_material := ShaderMaterial.new()
 	logo_material.shader = LOGO_SHADER
 	_logo_layer.material = logo_material
-	_pause_layer = _add_interface_layer(_draw_pause_overlay)
+	_pause_layer = MenuOverlay.new(self,_options,_pause,_training,_scores)
+	add_child(_pause_layer)
 	_frame_layer = _add_interface_layer(_draw_static_interface)
 	_panel_layer = _add_interface_layer(_draw_panel)
 	_about = AboutPanel.new()
 	_about.closed.connect(_close_about)
 	_about.link_requested.connect(_open_about_link)
 	add_child(_about)
+	add_child(_fps_counter)
+	_fps_counter.set_enabled(_profile.show_fps)
 	if _flight_view != null:
 		_apply_display()
 	Controls.apply(_profile.key_bindings, _profile.button_bindings)
@@ -200,152 +171,16 @@ func _read_controls() -> int:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		_last_mouse_motion_usec = Time.get_ticks_usec()
-		_update_cursor()
-		_update_logo_hover(event.position)
-	if not _focused:
+	if _focused:
+		_haptics.handle_input(event)
+	if _menu_input.handle_input(event):
 		return
-	if _about_is_open():
-		if _about.handle_input(event):
-			get_viewport().set_input_as_handled()
-		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and _logo_contains(event.position):
-		_open_about()
-		get_viewport().set_input_as_handled()
-		return
-	if _score_entry != null:
-		_handle_score_entry(event)
-		return
-	if event.is_echo():
-		return
-	if _training_open:
-		_handle_training_menu(event)
-		return
-	if _training_result_open:
-		_handle_training_result(event)
-		return
-	if _score_results_open or _scores_menu_open:
-		_handle_score_results(event)
-		return
-	if _options_open:
-		_handle_options_input(event)
-		return
-	if _paused and _handle_pause_input(event):
-		return
-	if not _attract_active and event.is_action_pressed(&"pause"):
-		_toggle_pause()
-		return
-	if event is InputEventKey and event.pressed:
-		match event.keycode:
-			KEY_R:
-				_restart(not _attract_active and _session.practice, _session.runs.size() if not _attract_active else 1)
-				return
-			KEY_F2:
-				if not _attract_active and _session.practice:
-					_restart(true)
-				else:
-					_open_training_menu()
-				return
-			KEY_2, KEY_KP_2:
-				if _attract_active:
-					_restart(false, 2)
-				return
-			KEY_ESCAPE:
-				if not _attract_active:
-					_toggle_pause()
-				else:
-					get_tree().quit()
-				return
-			KEY_T:
-				if _paused:
-					_return_to_title()
-				return
-			KEY_F3:
-				if _attract_active or _paused:
-					_set_options_open(true)
-				return
-			KEY_F4:
-				if _attract_active:
-					_open_scores_menu()
-				return
-			KEY_F5:
-				_profile.muted = not _profile.muted
-				_audio.set_muted(_profile.muted)
-				_save_profile()
-				return
-			KEY_F10:
-				_profile.portrait = not _profile.portrait
-				_apply_display()
-				_save_profile()
-				return
-			KEY_F11:
-				_profile.fullscreen = not _profile.fullscreen
-				_apply_display()
-				_save_profile()
-				return
-			KEY_F1:
-				_diagnostics = not _diagnostics
-				if _starfield != null:
-					_starfield.visible = not _diagnostics
-				_redraw()
-				return
-	if event is InputEventJoypadButton and event.pressed:
-		if not _attract_active and _session.practice and event.button_index == JOY_BUTTON_Y:
-			_restart(true)
-			return
-		if _attract_active and event.button_index == JOY_BUTTON_BACK:
-			_open_scores_menu()
-			return
-		if (_attract_active or _paused) and event.button_index == JOY_BUTTON_X:
-			_set_options_open(true)
-			return
-		if _attract_active and event.button_index == JOY_BUTTON_Y:
-			_restart(false, 2)
-			return
-		if _paused and event.button_index == JOY_BUTTON_START:
-			_toggle_pause()
-			return
-		if _paused and event.button_index == JOY_BUTTON_B:
-			_return_to_title()
-			return
-	if _attract_active and event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			var training_button := PORTRAIT_TRAINING_BUTTON if _profile.portrait else TRAINING_BUTTON
-			if training_button.has_point(event.position):
-				_open_training_menu()
-				return
-			var scores_button := PORTRAIT_SCORES_BUTTON if _profile.portrait else SCORES_BUTTON
-			if scores_button.has_point(event.position):
-				_open_scores_menu()
-				return
-			var options_button := PORTRAIT_OPTIONS_BUTTON if _profile.portrait else OPTIONS_BUTTON
-			if options_button.has_point(event.position):
-				_set_options_open(true)
-				return
-			if not _profile.portrait and SOLO_BUTTON.has_point(event.position):
-				_restart(false)
-				return
-			if not _profile.portrait and DUO_BUTTON.has_point(event.position):
-				_restart(false, 2)
-				return
 	var mask := _read_controls()
 	if not (mask & Pilot.FIRE):
 		_wait_for_fire_release = false
-	if not _paused:
+	if not _pause.active:
 		_pressed |= mask & ~_held
 	_held = mask
-
-
-func _toggle_pause() -> void:
-	_paused = not _paused
-	_pause_choice = 0
-	_audio.set_paused(_paused)
-	_last_usec = Time.get_ticks_usec()
-	_pressed = 0
-	_held = _read_controls()
-	_wait_for_fire_release = bool(_held & Pilot.FIRE)
-	_redraw()
 
 
 func _about_is_open() -> bool:
@@ -354,10 +189,10 @@ func _about_is_open() -> bool:
 
 func _logo_regions() -> Array[Rect2]:
 	var regions: Array[Rect2] = []
-	if not _focused or _about_is_open() or _score_entry != null or _score_results_open or _scores_menu_open:
+	if not _focused or _about_is_open() or _scores.entry != null or _scores.results_open or _scores.tables_open:
 		return regions
 	regions.append(PORTRAIT_HEADER_LOGO if _profile.portrait else HEADER_LOGO)
-	if not _attract_active or _paused or _options_open or _training_open or _training_result_open or _attract.screen() != Attract.Screen.TITLE_TEXT:
+	if not _attract_active or _pause.active or _options.opened or _training.opened or _training.result_open or _attract.screen() != Attract.Screen.TITLE_TEXT:
 		return regions
 	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)
 	if progress <= 0.0:
@@ -392,6 +227,7 @@ func _open_about() -> void:
 	if _about_is_open():
 		return
 	_about_audio_was_paused = _audio.is_paused()
+	_haptics.stop()
 	_audio.set_paused(true)
 	_about.present(PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE,_profile.language)
 	_pressed = 0
@@ -419,451 +255,19 @@ func _open_about_link(url: String) -> void:
 		OS.shell_open(url)
 
 
-func _pause_button(index: int) -> Rect2:
-	return Rect2(PAUSE_BUTTON.position + Vector2(0, PAUSE_SPACING * index), PAUSE_BUTTON.size)
-
-
 func _field_input_position(position: Vector2) -> Vector2:
 	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
 	return (position - field.position) * Vector2(Pilot.FIELD_SIZE) / field.size
 
 
-func _handle_pause_input(event: InputEvent) -> bool:
-	var direction := 0
-	if event is InputEventKey and event.pressed:
-		if event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
-			_confirm_pause_choice()
-			return true
-		direction = int(event.keycode == KEY_DOWN) - int(event.keycode == KEY_UP)
-	elif event is InputEventJoypadButton and event.pressed:
-		if event.button_index == JOY_BUTTON_A:
-			_confirm_pause_choice()
-			return true
-		direction = int(event.button_index == JOY_BUTTON_DPAD_DOWN) - int(event.button_index == JOY_BUTTON_DPAD_UP)
-	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
-		for index in range(PAUSE_LABELS.size()):
-			if _pause_button(index).has_point(point):
-				_pause_choice = index
-				_redraw()
-				if event is InputEventMouseButton:
-					_confirm_pause_choice()
-				return true
-	if direction != 0:
-		_pause_choice = posmod(_pause_choice + direction, PAUSE_LABELS.size())
-		_redraw()
-		return true
-	return false
-
-
-func _set_options_open(enabled: bool) -> void:
-	_options_open = enabled
-	_open_options_page(OptionsPage.MAIN, _profile.difficulty)
-	_audio.set_paused(_paused or enabled)
-	_options_choice = _profile.difficulty
-	_last_usec = Time.get_ticks_usec()
-	_pressed = 0
-	_held = _read_controls()
-	_wait_for_fire_release = bool(_held & Pilot.FIRE)
-	_redraw()
-
-
-func _options_item(index: int) -> Rect2:
-	if _options_page == OptionsPage.MAIN:
-		if index < 2:
-			return Rect2(33, 62 + 29 * index, 158, 26)
-		return Rect2(33, 120 + 18 * (index - 2), 158, 16)
-	var height := 18 if _languages_open else 24
-	return Rect2(33, 65 + (height + 3) * index, 158, height)
-
-
-func _options_back_index() -> int:
-	match _options_page:
-		OptionsPage.LANGUAGES: return Language.LANGUAGES.size()
-		OptionsPage.AUDIO: return 3
-		OptionsPage.DISPLAY: return 2
-		OptionsPage.CONTROLS: return 3
-		OptionsPage.KEYBOARD, OptionsPage.GAMEPAD: return Controls.ACTIONS.size() + 1
-	return OPTIONS_BACK
-
-
-func _open_options_page(page: OptionsPage, choice := 0) -> void:
-	_options_page = page
-	_languages_open = page == OptionsPage.LANGUAGES
-	_options_choice = choice
-	_binding_waiting = -1
-	_binding_error = false
-	_options_stick = Vector2i.ZERO
-
-
-func _back_options() -> void:
-	if _options_page == OptionsPage.MAIN:
-		_set_options_open(false)
-		return
-	match _options_page:
-		OptionsPage.KEYBOARD: _open_options_page(OptionsPage.CONTROLS, 0)
-		OptionsPage.GAMEPAD: _open_options_page(OptionsPage.CONTROLS, 1)
-		OptionsPage.LANGUAGES: _open_options_page(OptionsPage.MAIN, OPTIONS_LANGUAGE)
-		OptionsPage.AUDIO: _open_options_page(OptionsPage.MAIN, OPTIONS_AUDIO)
-		OptionsPage.DISPLAY: _open_options_page(OptionsPage.MAIN, OPTIONS_DISPLAY)
-		_: _open_options_page(OptionsPage.MAIN, OPTIONS_CONTROLS)
-	_redraw()
-
-
-func _handle_options_input(event: InputEvent) -> void:
-	if _binding_waiting >= 0:
-		_handle_binding_input(event)
-		return
-	var direction := 0
-	var adjustment := 0
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_ESCAPE:
-			_back_options()
-			return
-		if event.keycode == KEY_F3:
-			_set_options_open(false)
-			return
-		if event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
-			_confirm_options_choice()
-			return
-		direction = int(event.keycode == KEY_DOWN) - int(event.keycode == KEY_UP)
-		adjustment = int(event.keycode == KEY_RIGHT) - int(event.keycode == KEY_LEFT)
-	elif event is InputEventJoypadButton and event.pressed:
-		if event.button_index == JOY_BUTTON_B:
-			_back_options()
-			return
-		if event.button_index == JOY_BUTTON_X:
-			_set_options_open(false)
-			return
-		if event.button_index == JOY_BUTTON_A:
-			_confirm_options_choice()
-			return
-		direction = int(event.button_index == JOY_BUTTON_DPAD_DOWN) - int(event.button_index == JOY_BUTTON_DPAD_UP)
-		adjustment = int(event.button_index == JOY_BUTTON_DPAD_RIGHT) - int(event.button_index == JOY_BUTTON_DPAD_LEFT)
-	elif event is InputEventJoypadMotion and event.axis in [JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y]:
-		var axis := int(event.axis == JOY_AXIS_LEFT_Y)
-		if absf(event.axis_value) < 0.4:
-			_options_stick[axis] = 0
-		elif absf(event.axis_value) >= 0.65:
-			var tilt := int(signf(event.axis_value))
-			if tilt != _options_stick[axis]:
-				if axis == 0:
-					adjustment = tilt
-				else:
-					direction = tilt
-			_options_stick[axis] = tilt
-	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
-		for index in range(_options_back_index() + 1):
-			if _options_item(index).has_point(point):
-				_options_choice = index
-				if event is InputEventMouseButton:
-					if _options_page == OptionsPage.AUDIO and index == 0:
-						_adjust_option(-1 if point.x < 112 else 1)
-					else:
-						_confirm_options_choice()
-				else:
-					_redraw()
-				return
-	if adjustment != 0:
-		_adjust_option(adjustment)
-		return
-	if direction != 0:
-		_options_choice = posmod(_options_choice + direction, _options_back_index() + 1)
-		_redraw()
-
-
-func _confirm_options_choice() -> void:
-	if _options_choice == _options_back_index():
-		_back_options()
-		return
-	if _languages_open:
-		var language: String = Language.LANGUAGES.keys()[_options_choice]
-		if _profile.language != language:
-			_profile.language = language
-			_save_profile()
-		else:
-			_redraw()
-		return
-	if _options_page in [OptionsPage.AUDIO, OptionsPage.DISPLAY]:
-		_adjust_option(1)
-		return
-	if _options_page == OptionsPage.CONTROLS:
-		if _options_choice < 2:
-			_open_options_page(OptionsPage.KEYBOARD if _options_choice == 0 else OptionsPage.GAMEPAD)
-		else:
-			_profile.key_bindings = Controls.DEFAULT_KEYS.duplicate(true)
-			_profile.button_bindings = Controls.DEFAULT_BUTTONS.duplicate()
-			Controls.apply(_profile.key_bindings, _profile.button_bindings)
-			_save_profile()
-		_redraw()
-		return
-	if _options_page in [OptionsPage.KEYBOARD, OptionsPage.GAMEPAD]:
-		if _options_choice == Controls.ACTIONS.size():
-			if _options_page == OptionsPage.KEYBOARD:
-				_profile.key_bindings = Controls.DEFAULT_KEYS.duplicate(true)
-			else:
-				_profile.button_bindings = Controls.DEFAULT_BUTTONS.duplicate()
-			Controls.apply(_profile.key_bindings, _profile.button_bindings)
-			_save_profile()
-		else:
-			_binding_waiting = _options_choice
-			_binding_error = false
-		_redraw()
-		return
-	if _options_choice == OPTIONS_LANGUAGE:
-		_open_options_page(OptionsPage.LANGUAGES, Language.LANGUAGES.keys().find(_profile.language))
-		_redraw()
-		return
-	if _options_choice == OPTIONS_TRAINING:
-		_open_training_menu(true)
-		return
-	if _options_choice in [OPTIONS_AUDIO, OPTIONS_DISPLAY, OPTIONS_CONTROLS]:
-		var pages := {OPTIONS_AUDIO: OptionsPage.AUDIO, OPTIONS_DISPLAY: OptionsPage.DISPLAY, OPTIONS_CONTROLS: OptionsPage.CONTROLS}
-		_open_options_page(pages[_options_choice])
-		_redraw()
-		return
-	var difficulty := ArcadeProfile.Difficulty.VETERANS if _options_choice == 1 else ArcadeProfile.Difficulty.NORMAL
-	if _profile.difficulty != difficulty:
-		_profile.difficulty = difficulty
-		_save_profile()
-	else:
-		_redraw()
-
-
-func _adjust_option(direction: int) -> void:
-	match _options_page:
-		OptionsPage.AUDIO:
-			if _options_choice == 0:
-				_profile.volume = clampi(_profile.volume + direction * 10, 0, 100)
-				_audio.set_volume(_profile.volume)
-			elif _options_choice == 1:
-				_profile.muted = not _profile.muted
-				_audio.set_muted(_profile.muted)
-			elif _options_choice == 2:
-				_profile.audio_bank = "modern" if _profile.audio_bank == "original" else "original"
-				_audio.set_bank(_profile.audio_bank)
-				_audio.preview_shot()
-			else:
-				return
-		OptionsPage.DISPLAY:
-			if _options_choice == 0:
-				_profile.fullscreen = not _profile.fullscreen
-			elif _options_choice == 1:
-				_profile.portrait = not _profile.portrait
-			else:
-				return
-			_apply_display()
-		_:
-			return
-	_save_profile()
-
-
-func _handle_binding_input(event: InputEvent) -> void:
-	if (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_BACK):
-		_binding_waiting = -1
-		_binding_error = false
-		_redraw()
-		return
-	var action: StringName = Controls.ACTIONS[_binding_waiting]
-	if _options_page == OptionsPage.KEYBOARD and event is InputEventKey and event.pressed:
-		if not Controls.valid_key(event.keycode, action) or event.ctrl_pressed or event.alt_pressed or event.meta_pressed:
-			_binding_error = true
-			_redraw()
-			return
-		if not Controls.assign_key(_profile.key_bindings, action, event.keycode):
-			_binding_error = true
-			_redraw()
-			return
-	elif _options_page == OptionsPage.GAMEPAD and event is InputEventJoypadButton and event.pressed:
-		if not Controls.valid_button(event.button_index):
-			_binding_error = true
-			_redraw()
-			return
-		Controls.assign_button(_profile.button_bindings, action, event.button_index)
-	else:
-		return
-	_binding_waiting = -1
-	_binding_error = false
-	Controls.apply(_profile.key_bindings, _profile.button_bindings)
-	_save_profile()
-
-
-func _confirm_pause_choice() -> void:
-	match _pause_choice:
-		0:
-			_toggle_pause()
-		1:
-			_set_options_open(true)
-		2:
-			_open_training_menu()
-		3:
-			_return_to_title()
-		4:
-			get_tree().quit()
-
-
-func _open_training_menu(from_options := false) -> void:
-	_training_return_result = _training_result_open
-	_training_result_open = false
-	_training_from_options = from_options
-	if not _training_return_result and not _attract_active and not _paused:
-		_toggle_pause()
-	if not _attract_active and _session.practice:
-		_training_kind = _exercise_kind
-		_training_target = _exercise_target
-		_training_difficulty = _exercise_difficulty
-	else:
-		_training_difficulty = _profile.difficulty
-	_training_open = true
-	_options_open = false
-	_training_choice = 0
-	_options_stick = Vector2i.ZERO
-	_audio.set_paused(true)
-	_pressed = 0
-	_redraw()
-
-
-func _close_training_menu() -> void:
-	_training_open = false
-	if _training_return_result:
-		_training_result_open = true
-		_training_choice = 1
-	elif _training_from_options:
-		_set_options_open(true)
-		_options_choice = OPTIONS_TRAINING
-	_audio.set_paused(_paused or _options_open)
-	_last_usec = Time.get_ticks_usec()
-	_pressed = 0
-	_held = _read_controls()
-	_wait_for_fire_release = bool(_held & Pilot.FIRE)
-	_redraw()
-
-
-func _menu_direction(event: InputEvent) -> Vector2i:
-	if event is InputEventKey and event.pressed:
-		return Vector2i(int(event.keycode == KEY_RIGHT) - int(event.keycode == KEY_LEFT),
-			int(event.keycode == KEY_DOWN) - int(event.keycode == KEY_UP))
-	if event is InputEventJoypadButton and event.pressed:
-		return Vector2i(int(event.button_index == JOY_BUTTON_DPAD_RIGHT) - int(event.button_index == JOY_BUTTON_DPAD_LEFT),
-			int(event.button_index == JOY_BUTTON_DPAD_DOWN) - int(event.button_index == JOY_BUTTON_DPAD_UP))
-	if event is InputEventJoypadMotion and event.axis in [JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y]:
-		var axis := int(event.axis == JOY_AXIS_LEFT_Y)
-		if absf(event.axis_value) < 0.4:
-			_options_stick[axis] = 0
-		elif absf(event.axis_value) >= 0.65:
-			var tilt := int(signf(event.axis_value))
-			if tilt != _options_stick[axis]:
-				_options_stick[axis] = tilt
-				return Vector2i(tilt, 0) if axis == 0 else Vector2i(0, tilt)
-	return Vector2i.ZERO
-
-
-func _training_row(index: int, result := false) -> Rect2:
-	return Rect2(33, (137 if result else 65) + 27 * index, 158, 22)
-
-
-func _handle_training_menu(event: InputEvent) -> void:
-	if (event is InputEventKey and event.pressed and event.keycode in [KEY_ESCAPE, KEY_F2]
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B):
-		_close_training_menu()
-		return
-	var direction := _menu_direction(event)
-	if direction.y != 0:
-		_training_choice = posmod(_training_choice + direction.y, 5)
-		_redraw()
-	elif direction.x != 0:
-		_adjust_training(direction.x)
-	elif (event is InputEventKey and event.pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A):
-		_confirm_training()
-	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
-		for index in 5:
-			if _training_row(index).has_point(point):
-				_training_choice = index
-				if event is InputEventMouseButton:
-					if index < 3:
-						_adjust_training(-1 if point.x < 112 else 1)
-					else:
-						_confirm_training()
-				_redraw()
-				return
-
-
-func _adjust_training(direction: int) -> void:
-	match _training_choice:
-		0:
-			_training_kind = TrainingSession.Kind.DOCKING if _training_kind == TrainingSession.Kind.WAVE else TrainingSession.Kind.WAVE
-			_training_target = 1
-		1:
-			_training_target = 1 + posmod(_training_target - 1 + direction,
-				10 if _training_kind == TrainingSession.Kind.WAVE else 2)
-		2:
-			_training_difficulty = ArcadeProfile.Difficulty.VETERANS if _training_difficulty == ArcadeProfile.Difficulty.NORMAL else ArcadeProfile.Difficulty.NORMAL
-	_redraw()
-
-
-func _confirm_training() -> void:
-	if _training_choice < 3:
-		_adjust_training(1)
-	elif _training_choice == 3:
-		_exercise_kind = _training_kind
-		_exercise_target = _training_target
-		_exercise_difficulty = _training_difficulty
-		_restart(true)
-	else:
-		_close_training_menu()
-
-
-func _handle_training_result(event: InputEvent) -> void:
-	if (event is InputEventKey and event.pressed and event.keycode in [KEY_R, KEY_F2]
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y):
-		_restart(true)
-		return
-	if (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B):
-		_open_training_menu()
-		return
-	var direction := _menu_direction(event)
-	if direction.y != 0:
-		_training_choice = posmod(_training_choice + direction.y, 3)
-		_redraw()
-	elif (event is InputEventKey and event.pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
-			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A):
-		_confirm_training_result()
-	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
-		for index in 3:
-			if _training_row(index, true).has_point(point):
-				_training_choice = index
-				if event is InputEventMouseButton:
-					_confirm_training_result()
-				_redraw()
-				return
-
-
-func _confirm_training_result() -> void:
-	match _training_choice:
-		0: _restart(true)
-		1: _open_training_menu()
-		2: _return_to_title()
-
-
 func _exercise_label() -> String:
-	return _target_label(_exercise_kind, _exercise_target)
-
-
-func _target_label(kind: int, target: int) -> String:
-	if kind == TrainingSession.Kind.WAVE:
-		return _translate("Vague %d") % target
-	return _translate("Amarrage %s") % ("I → II" if target == 1 else "I + II → III")
+	return _training.target_label(_exercise_kind, _exercise_target)
 
 
 func _return_to_title() -> void:
-	_training_open = false
-	_training_result_open = false
+	_haptics.stop()
+	_training.opened = false
+	_training.result_open = false
 	_combat_impacts.clear()
 	_audio.stop()
 	_audio.set_paused(false)
@@ -871,15 +275,9 @@ func _return_to_title() -> void:
 	_attract_active = true
 	_motion.reset()
 	_visual_tick = float(_simulation_tick)
-	_paused = false
-	_options_open = false
-	_score_entry = null
-	_score_candidates.clear()
-	_score_results_open = false
-	_result_rows.clear()
-	_results_page = 0
-	_result_choice = 0
-	_scores_menu_open = false
+	_pause.active = false
+	_options.opened = false
+	_scores.reset()
 	_elapsed_usec = 0
 	_last_usec = Time.get_ticks_usec()
 	_pressed = 0
@@ -889,20 +287,15 @@ func _return_to_title() -> void:
 
 
 func _restart(practice: bool, players := 1) -> void:
-	_training_open = false
-	_training_result_open = false
+	_haptics.stop()
+	_training.opened = false
+	_training.result_open = false
 	_combat_impacts.clear()
-	_score_results_open = false
-	_results_page = 0
-	_result_choice = 0
-	_result_rows.clear()
-	_score_candidates.clear()
-	_score_entry = null
-	_scores_menu_open = false
+	_scores.reset()
 	_run_difficulty = _exercise_difficulty if practice else _profile.difficulty
 	_attract_active = false
-	_paused = false
-	_options_open = false
+	_pause.active = false
+	_options.opened = false
 	if practice:
 		_session = TrainingSession.new(_exercise_kind, _exercise_target,
 			2 if _exercise_difficulty == ArcadeProfile.Difficulty.VETERANS else 1,
@@ -928,154 +321,21 @@ func _restart(practice: bool, players := 1) -> void:
 	_redraw()
 
 
-func _finish_session() -> void:
-	var candidates: Array[Dictionary] = []
-	var results: Array[Dictionary] = []
-	if not _session.practice:
-		for player in _session.runs.size():
-			var run := _session.runs[player]
-			var score := run.score()
-			results.append({"player": player + 1, "score": score, "cycle": run.cycle,
-				"docks": run.successful_dockings, "rank": 0, "initials": "---"})
-			if _profile.qualifies(score, _run_difficulty):
-				candidates.append({"player": player + 1, "score": score})
-	_return_to_title()
-	if results.is_empty():
-		return
-	_result_rows = results
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a.player < b.player if a.score == b.score else a.score > b.score)
-	_score_candidates = candidates
-	_next_score_entry()
-
-
-func _next_score_entry() -> void:
-	while not _score_candidates.is_empty() and not _profile.qualifies(_score_candidates[0].score, _run_difficulty):
-		_score_candidates.pop_front()
-	if _score_candidates.is_empty():
-		_score_entry = null
-		_score_results_open = true
-		_results_page = 0
-		_attract.frame = Attract.TITLE_TEXT_FRAMES
-	else:
-		_score_entry = ScoreEntry.new()
-	_redraw()
-
-
-func _resolve_score_entry(save: bool) -> void:
-	if save:
-		var candidate := _score_candidates[0]
-		var rank := _profile.insertion_rank(candidate.score, _run_difficulty)
-		var error := _profile.submit_score(_score_candidates[0].score, _score_entry.initials,
-			ArcadeProfile.SAVE_PATH, _run_difficulty)
-		if error != OK and error != ERR_UNAVAILABLE:
-			_score_entry.save_failed = true
-			_redraw()
-			return
-		if error == OK:
-			var result: Dictionary = _result_rows[candidate.player - 1]
-			result.rank = rank
-			result.initials = _score_entry.initials
-	_score_candidates.pop_front()
-	_next_score_entry()
-
-
-func _score_letter_rect(index: int) -> Rect2:
-	return Rect2(SCORE_LETTER.position + Vector2(39 * index, 0), SCORE_LETTER.size)
-
-
-func _handle_score_entry(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var point := _field_input_position(event.position)
-		if SCORE_SAVE.has_point(point) or SCORE_SKIP.has_point(point):
-			_resolve_score_entry(SCORE_SAVE.has_point(point))
-			return
-		for index in 3:
-			if _score_letter_rect(index).has_point(point):
-				_score_entry.cursor = index
-				_redraw()
-				return
-	match _score_entry.handle(event):
-		ScoreEntry.Result.CHANGED:
-			_redraw()
-		ScoreEntry.Result.SAVE:
-			_resolve_score_entry(true)
-		ScoreEntry.Result.SKIP:
-			_resolve_score_entry(false)
-
-
-func _handle_score_results(event: InputEvent) -> void:
-	if _score_results_open and _results_page == 0:
-		if event is InputEventMouseMotion:
-			var point := _field_input_position(event.position)
-			if RESULT_SCORES.has_point(point) or RESULT_HOME.has_point(point):
-				_result_choice = int(RESULT_HOME.has_point(point))
-				_redraw()
-			return
-		if (event is InputEventKey and event.pressed and event.keycode in [KEY_UP, KEY_DOWN]
-				or event is InputEventJoypadButton and event.pressed and event.button_index in [JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN]):
-			_result_choice = 1 - _result_choice
-			_redraw()
-			return
-	if not event.is_pressed():
-		return
-	if _scores_menu_open:
-		if (event is InputEventKey and event.keycode in [KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER, KEY_F4]
-			or event is InputEventJoypadButton and event.button_index in [JOY_BUTTON_B, JOY_BUTTON_A, JOY_BUTTON_START, JOY_BUTTON_BACK]
-			or event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT
-				and SCORE_BACK.has_point(_field_input_position(event.position))):
-			_return_to_title()
-		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		var point := _field_input_position(event.position)
-		if _results_page == 0 and RESULT_HOME.has_point(point):
-			_return_to_title()
-			return
-		if not (RESULT_SCORES.has_point(point) if _results_page == 0 else SCORE_BACK.has_point(point)):
-			return
-		_results_page = 1 - _results_page
-	elif (event is InputEventKey and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_F4]
-			or event is InputEventJoypadButton and event.button_index in [JOY_BUTTON_A, JOY_BUTTON_START]):
-		if _results_page == 0 and _result_choice == 1 and not (event is InputEventKey and event.keycode == KEY_F4):
-			_return_to_title()
-			return
-		_results_page = 1 - _results_page
-	elif (event is InputEventKey and event.keycode == KEY_ESCAPE
-			or event is InputEventJoypadButton and event.button_index in [JOY_BUTTON_B, JOY_BUTTON_BACK]):
-		if _results_page == 1:
-			_results_page = 0
-		else:
-			_return_to_title()
-			return
-	else:
-		return
-	if _results_page == 0:
-		_result_choice = 0
-	_redraw()
-
-
-func _open_scores_menu() -> void:
-	_scores_menu_open = true
-	_elapsed_usec = 0
-	_pressed = 0
-	_redraw()
-
-
 func _score_mode() -> int:
-	return _profile.difficulty if _attract_active and not _score_results_open and _score_entry == null else _run_difficulty
+	return _profile.difficulty if _attract_active and not _scores.results_open and _scores.entry == null else _run_difficulty
 
 
 func _on_joy_connection_changed(device: int, connected: bool) -> void:
-	if not connected and _score_entry != null:
-		_score_entry.release_pad(device)
-	if not connected and _binding_waiting >= 0 and _options_page == OptionsPage.GAMEPAD:
-		_binding_waiting = -1
+	_haptics.connection_changed(device, connected)
+	if not connected and _scores.entry != null:
+		_scores.entry.release_pad(device)
+	if not connected and _options.gamepad_disconnected():
 		_redraw()
 
 
 func _save_profile() -> void:
-	_options_save_failed = _profile.write() != OK
-	if _options_save_failed:
+	_options.save_failed = _profile.write() != OK
+	if _options.save_failed:
 		push_warning("Impossible d’enregistrer les réglages ou les scores.")
 	_redraw()
 
@@ -1103,14 +363,16 @@ func _apply_display() -> void:
 
 func _in_play() -> bool:
 	return (
-		_focused and not _attract_active and not _paused and not _options_open
-		and _score_entry == null and not _score_results_open and not _scores_menu_open
-		and not _training_open and not _training_result_open
+		_focused and not _attract_active and not _pause.active and not _options.opened
+		and _scores.entry == null and not _scores.results_open and not _scores.tables_open
+		and not _training.opened and not _training.result_open
 		and not _about_is_open()
 	)
 
 
 # En jeu, le curseur disparaît après 3 s sans mouvement de la souris.
+
+
 func _update_cursor() -> void:
 	var should_hide := _in_play() and Time.get_ticks_usec() - _last_mouse_motion_usec >= CURSOR_HIDE_USEC
 	if should_hide == _cursor_hidden:
@@ -1123,30 +385,32 @@ func _update_cursor() -> void:
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_APPLICATION_FOCUS_OUT:
+			_haptics.stop()
 			_focused = false
 			_update_cursor()
 			_audio.set_paused(true)
 			_held = 0
 			_pressed = 0
 			_last_input = 0
-			_binding_waiting = -1
-			if _score_entry != null:
-				_score_entry.release_pad()
+			_options.cancel_capture()
+			if _scores.entry != null:
+				_scores.entry.release_pad()
 			_redraw()
 		NOTIFICATION_APPLICATION_FOCUS_IN:
 			_focused = true
-			_audio.set_paused(_paused or _options_open or _about_is_open())
+			_audio.set_paused(_pause.active or _options.opened or _about_is_open())
 			_last_usec = Time.get_ticks_usec()
 			_redraw()
 
 
 func _process(delta: float) -> void:
+	_haptics.set_gameplay_active(_in_play())
 	_update_cursor()
 	_update_logo_hover(get_global_mouse_position())
-	if not _focused or _paused or _options_open or _score_results_open or _scores_menu_open or _training_open or _training_result_open or _about_is_open():
+	if not _focused or _pause.active or _options.opened or _scores.results_open or _scores.tables_open or _training.opened or _training.result_open or _about_is_open():
 		return
-	if _score_entry != null:
-		if _score_entry.repeat(delta):
+	if _scores.entry != null:
+		if _scores.entry.repeat(delta):
 			_redraw()
 		return
 	var now := Time.get_ticks_usec()
@@ -1157,7 +421,7 @@ func _process(delta: float) -> void:
 
 func _advance_starfield() -> void:
 	# Une mise à jour par image de rendu. La VSync cadence sa présentation.
-	if _focused and not _paused and not _about_is_open() and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
+	if _focused and not _pause.active and not _about_is_open() and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
 		_starfield.advance()
 
 
@@ -1179,11 +443,11 @@ func _advance_frame(duration_usec: int, input_mask: int) -> void:
 			_motion.capture_demo(_attract, _simulation_tick)
 			continue
 		_step_session(_last_input)
-		if _training_result_open:
+		if _training.result_open:
 			_elapsed_usec = 0
 			break
 		if _session.finished:
-			_finish_session()
+			_scores.finish_session()
 			break
 	_visual_tick = _simulation_tick + float(_elapsed_usec) / Pilot.FRAME_USEC
 	_redraw()
@@ -1204,6 +468,10 @@ func _step_session(input_mask: int) -> void:
 	var frame := previous.combat.pilot.frame
 	var shots := previous.combat.pilot.active_shots()
 	_session.step(input_mask)
+	if _run != previous or _run.combat != previous_combat or _run.phase != phase:
+		print("SESSION cycle=%d wave=%d phase=%s modules=%d lives=%d audio=%s" % [
+			_run.cycle, _cycle_wave(), ArcadeRun.Phase.keys()[_run.phase],
+			_run.attached, _run.lives, _profile.audio_bank])
 	if _run != previous or _run.combat != previous_combat:
 		_combat_impacts.clear()
 	elif phase == ArcadeRun.Phase.COMBAT:
@@ -1215,49 +483,66 @@ func _step_session(input_mask: int) -> void:
 	if _run != previous or _run.combat != previous_combat or _run.phase != ArcadeRun.Phase.COMBAT:
 		_audio.stop_enemy()
 	elif previous_combat.wave.flight_sound_serial != flight_sound_before:
-		_audio.play(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave())))
+		_play_feedback(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave())))
 	if _session is TrainingSession:
 		var training := _session as TrainingSession
 		if training.completed:
-			_training_result_open = true
-			_training_choice = 0
+			_training.result_open = true
+			_training.choice = 0
 		if training.pending:
 			if not was_training_pending:
 				_audio.stop()
 				var cue := "success" if training.success else "loss"
 				if training.kind == TrainingSession.Kind.DOCKING and not training.success:
 					cue = "crash" if _run.docking.stage == Docking.Stage.COLLISION else "timeout"
-				_audio.play(cue)
+				_play_feedback(cue)
 			return
 	if _run != previous:
 		_audio.stop()
-		_audio.play("launch" if _ship_ascending(_run) else "start")
+		_play_feedback("launch" if _ship_ascending(_run) else "start")
 		return
 	if not was_ascending and _ship_ascending(_run):
-		_audio.play("cycle" if _run.phase == ArcadeRun.Phase.CYCLE_END else "launch")
+		_play_feedback("cycle" if _run.phase == ArcadeRun.Phase.CYCLE_END else "launch")
 		return
 	if _run.phase != phase:
 		if _run.phase == ArcadeRun.Phase.REPLACEMENT and phase == ArcadeRun.Phase.COMBAT:
-			_audio.play("loss")
+			_play_feedback("loss")
 		elif _run.phase == ArcadeRun.Phase.DOCKING:
-			_audio.play("dock")
+			_play_feedback("dock")
 	elif _run.docking != null and _run.docking.stage != dock_stage:
 		match _run.docking.stage:
 			Docking.Stage.SUCCESS:
-				_audio.play("success")
+				_play_feedback("success")
 			Docking.Stage.COLLISION:
-				_audio.play("crash")
+				_play_feedback("crash")
 			Docking.Stage.TIMED_OUT:
-				_audio.play("timeout")
+				_play_feedback("timeout")
 	elif phase == ArcadeRun.Phase.COMBAT and _run.wave_number == wave and _run.combat.pilot.frame > frame:
 		if _run.combat.impact_age == 0:
-			_audio.play(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave()), true))
+			_play_feedback(ArcadeAudio.enemy_cue(Presentation.enemy_kind(_cycle_wave()), true))
 		for shot in _run.combat.pilot.active_shots():
 			if (shot + Vector2i(0, Pilot.SHOT_STEP)) not in shots:
-				_audio.play("shot")
+				_play_feedback("shot")
 				break
 	if not had_reserve and _run.bonus_reserve:
-		_audio.play("bonus")
+		_play_feedback("bonus")
+
+
+func _play_feedback(cue: String) -> void:
+	var x := Pilot.FIELD_SIZE.x * 0.5
+	if cue == "shot":
+		x = _run.combat.pilot.ship_x - 1.0
+	elif cue in ["loss", "impact"] or cue.begins_with("hit_"):
+		x = _run.combat.impact_position.x
+	elif cue in ["success", "crash"] and _run.docking != null:
+		x = _run.docking.display_position().x
+	elif cue.begins_with("enemy_") and _run.combat.wave.flight_sound_source != null:
+		x = _run.combat.wave.flight_sound_source.display_position().x
+	_audio.play(cue, ArcadeAudio.pan_for_x(x))
+	if (cue in ["loss", "crash"] or cue == "success"
+			and _run.phase == ArcadeRun.Phase.DOCKING and _run.docking != null
+			and _run.docking.stage == Docking.Stage.SUCCESS):
+		_haptics.play(cue)
 
 
 func _ship_ascending(run: ArcadeRun) -> bool:
@@ -1287,6 +572,10 @@ func _capture_combat_impacts(combat: ArcadeRun.CombatRound, alive_before: int, n
 
 
 func _redraw() -> void:
+	_fps_counter.set_enabled(_profile.show_fps)
+	_haptics.set_gameplay_active(_in_play())
+	if not _attract_active and _run.combat.wave.flight_sound_source != null:
+		_audio.set_enemy_pan(ArcadeAudio.pan_for_x(_run.combat.wave.flight_sound_source.display_position().x))
 	if _panel_layer != null:
 		_refresh_interface()
 	queue_redraw()
@@ -1295,27 +584,17 @@ func _redraw() -> void:
 func _refresh_interface() -> void:
 	var portrait := _profile.portrait
 	var language := _profile.language
-	var title_visible := _attract_active and not _scores_menu_open and _score_entry == null and _attract.screen() == Attract.Screen.TITLE_TEXT
+	var title_visible := _attract_active and not _scores.tables_open and _scores.entry == null and _attract.screen() == Attract.Screen.TITLE_TEXT
 	_logo_layer.refresh([portrait, title_visible, _logo_hovered,
 		_attract.title_line_progress(1, _visual_tick - _simulation_tick) if title_visible else 0.0])
 	var controls_state := [hash(_profile.key_bindings), hash(_profile.button_bindings)]
 	_frame_layer.refresh([portrait, _uses_hd(), language, controls_state])
-	_pause_layer.refresh([portrait, _paused, _focused, _pause_choice,
-		_options_open, _options_choice, _profile.difficulty, _languages_open, language,
-		_options_page, _binding_waiting, _binding_error, _options_save_failed, _profile.volume,
-		_profile.backup_failed,
-		_profile.audio_bank, _training_open, _training_result_open, _training_choice,
-		_training_kind, _training_target, _training_difficulty,
-		_profile.muted, _profile.fullscreen, controls_state,
-		_score_candidates[0] if _score_entry != null else null,
-		_score_entry.initials if _score_entry != null else "",
-		_score_entry.cursor if _score_entry != null else -1,
-		_score_entry.save_failed if _score_entry != null else false])
+	_pause_layer.refresh(controls_state)
 	var demo := _attract_active and _attract.screen() == Attract.Screen.DEMO
-	var results := _score_results_open and not _result_rows.is_empty()
-	var duo := _result_rows.size() == 2 if results else not _attract_active and _session.runs.size() == 2
-	var first_score: int = _result_rows[0].score if results else (0 if _attract_active else _session.runs[0].score())
-	var second_score: int = _result_rows[1].score if results and duo else (_session.runs[1].score() if duo else 0)
+	var results := _scores.results_open and not _scores.rows.is_empty()
+	var duo := _scores.rows.size() == 2 if results else not _attract_active and _session.runs.size() == 2
+	var first_score: int = _scores.rows[0].score if results else (0 if _attract_active else _session.runs[0].score())
+	var second_score: int = _scores.rows[1].score if results and duo else (_session.runs[1].score() if duo else 0)
 	var modules := _hud_modules(demo)
 	_hud_layer.refresh([portrait, _profile.scores_for(_score_mode())[0], _score_mode(),
 		first_score, second_score, duo, _session.player, _attract_active and not demo, modules, language, results])
@@ -1343,15 +622,15 @@ func _refresh_panel(duo: bool, dock: Docking) -> void:
 	var pointer := get_global_mouse_position()
 	var state: Array = [_profile.portrait, _attract_active, _profile.language,
 		_session.practice, _exercise_kind, _exercise_target,
-		TRAINING_BUTTON.has_point(pointer), PORTRAIT_TRAINING_BUTTON.has_point(pointer),
+		TitleMenu.TRAINING_BUTTON.has_point(pointer), TitleMenu.PORTRAIT_TRAINING_BUTTON.has_point(pointer),
 		hash(_profile.key_bindings), hash(_profile.button_bindings),
 		_score_mode(),
-		SCORES_BUTTON.has_point(pointer), PORTRAIT_SCORES_BUTTON.has_point(pointer),
-		_score_entry != null or _score_results_open or _scores_menu_open]
+		TitleMenu.SCORES_BUTTON.has_point(pointer), TitleMenu.PORTRAIT_SCORES_BUTTON.has_point(pointer),
+		_scores.entry != null or _scores.results_open or _scores.tables_open]
 	if _profile.portrait:
 		if _attract_active:
 			state.append(_profile.difficulty)
-			state.append(PORTRAIT_OPTIONS_BUTTON.has_point(get_global_mouse_position()))
+			state.append(TitleMenu.PORTRAIT_OPTIONS_BUTTON.has_point(get_global_mouse_position()))
 		else:
 			state.append_array([_run.lives, _run.phase, _run.cycle, _cycle_wave(),
 				duo, _session.player, _run.attached])
@@ -1360,8 +639,8 @@ func _refresh_panel(duo: bool, dock: Docking) -> void:
 		if _focused:
 			state.append(_profile.muted)
 			if _attract_active:
-				state.append_array([_profile.difficulty, SOLO_BUTTON.has_point(pointer),
-					DUO_BUTTON.has_point(pointer), OPTIONS_BUTTON.has_point(pointer)])
+				state.append_array([_profile.difficulty, TitleMenu.SOLO_BUTTON.has_point(pointer),
+					TitleMenu.DUO_BUTTON.has_point(pointer), TitleMenu.OPTIONS_BUTTON.has_point(pointer)])
 			else:
 				state.append_array([_run.phase, _run.lives, duo, _session.player, _run.attached, _diagnostics])
 				if dock != null:
@@ -1392,13 +671,13 @@ func _draw() -> void:
 		draw_rect(field, BACKGROUND)
 	draw_set_transform(field.position, 0.0, field.size / Vector2(Pilot.FIELD_SIZE))
 	if _attract_active:
-		if _scores_menu_open:
-			_draw_both_score_tables()
-		elif _score_results_open and _results_page == 0:
-			_draw_session_results()
-		elif _score_entry == null:
+		if _scores.tables_open:
+			_scores.draw_tables(self)
+		elif _scores.results_open and _scores.results_page == 0:
+			_scores.draw_results(self)
+		elif _scores.entry == null:
 			_draw_attract()
-		if not _options_open and not _score_results_open and not _scores_menu_open and _score_entry == null and (_profile.recovered_backup or _profile.unreadable_profile):
+		if not _options.opened and not _scores.results_open and not _scores.tables_open and _scores.entry == null and (_profile.recovered_backup or _profile.unreadable_profile):
 			var notice := "Profil restauré depuis la sauvegarde" if _profile.recovered_backup else "Profil illisible · Réglages par défaut"
 			_field_text(self, 112, 250, _translate(notice), SHOT, 7)
 	else:
@@ -1418,198 +697,6 @@ func _draw() -> void:
 func _draw_live_docking_status(canvas: Node2D) -> void:
 	if not _attract_active and _run.phase == ArcadeRun.Phase.DOCKING:
 		_draw_field_docking_status(canvas)
-
-
-func _draw_pause_overlay(canvas: Node2D) -> void:
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
-	canvas.draw_set_transform(field.position, 0.0, field.size / Vector2(Pilot.FIELD_SIZE))
-	if _options_open:
-		_draw_options_menu(canvas)
-	elif _training_open:
-		_draw_training_menu(canvas)
-	elif _training_result_open:
-		_draw_training_result(canvas)
-	elif _score_entry != null:
-		_draw_score_entry(canvas)
-	elif _paused:
-		_draw_pause_menu(canvas)
-	elif not _focused:
-		canvas.draw_rect(Rect2(14, 102, 196, 50), Color(0.02, 0.04, 0.07, 0.92))
-		_field_text(canvas, 112, 123, _translate("PAUSE"), PRIMARY, 13)
-
-
-func _draw_pause_menu(canvas: Node2D) -> void:
-	var panel := Rect2(43, 83, 138, 128)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	_field_text(canvas, 112, 100, _translate("PAUSE"), PRIMARY, 11)
-	for index in range(PAUSE_LABELS.size()):
-		var button := _pause_button(index)
-		var selected := index == _pause_choice
-		canvas.draw_rect(button, GRID if selected else BACKGROUND)
-		canvas.draw_rect(button, SHOT if selected else BORDER, false, 0.5)
-		_field_text(canvas, 112, button.position.y + 11.5, _translate(PAUSE_LABELS[index]), SHOT if selected else PRIMARY, 8)
-
-
-func _draw_training_menu(canvas: Node2D) -> void:
-	var panel := Rect2(23, 36, 178, 169)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	_field_text(canvas, 112, 53, _translate("Entraînement").to_upper(), SHOT, 11)
-	var labels := [
-		"%s · %s" % [_translate("Exercice"), _translate("Vague" if _training_kind == TrainingSession.Kind.WAVE else "Amarrage")],
-		"‹  %s  ›" % _target_label(_training_kind, _training_target),
-		"%s · %s" % [_translate("Difficulté"), _translate(ArcadeProfile.DIFFICULTY_LABELS[_training_difficulty])],
-		_translate("Démarrer"), _translate("Retour"),
-	]
-	for index in labels.size():
-		_draw_score_action(canvas, _training_row(index), labels[index], index == _training_choice)
-	_field_text(canvas, 112, 221, _translate("Scores hors classement"), MUTED, 7)
-	_field_text(canvas, 112, 238, _translate("← → ou clic pour régler"), MUTED, 7)
-
-
-func _draw_training_result(canvas: Node2D) -> void:
-	var training := _session as TrainingSession
-	var panel := Rect2(23, 36, 178, 192)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	_field_text(canvas, 112, 54, _translate("Entraînement"), SHOT, 12)
-	_field_text(canvas, 112, 76, _exercise_label(), MUTED, 9)
-	var message := "Vague terminée" if training.success else "Vaisseau perdu"
-	if training.kind == TrainingSession.Kind.DOCKING:
-		message = "Amarrage réussi" if training.success else "Amarrage manqué"
-	_field_text(canvas, 112, 101, _translate(message), SHIP if training.success else ARCADE_RED, 11)
-	var points := _run.score() if training.kind == TrainingSession.Kind.WAVE else _run.docking.bonus
-	_field_text(canvas, 112, 121, _translate("Score %d") % points, PRIMARY, 9)
-	var labels := [_translate("Réessayer") + " · R / Y", _translate("Choisir un exercice"), _translate("Accueil")]
-	for index in labels.size():
-		_draw_score_action(canvas, _training_row(index, true), labels[index], index == _training_choice)
-	_field_text(canvas, 112, 244, _translate("Scores hors classement"), MUTED, 7)
-
-
-func _draw_score_entry(canvas: Node2D) -> void:
-	var panel := Rect2(17, 37, 190, 185)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	var candidate := _score_candidates[0]
-	_field_text(canvas, 112, 55, _translate("NOUVEAU RECORD"), SHOT, 11)
-	_field_text(canvas, 112, 207, _translate(ArcadeProfile.DIFFICULTY_LABELS[_run_difficulty]), MUTED, 8)
-	var result := "%06d" % candidate.score
-	if _session.runs.size() == 2:
-		result = "%s · %s" % [_translate("Joueur %d") % candidate.player, result]
-	_field_text(canvas, 112, 72, result, ARCADE_CYAN, 12)
-	_field_text(canvas, 112, 86, _translate("Saisissez vos trois initiales"), MUTED)
-	for index in 3:
-		var tile := _score_letter_rect(index)
-		var selected := index == _score_entry.cursor
-		canvas.draw_rect(tile, GRID if selected else BACKGROUND)
-		canvas.draw_rect(tile, SHOT if selected else BORDER, false, 0.65)
-		_field_text(canvas, tile.get_center().x, tile.position.y + 23, _score_entry.initials[index], SHOT if selected else PRIMARY, 19)
-	_field_text(canvas, 112, 142, _translate("← → Case    ↑ ↓ Lettre"), MUTED, 8)
-	_field_text(canvas, 112, 155, _translate("A Suivant    B Précédent"), MUTED, 8)
-	_field_text(canvas, 112, 168, _translate("Entrée / Start  Valider"), MUTED, 8)
-	_draw_score_action(canvas, SCORE_SAVE, _translate("Enregistrer"), true)
-	_draw_score_action(canvas, SCORE_SKIP, _translate("Passer"), false)
-	if _score_entry.save_failed:
-		_field_text(canvas, 112, 218, _translate("Échec de l’enregistrement"), ARCADE_RED, 7)
-
-
-func _draw_score_action(canvas: Node2D, rect: Rect2, label: String, primary: bool) -> void:
-	canvas.draw_rect(rect, GRID if primary else BACKGROUND)
-	canvas.draw_rect(rect, SHOT if primary else BORDER, false, 0.65)
-	_field_text(canvas, rect.get_center().x, rect.get_center().y + 3, label, SHOT if primary else PRIMARY, 9)
-
-
-func _draw_options_menu(canvas: Node2D) -> void:
-	const PANEL_TOP := 36.0
-	var languages := Language.LANGUAGES.keys()
-	var back := _options_back_index()
-	var panel := Rect2(23, PANEL_TOP, 178, _options_item(back).end.y - PANEL_TOP + 8)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	var titles := ["Options", "Langue", "Son", "Affichage", "Commandes", "Clavier", "Manette"]
-	_field_text(canvas, 112, 53, _translate(titles[_options_page]).to_upper(), SHOT, 11)
-	for index in range(back + 1):
-		var row := _options_item(index)
-		var selected := index == _options_choice
-		canvas.draw_rect(row, GRID if selected else BACKGROUND)
-		canvas.draw_rect(row, SHOT if selected else BORDER, false, 0.5)
-		var tint := SHOT if selected else PRIMARY
-		var baseline := row.get_center().y + 3.0
-		if index == back:
-			_field_text(canvas, 112, baseline, _translate("Retour"), tint, 9)
-		elif _languages_open:
-			var language: String = languages[index]
-			_field_text(canvas, 112, baseline, Language.LANGUAGES[language], tint, 9)
-			_draw_option_marker(canvas, Vector2(row.position.x + 10, row.get_center().y), language == _profile.language)
-		elif _options_page == OptionsPage.MAIN and index < 2:
-			_field_text(canvas, 112, row.position.y + 10.5, _translate(ArcadeProfile.DIFFICULTY_LABELS[index]), tint, 9)
-			var points := "30 000" if index == 0 else "50 000"
-			var detail := _translate("Cycle %d · Réserve à %s points") % [index + 1, points]
-			_field_text(canvas, 112, row.position.y + 21, detail, MUTED, 7)
-			_draw_option_marker(canvas, Vector2(row.position.x + 10, row.position.y + 9.5), index == _profile.difficulty)
-		else:
-			var label := _option_label(index)
-			_field_text(canvas, 112, baseline, label, tint, 8)
-	var hint := ""
-	if _options_save_failed:
-		hint = _translate("Échec de l’enregistrement")
-	elif _profile.backup_failed:
-		hint = _translate("Copie de secours indisponible")
-	elif _options_page == OptionsPage.MAIN and _paused:
-		hint = _translate("Difficulté à la prochaine partie")
-	elif _options_page == OptionsPage.AUDIO:
-		hint = _translate("← → ou clic pour régler")
-	elif _options_page == OptionsPage.GAMEPAD:
-		hint = _translate("Stick gauche pour déplacer")
-	if not hint.is_empty():
-		_field_text(canvas, 112, _options_item(back).end.y + 19, hint,
-			ARCADE_RED if _options_save_failed or _profile.backup_failed else MUTED, 7)
-	if _binding_waiting >= 0:
-		_draw_binding_prompt(canvas)
-
-
-func _option_label(index: int) -> String:
-	match _options_page:
-		OptionsPage.MAIN:
-			if index == OPTIONS_LANGUAGE:
-				return "%s · %s" % [_translate("Langue"), Language.LANGUAGES[_profile.language]]
-			return _translate({OPTIONS_AUDIO: "Son", OPTIONS_DISPLAY: "Affichage",
-				OPTIONS_CONTROLS: "Commandes", OPTIONS_TRAINING: "Entraînement"}[index])
-		OptionsPage.AUDIO:
-			if index == 0:
-				return "%s    −  %d %%  +" % [_translate("Volume"), _profile.volume]
-			if index == 2:
-				return "%s · %s" % [_translate("Sons"), _translate("Moderne" if _profile.audio_bank == "modern" else "Original")]
-			return "%s · %s" % [_translate("Son"), _translate("coupé" if _profile.muted else "actif")]
-		OptionsPage.DISPLAY:
-			if index == 0:
-				return _translate("Plein écran" if _profile.fullscreen else "Fenêtré")
-			return _translate("Portrait" if _profile.portrait else "Paysage")
-		OptionsPage.CONTROLS:
-			return _translate(["Clavier", "Manette", "Rétablir par défaut"][index])
-		OptionsPage.KEYBOARD, OptionsPage.GAMEPAD:
-			if index == Controls.ACTIONS.size():
-				return _translate("Rétablir par défaut")
-			var action: StringName = Controls.ACTIONS[index]
-			var value := _key_label(action) if _options_page == OptionsPage.KEYBOARD else Controls.button_label(_profile.button_bindings[String(action)])
-			return "%s · %s" % [_translate(Controls.LABELS[index]), value]
-	return ""
-
-
-func _draw_binding_prompt(canvas: Node2D) -> void:
-	canvas.draw_rect(Rect2(25, 88, 174, 80), BACKGROUND)
-	canvas.draw_rect(Rect2(25, 88, 174, 80), SHOT, false, 0.65)
-	_field_text(canvas, 112, 105, _translate(Controls.LABELS[_binding_waiting]), SHOT, 9)
-	var instruction := "Appuyez sur une touche" if _options_page == OptionsPage.KEYBOARD else "Appuyez sur un bouton"
-	_field_text(canvas, 112, 123, _translate(instruction), PRIMARY, 8)
-	_field_text(canvas, 112, 140, _translate("Échap / Back pour annuler"), MUTED, 7)
-	if _binding_error:
-		_field_text(canvas, 112, 158, _translate("Commande réservée"), ARCADE_RED, 8)
-
-
-func _draw_option_marker(canvas: Node2D, point: Vector2, active: bool) -> void:
-	canvas.draw_circle(point, 2.0, SHIP if active else BORDER, active, -1.0 if active else 0.6, true)
 
 
 func _draw_chrome_frame(canvas: Node2D, field: Rect2) -> void:
@@ -2019,7 +1106,7 @@ func _draw_logos(canvas: Node2D) -> void:
 		canvas.draw_texture_rect(TITLE_LOGO, PORTRAIT_HEADER_LOGO, false, tint)
 	else:
 		canvas.draw_texture_rect(TITLE_LOGO, HEADER_LOGO, false, tint)
-	if not _attract_active or _scores_menu_open or _score_entry != null or _attract.screen() != Attract.Screen.TITLE_TEXT:
+	if not _attract_active or _scores.tables_open or _scores.entry != null or _attract.screen() != Attract.Screen.TITLE_TEXT:
 		return
 	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)
 	if progress <= 0.0:
@@ -2036,7 +1123,7 @@ func _draw_logos(canvas: Node2D) -> void:
 
 
 func _draw_panel(canvas: Node2D) -> void:
-	if _score_entry != null or _score_results_open or _scores_menu_open:
+	if _scores.entry != null or _scores.results_open or _scores.tables_open:
 		return
 	if _profile.portrait:
 		_draw_portrait_hud(canvas)
@@ -2051,7 +1138,7 @@ func _draw_panel(canvas: Node2D) -> void:
 		_text(canvas, 425, _translate("En pause"), 20, SHOT)
 		return
 	if _attract_active:
-		_draw_attract_panel(canvas)
+		_title.draw(canvas)
 		return
 	if _run.phase == ArcadeRun.Phase.DOCKING:
 		_draw_docking_panel(canvas)
@@ -2084,7 +1171,7 @@ func _draw_panel(canvas: Node2D) -> void:
 		_text(canvas, 489, _turn_label(), 16, SHIP)
 	if _diagnostics:
 		_draw_readout(canvas)
-	_draw_options(canvas)
+	_title.draw_hints(canvas)
 
 
 func _draw_docking_panel(canvas: Node2D) -> void:
@@ -2107,7 +1194,7 @@ func _draw_docking_panel(canvas: Node2D) -> void:
 	if _diagnostics:
 		var point := dock.display_position()
 		_text(canvas, 543, _translate("Module %d    x %d    y %d") % [dock.module, point.x, point.y], 17, SHIP)
-	_draw_options(canvas)
+	_title.draw_hints(canvas)
 
 
 func _draw_readout(canvas: Node2D) -> void:
@@ -2147,10 +1234,10 @@ func _field_text(canvas: Node2D, center_x: float, y: float, label: String, color
 
 
 func _draw_arcade_hud(canvas: Node2D) -> void:
-	var results := _score_results_open and not _result_rows.is_empty()
-	var score: int = _result_rows[0].score if results else (0 if _attract_active else _session.runs[0].score())
-	var duo := _result_rows.size() == 2 if results else not _attract_active and _session.runs.size() == 2
-	var second_score: int = _result_rows[1].score if results and duo else (_session.runs[1].score() if duo else 0)
+	var results := _scores.results_open and not _scores.rows.is_empty()
+	var score: int = _scores.rows[0].score if results else (0 if _attract_active else _session.runs[0].score())
+	var duo := _scores.rows.size() == 2 if results else not _attract_active and _session.runs.size() == 2
+	var second_score: int = _scores.rows[1].score if results and duo else (_session.runs[1].score() if duo else 0)
 	_field_text(canvas, 26, 9, _translate("1 J"), ARCADE_CYAN if results or not duo or _session.player == 0 else MUTED, 7)
 	_field_text(canvas, 26, 18, "%06d" % score, PRIMARY, 8)
 	_field_text(canvas, 112, 9, _translate("RECORD"), ARCADE_CYAN, 7)
@@ -2192,6 +1279,8 @@ func _draw_module_mark(canvas: Node2D, point: Vector2, module: int, active: bool
 
 
 # Le cycle d'attraction rejoue les positions et les états du relevé pr10e.
+
+
 func _draw_attract() -> void:
 	match _attract.screen():
 		Attract.Screen.TITLE_TEXT:
@@ -2208,78 +1297,9 @@ func _draw_attract() -> void:
 					label = _translate("%s / %s POUR JOUER") % [_key_label(&"fire").to_upper(), _button_label(&"fire")]
 				_field_text(self, 112, ROWS[index], _translate(label), COLORS[index], 14 if index == 1 else 10, progress)
 		Attract.Screen.SCORE_TABLE:
-			_draw_score_table()
+			_scores.draw_table(self)
 		Attract.Screen.DEMO:
 			_draw_demo()
-
-
-func _draw_score_table() -> void:
-	var mode := _score_mode()
-	_field_text(self, 112, 26, _translate(ArcadeProfile.DIFFICULTY_LABELS[mode]), SHOT, 8)
-	_field_text(self, 39, 35, _translate("RANG"), ARCADE_PINK, 9)
-	_field_text(self, 105, 35, _translate("INITIALES"), ARCADE_PINK, 9)
-	_field_text(self, 175, 35, _translate("SCORE"), ARCADE_PINK, 9)
-	var scores := _profile.scores_for(mode)
-	var names := _profile.initials_for(mode)
-	for index in scores.size():
-		var y := 53 + index * 15
-		var color: Color = SCORE_RANK_COLORS[index]
-		var score := scores[index]
-		if _score_results_open:
-			for result in _result_rows:
-				if result.rank == index + 1:
-					draw_rect(Rect2(25, y - 11, 174, 14), Color(SHOT, 0.10))
-					draw_rect(Rect2(25, y - 11, 174, 14), Color(SHOT, 0.75), false, 0.5)
-		_field_text(self, 39, y, "%02d" % (index + 1), color, 10)
-		_field_text(self, 105, y, names[index] if score > 0 else "—", color, 10)
-		_field_text(self, 175, y, "%06d" % score if score > 0 else "—", color, 10)
-	if _score_results_open:
-		_draw_score_action(self, SCORE_BACK, _translate("Retour"), true)
-
-
-func _draw_session_results() -> void:
-	_field_text(self, 112, 36, _translate("Résultats"), SHOT, 12)
-	_field_text(self, 112, 54, _translate(ArcadeProfile.DIFFICULTY_LABELS[_run_difficulty]), MUTED, 9)
-	var duo := _result_rows.size() == 2
-	if duo:
-		draw_line(Vector2(112, 65), Vector2(112, 198), BORDER, 0.5)
-	for index in _result_rows.size():
-		var result := _result_rows[index]
-		var x := 58.0 + index * 108.0 if duo else 112.0
-		var player := _translate("Joueur %d") % result.player
-		if result.rank > 0:
-			player += " · " + result.initials
-		_field_text(self, x, 77, player, ARCADE_CYAN, 9)
-		_field_text(self, x, 102, "%06d" % result.score, PRIMARY, 13 if duo else 17)
-		var rank := _translate("Hors classement")
-		var tint := MUTED
-		if result.rank > 0:
-			rank = "%s %02d" % [_translate("RANG"), result.rank]
-			tint = SCORE_RANK_COLORS[result.rank - 1]
-		_field_text(self, x, 127, rank, tint, 9)
-		_field_text(self, x, 151, _translate("Cycle atteint %d") % result.cycle, PRIMARY, 8)
-		_field_text(self, x, 174, _translate("Amarrages réussis"), MUTED, 7)
-		_field_text(self, x, 194, str(result.docks), SHIP, 12)
-	_draw_score_action(self, RESULT_SCORES, _translate("Voir le classement"), _result_choice == 0)
-	_draw_score_action(self, RESULT_HOME, _translate("Accueil"), _result_choice == 1)
-
-
-func _draw_both_score_tables() -> void:
-	_field_text(self, 112, 34, _translate("Classements"), SHOT, 12)
-	draw_line(Vector2(112, 48), Vector2(112, 202), BORDER, 0.5)
-	for mode in ArcadeProfile.RECORD_SECTIONS.size():
-		var offset := 108.0 * mode
-		var scores := _profile.scores_for(mode)
-		var names := _profile.initials_for(mode)
-		_field_text(self, offset + 58, 53, _translate(ArcadeProfile.DIFFICULTY_LABELS[mode]), PRIMARY, 10)
-		for index in scores.size():
-			var y := 71 + index * 13
-			var color: Color = SCORE_RANK_COLORS[index]
-			var score := scores[index]
-			_field_text(self, offset + 20, y, "%02d" % (index + 1), color, 7)
-			_field_text(self, offset + 49, y, names[index] if score > 0 else "—", color, 8)
-			_field_text(self, offset + 86, y, "%06d" % score if score > 0 else "—", color, 8)
-	_draw_score_action(self, SCORE_BACK, _translate("Retour"), true)
 
 
 func _draw_demo() -> void:
@@ -2342,56 +1362,13 @@ func _draw_demo_objects(track: PackedByteArray) -> void:
 			_draw_shot(Vector2(track[slot], track[slot + 1]))
 
 
-func _draw_attract_panel(canvas: Node2D) -> void:
-	_draw_menu_button(canvas, SCORES_BUTTON, _translate("Classements"), "F4")
-	_draw_menu_button(canvas, TRAINING_BUTTON, _translate("Entraînement"), "F2")
-	_text(canvas, 428, _translate("Partie arcade"), 24, PRIMARY)
-	var pointer := get_global_mouse_position()
-	_draw_button(canvas, SOLO_BUTTON, _translate("1 joueur"), "%s / %s" % [_key_label(&"fire"), _button_label(&"fire")], true, pointer)
-	_draw_button(canvas, DUO_BUTTON, _translate("2 joueurs en alternance"), "2 / Y", false, pointer)
-	_draw_options_button(canvas, OPTIONS_BUTTON, pointer)
-	_draw_options(canvas)
-
-
-func _draw_menu_button(canvas: Node2D, rect: Rect2, label: String, shortcut: String) -> void:
-	canvas.draw_rect(rect, GRID if rect.has_point(get_global_mouse_position()) else Color("#141f32"))
-	var baseline := rect.get_center().y + 5
-	_draw_text(canvas, Vector2(rect.position.x + 12, baseline), label, 16, PRIMARY)
-	_draw_text(canvas, Vector2(rect.end.x - 30, baseline), shortcut, 12, MUTED)
-
-
-func _draw_button(canvas: Node2D, rect: Rect2, label: String, shortcut: String, primary: bool, pointer: Vector2) -> void:
-	var fill := SHIP if primary else Color("#141f32")
-	if rect.has_point(pointer):
-		fill = fill.lightened(0.14)
-	canvas.draw_rect(rect, fill)
-	var tint := BACKGROUND if primary else PRIMARY
-	var baseline := rect.get_center().y + 6
-	_draw_text(canvas, Vector2(rect.position.x + 16, baseline), label, 17, tint)
-	_draw_text(canvas, Vector2(rect.end.x - 100, baseline - 1), shortcut, 13, tint)
-
-
-func _draw_options(canvas: Node2D) -> void:
-	var sound := _translate("coupé" if _profile.muted else "actif")
-	_text(canvas, 651, _translate("F1 Diagnostic    F2 Entraînement    F5 Son %s") % sound, 14, MUTED)
-	_text(canvas, 675, _translate("F10 Portrait    F11 Plein écran"), 14, MUTED)
-
-
-func _draw_options_button(canvas: Node2D, rect: Rect2, pointer: Vector2) -> void:
-	canvas.draw_rect(rect, GRID if rect.has_point(pointer) else Color("#141f32"))
-	var label := "%s · %s" % [_translate("Options"), _translate(ArcadeProfile.DIFFICULTY_LABELS[_profile.difficulty])]
-	var y := rect.get_center().y + 5.0
-	_draw_text(canvas, Vector2(rect.position.x + 12, y), label, 14, PRIMARY)
-	_draw_text(canvas, Vector2(rect.end.x - 45, y), "F3 / X", 12, MUTED)
-
-
 func _draw_portrait_hud(canvas: Node2D) -> void:
 	_draw_text(canvas, Vector2(198, 24), _translate("Difficulté"), 12, MUTED)
 	_draw_text(canvas, Vector2(198, 44), _translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()]), 15, SHOT)
 	if _attract_active:
-		_draw_options_button(canvas, PORTRAIT_OPTIONS_BUTTON, get_global_mouse_position())
-		_draw_menu_button(canvas, PORTRAIT_SCORES_BUTTON, _translate("Classements"), "F4")
-		_draw_menu_button(canvas, PORTRAIT_TRAINING_BUTTON, _translate("Entraînement"), "F2")
+		_title.draw_options_button(canvas, TitleMenu.PORTRAIT_OPTIONS_BUTTON, get_global_mouse_position())
+		_title.draw_menu_button(canvas, TitleMenu.PORTRAIT_SCORES_BUTTON, _translate("Classements"), "F4")
+		_title.draw_menu_button(canvas, TitleMenu.PORTRAIT_TRAINING_BUTTON, _translate("Entraînement"), "F2")
 		return
 	else:
 		_draw_text(canvas, Vector2(421, 43), _translate("VIES %d") % _run.lives, 20, SHOT)
@@ -2433,3 +1410,11 @@ func _text(canvas: Node2D, y: float, label: String, size: int, color: Color) -> 
 
 func _draw_text(canvas: Node2D, at: Vector2, label: String, size: int, color: Color) -> void:
 	canvas.draw_string(ThemeDB.fallback_font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, color)
+
+
+func _sync_menu_input() -> void:
+	_haptics.stop()
+	_last_usec = Time.get_ticks_usec()
+	_pressed = 0
+	_held = _read_controls()
+	_wait_for_fire_release = bool(_held & Pilot.FIRE)

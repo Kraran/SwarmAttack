@@ -8,7 +8,7 @@ class AudioSpy extends "res://arcade_audio.gd":
 	var cues: Array[String] = []
 	func _ready() -> void:
 		pass
-	func play(cue: String) -> void:
+	func play(cue: String, _pan := 0.0) -> void:
 		cues.append(cue)
 
 func _initialize() -> void:
@@ -36,12 +36,12 @@ func _run() -> void:
 	root.add_child(view)
 	view.set_process(false)
 	view._focused = true
-	view._set_options_open(true)
-	view._open_options_page(view.OptionsPage.AUDIO)
-	view._options_choice = 2
-	view._adjust_option(1)
+	view._options.set_open(true)
+	view._options.open_page(view.OptionsMenu.Page.AUDIO)
+	view._options.choice = 2
+	view._options.adjust(1)
 	_expect(view._profile.audio_bank == "modern" and view._audio._bank == "modern", "Choix immédiat dans Options Son")
-	view._adjust_option(-1)
+	view._options.adjust(-1)
 	_expect(view._profile.audio_bank == "original" and view._audio._bank == "original", "Retour aux sons originaux")
 	_check_ascent_music(view)
 	if failures == 0:

@@ -1,5 +1,17 @@
 # Notes de version
 
+## 0.4.0 — 19 novembre 2026
+
+- Options → Affichage → Compteur FPS : activation sauvegardée et traduite, affichage discret en haut à droite en paysage et portrait. Cadence mesurée sur les images réellement rendues et l’horloge monotone, actualisée dix fois par seconde sur une fenêtre de 0,5 seconde, y compris dans les menus et en pause.
+- Correction d’une fermeture brutale du mixeur audio pendant le jeu : les destinations de bus stéréo ne sont plus réécrites à chaque image ; un changement de destination utilise le verrou du serveur audio. Stéréo, priorités sonores et limiteur conservés. Journaux locaux rotatifs et état de partie aux transitions activés pour le diagnostic.
+- Stéréo positionnelle dans les banques Original et Moderne : tirs à la position du vaisseau, explosions au point d’impact, contacts à la position d’amarrage et sons de vol suivant leur ennemi. Balance proportionnelle sur la largeur du terrain, niveau sonore normalisé ; musiques, annonces et aperçu des options centrés. Routage indépendant par voix, compatible avec les effets simultanés et le limiteur Moderne.
+- Vibrations limitées à deux signatures : forte secousse explosive de 480 ms lors de la destruction du joueur (combat ou collision d’amarrage), et choc unique puissant de 85 ms au contact d’un amarrage réussi. Aucun retour au tir, sur les ennemis, à la vie supplémentaire ou à la fin d’une vague d’entraînement.
+- Réglage initial conservé à 70 %, avec une courbe d’intensité renforcée. Le test des options joue un contact d’amarrage puis une explosion, séparés par un silence. Séquences annulées à la pause ou à la perte de focus.
+- Options → Vibrations : activation, intensité de 0 à 100 % (70 % par défaut), aperçu et bouton de test, sauvegardés dans le profil et traduits dans les six langues. Arrêt à la pause, à la perte de focus, au changement de manette et à la sortie.
+- État, navigation et dessin des menus Options, Pause, Entraînement, Accueil, Classements et Résultats extraits de `prototype_view.gd` vers des sous-scripts dédiés dans `prototype/ui`.
+- Routage modal des événements et navigation au stick isolés ; calque de menus et cache de dessin dédiés. La simulation, les profils, le son et le rendu de jeu restent coordonnés par la vue.
+- Interactions et apparence conservées, avec tests de navigation au stick et du retour Entraînement → Options renforcés.
+
 ## 0.3.1
 
 - Fin de cycle : thème spécifique confirmé dans MAME et déclenché au début de la montée, puis musique d’arrivée au cycle suivant, sans interruption prématurée ni musique concurrente.

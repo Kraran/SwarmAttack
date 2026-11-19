@@ -44,26 +44,33 @@ func _run() -> void:
 	view._focused = true
 	var scores = view._profile.scores.duplicate()
 	_key(view, KEY_F2)
-	_expect(view._training_open and view._attract_active, "F2 ouvre le sélecteur")
-	view._training_kind = Training.Kind.WAVE
-	view._training_target = 10
-	view._training_difficulty = 1
-	view._training_choice = 3
+	_expect(view._training.opened and view._attract_active, "F2 ouvre le sélecteur")
+	view._training.kind = Training.Kind.WAVE
+	view._training.target = 10
+	view._training.difficulty = 1
+	view._training.choice = 3
 	_key(view, KEY_ENTER)
 	_expect(view._session is Training and view._run.stage == 2 and view._run.cycle == 2, "Démarrage du choix vétéran")
 	view._run.combat.outcome = Combat.Outcome.CLEARED
 	for frame in Training.RESULT_DELAY + 1:
 		view._advance_frame(view.Pilot.FRAME_USEC, 0)
-	_expect(view._training_result_open and view._profile.scores == scores and view._score_entry == null, "Bilan hors classement")
+	_expect(view._training.result_open and view._profile.scores == scores and view._scores.entry == null, "Bilan hors classement")
 	_key(view, KEY_R)
-	_expect(not view._training_result_open and view._run.combat.outcome == Combat.Outcome.PLAYING
+	_expect(not view._training.result_open and view._run.combat.outcome == Combat.Outcome.PLAYING
 		and view._run.stage == 2 and view._run.cycle == 2, "Relance du même exercice")
 	view._return_to_title()
 	view._restart(false)
 	var run_before = view._run
 	_key(view, KEY_F2)
 	_key(view, KEY_ESCAPE)
-	_expect(view._paused and view._run == run_before and not view._training_open, "Annuler conserve la partie en pause")
+	_expect(view._pause.active and view._run == run_before and not view._training.opened, "Annuler conserve la partie en pause")
+	view._options.set_open(true)
+	view._options.choice = view.OptionsMenu.TRAINING
+	_key(view, KEY_ENTER)
+	_expect(view._training.opened and not view._options.opened, "Options ouvre le sélecteur d'entraînement")
+	_key(view, KEY_ESCAPE)
+	_expect(view._options.opened and view._options.choice == view.OptionsMenu.TRAINING
+		and view._pause.active and view._run == run_before, "Retour exact vers Options sans perdre la partie en pause")
 	if failures == 0:
 		print("TRAINING OK: 10 vagues, 2 cycles, 2 amarrages, issues, relance, navigation et scores isolés.")
 	quit(1 if failures else 0)

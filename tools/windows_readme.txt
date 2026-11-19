@@ -1,14 +1,19 @@
 SWARM ATTACK
-Version 0.3.1
+Version 0.4.0
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
 La présentation est conçue pour le Full HD (1920 × 1080), avec un champ
 vertical et des modèles spatiaux chromés.
+Les bruitages sont en stéréo selon leur position dans le terrain : tirs,
+explosions, vols ennemis et contacts d’amarrage, dans les deux banques.
+Les musiques et annonces restent centrées.
 Les jets des réacteurs s’allongent progressivement pendant les déplacements,
 puis retrouvent leur taille normale lorsque le vaisseau s’arrête.
 La VSync suit la fréquence du moniteur. Pour jouer à 60 Hz, sélectionnez
 60 Hz dans les paramètres d’affichage Windows si nécessaire.
+Options > Affichage > Compteur FPS affiche les FPS réels en haut à droite.
+Le choix est sauvegardé ; la mesure reste active dans les menus et en pause.
 Les arrêts matériels de la borne ne sont pas reproduits. Le vaisseau
 continue à se déplacer pendant le crédit final des points. Les tirs
 sont vidés aux transitions : après un amarrage ou une nouvelle vague,
@@ -38,6 +43,13 @@ Projet GitHub ouvre le dépôt du jeu. Fermer, Échap, B ou Start revient
 à l’écran précédent. Le jeu et le son sont figés pendant la consultation.
 
 Manette
+  Options > Vibrations : activation, intensité 0 à 100 % et test.
+  Destruction du joueur : forte explosion avec décroissance.
+  Amarrage réussi : choc sec et puissant au moment du contact.
+  Aucun retour au tir, sur les ennemis ou à la vie supplémentaire.
+  Le test joue un contact d’amarrage, une pause puis une explosion.
+  Réglages sauvegardés, intensité initiale 70 %, indépendante du son.
+  Arrêt automatique en pause, à la perte de focus et au retour à l’accueil.
   Croix ou stick gauche pour se déplacer, A pour jouer, tirer et freiner,
   Y pour démarrer une partie à deux (ou relancer un entraînement), X pour ouvrir les options, Start pour
   mettre en pause et reprendre, haut/bas à la croix et A pour valider.

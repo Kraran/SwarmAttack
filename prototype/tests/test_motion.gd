@@ -166,9 +166,9 @@ func _check_intermediate_frame(view: Node) -> void:
 	var rendered: Vector2 = view._visual_point(view._motion.ship, raw)
 	_expect(rendered.x == Pilot.START_X + Pilot.MOVE_STEP / 2.0, "Une image sans pas de jeu doit dessiner la position intermédiaire.")
 	_expect(run.frame == ArcadeRun.ENTRANCE_FRAMES + 1, "L’interpolation ne doit pas avancer la simulation.")
-	view._toggle_pause()
+	view._pause.toggle()
 	_expect(view._visual_point(view._motion.ship, raw) == rendered, "La pause doit figer la pose intermédiaire.")
-	view._toggle_pause()
+	view._pause.toggle()
 	view._advance_frame(Pilot.FRAME_USEC / 2, Pilot.RIGHT)
 	_expect(view._visual_point(view._motion.ship, Vector2(view._run.combat.pilot.ship_x, 0)) == raw,
 		"La reprise doit poursuivre la pose au pas suivant.")

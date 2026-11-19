@@ -13,6 +13,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_profile_checks()
+	_navigation_checks()
 	view = preload("res://main.tscn").instantiate()
 	root.add_child(view)
 	view.set_process(false)
@@ -20,8 +21,8 @@ func _run() -> void:
 	view._profile = Profile.new()
 	Controls.apply(view._profile.key_bindings, view._profile.button_bindings)
 	_key(KEY_F3)
-	_expect(view._options_open and view._options_back_index() == 7, "Options depuis l’accueil")
-	view._options_choice = view.OPTIONS_AUDIO
+	_expect(view._options.opened and view._options.back_index() == view.OptionsMenu.BACK, "Options depuis l’accueil")
+	view._options.choice = view.OptionsMenu.AUDIO
 	_key(KEY_ENTER)
 	_key(KEY_LEFT)
 	_expect(view._profile.volume == 90 and view._audio._volume == 90, "Volume immédiat")
@@ -36,33 +37,33 @@ func _run() -> void:
 	_expect(view._profile.muted and view._audio._muted, "Coupure du son")
 	_key(KEY_ENTER)
 	_key(KEY_ESCAPE)
-	view._options_choice = view.OPTIONS_CONTROLS
+	view._options.choice = view.OptionsMenu.CONTROLS
 	_key(KEY_ENTER)
 	_key(KEY_ENTER)
-	view._options_choice = 2
+	view._options.choice = 2
 	_key(KEY_ENTER)
 	_key(KEY_F2)
-	_expect(view._binding_waiting == 2 and view._binding_error and view._attract_active, "Un raccourci réservé ne démarre pas une partie")
+	_expect(view._options.binding_waiting == 2 and view._options.binding_error and view._attract_active, "Un raccourci réservé ne démarre pas une partie")
 	_key(KEY_Z)
-	_expect(view._binding_waiting == -1 and view._profile.key_bindings.fire == [KEY_Z]
+	_expect(view._options.binding_waiting == -1 and view._profile.key_bindings.fire == [KEY_Z]
 		and _mapped(&"fire",KEY_Z), "Le tir utilise sa nouvelle touche")
-	view._options_choice = 0
+	view._options.choice = 0
 	_key(KEY_ENTER)
 	_key(KEY_RIGHT)
 	_expect(view._profile.key_bindings.move_left == [KEY_RIGHT]
 		and view._profile.key_bindings.move_right == [KEY_LEFT, KEY_Q, KEY_A], "Échange d’affectations en cas de conflit")
-	view._options_choice = 3
+	view._options.choice = 3
 	_key(KEY_ENTER)
 	_key(KEY_P)
 	_expect(_mapped(&"pause",KEY_P), "Pause configurable")
-	view._options_choice = 1
+	view._options.choice = 1
 	_key(KEY_ENTER)
 	_key(KEY_ESCAPE)
-	_expect(view._binding_waiting == -1 and _mapped(&"move_right",KEY_LEFT), "Annulation de la saisie sans changement")
+	_expect(view._options.binding_waiting == -1 and _mapped(&"move_right",KEY_LEFT), "Annulation de la saisie sans changement")
 	_key(KEY_ESCAPE)
 	_key(KEY_DOWN)
 	_key(KEY_ENTER)
-	view._options_choice = 2
+	view._options.choice = 2
 	_key(KEY_ENTER)
 	_pad(JOY_BUTTON_B)
 	_expect(view._profile.button_bindings.fire == JOY_BUTTON_B, "Remappage du tir sur B")
@@ -70,10 +71,10 @@ func _run() -> void:
 	_pad(JOY_BUTTON_START)
 	_expect(view._profile.button_bindings.fire == JOY_BUTTON_START
 		and view._profile.button_bindings.pause == JOY_BUTTON_B, "Le bouton Start peut échanger sa fonction de pause avec le tir")
-	view._options_choice = 0
+	view._options.choice = 0
 	_key(KEY_ENTER)
 	_pad(JOY_BUTTON_BACK)
-	_expect(view._binding_waiting == -1, "Back annule l’affectation manette")
+	_expect(view._options.binding_waiting == -1, "Back annule l’affectation manette")
 	var saved := Profile.new()
 	saved.read()
 	_expect(saved.key_bindings == view._profile.key_bindings and saved.button_bindings == view._profile.button_bindings
@@ -88,7 +89,7 @@ func _run() -> void:
 	_expect(not view._run.combat.pilot.active_shots().is_empty(), "Le tir remappé fonctionne dans la partie")
 	_native_key(KEY_Z,false)
 	_native_pad(JOY_BUTTON_START,true)
-	_expect(not view._paused and bool(view._read_controls() & Pilot.FIRE), "Le bouton Start remappé tire pendant la partie")
+	_expect(not view._pause.active and bool(view._read_controls() & Pilot.FIRE), "Le bouton Start remappé tire pendant la partie")
 	_native_pad(JOY_BUTTON_START,false)
 	var ship_x: int = view._run.combat.pilot.ship_x
 	_native_key(KEY_RIGHT,true)
@@ -99,14 +100,14 @@ func _run() -> void:
 	var phase: int = view._run.phase
 	var score: int = view._run.score()
 	_key(KEY_P)
-	_expect(view._paused, "La nouvelle touche met en pause")
+	_expect(view._pause.active, "La nouvelle touche met en pause")
 	_key(KEY_DOWN)
 	_key(KEY_ENTER)
-	_expect(view._options_open and view._paused, "Options depuis la pause")
-	view._options_choice = 1
+	_expect(view._options.opened and view._pause.active, "Options depuis la pause")
+	view._options.choice = 1
 	_key(KEY_ENTER)
 	_expect(view._profile.difficulty == 1 and view._run_difficulty == 0 and view._run.cycle == 1, "La difficulté choisie en pause concerne la partie suivante")
-	view._options_choice = view.OPTIONS_LANGUAGE
+	view._options.choice = view.OptionsMenu.LANGUAGE
 	_key(KEY_ENTER)
 	_key(KEY_DOWN)
 	_key(KEY_ENTER)
@@ -115,16 +116,16 @@ func _run() -> void:
 	_expect(view._simulation_tick == tick and view._run.phase == phase and view._run.score() == score, "La partie reste figée pendant les options")
 	_key(KEY_ESCAPE)
 	_key(KEY_ESCAPE)
-	_expect(view._paused and not view._options_open, "Retour des options vers la pause")
+	_expect(view._pause.active and not view._options.opened, "Retour des options vers la pause")
 	_key(KEY_P)
-	_expect(not view._paused, "Reprise par la touche affectée")
+	_expect(not view._pause.active, "Reprise par la touche affectée")
 	view._advance_frame(Pilot.FRAME_USEC,0)
 	_expect(view._simulation_tick == tick+1, "Reprise sans rattrapage du temps passé dans les menus")
-	view._toggle_pause()
+	view._pause.toggle()
 	_key(KEY_F3)
-	view._options_choice = view.OPTIONS_CONTROLS
+	view._options.choice = view.OptionsMenu.CONTROLS
 	_key(KEY_ENTER)
-	view._options_choice = 2
+	view._options.choice = 2
 	_key(KEY_ENTER)
 	_expect(view._profile.key_bindings == Controls.DEFAULT_KEYS and view._profile.button_bindings == Controls.DEFAULT_BUTTONS, "Restauration des commandes par défaut")
 	_key(KEY_F3)
@@ -132,6 +133,26 @@ func _run() -> void:
 	if failures == 0:
 		print("OPTIONS OK: volume, sauvegarde, remappage, conflits, annulation, pause, langue, restauration et reprise.")
 	quit(1 if failures else 0)
+
+func _navigation_checks() -> void:
+	var navigation = preload("res://ui/menu_navigation.gd").new()
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.64)) == Vector2i.ZERO, "Stick : pas de déplacement avant le seuil")
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.7)) == Vector2i.DOWN, "Stick : un déplacement au franchissement du seuil")
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.95)) == Vector2i.ZERO, "Un stick maintenu ne parcourt pas tout le menu")
+	navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.5))
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.8)) == Vector2i.ZERO, "Hystérésis sans répétition parasite")
+	navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.39))
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,0.7)) == Vector2i.DOWN, "Le relâchement réarme la navigation")
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_X,-0.8)) == Vector2i.LEFT, "Les deux axes sont indépendants")
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_Y,-0.8)) == Vector2i.UP, "Un changement de sens produit un déplacement")
+	navigation.reset()
+	_expect(navigation.direction(_axis(JOY_AXIS_LEFT_X,-0.8)) == Vector2i.LEFT, "Un nouveau menu réinitialise le stick partagé")
+
+func _axis(axis: JoyAxis, value: float) -> InputEventJoypadMotion:
+	var event := InputEventJoypadMotion.new()
+	event.axis = axis
+	event.axis_value = value
+	return event
 
 func _profile_checks() -> void:
 	var path := "user://test-options-%d.cfg" % OS.get_process_id()
