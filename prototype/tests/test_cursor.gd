@@ -32,10 +32,10 @@ func _run() -> void:
 	_expect(not view._cursor_hidden, "Curseur affiché dès un mouvement")
 	view._last_mouse_motion_usec = idle
 	view._update_cursor()
-	view._toggle_pause()
+	view._pause.toggle()
 	view._update_cursor()
 	_expect(not view._cursor_hidden, "Curseur visible en pause")
-	view._toggle_pause()
+	view._pause.toggle()
 	view._update_cursor()
 	_expect(view._cursor_hidden, "Curseur masqué à la reprise")
 	view._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)

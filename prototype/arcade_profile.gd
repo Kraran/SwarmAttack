@@ -29,10 +29,13 @@ var initials: PackedStringArray:
 var muted := false
 var volume := 100
 var audio_bank := "original"
+var vibration_enabled := true
+var vibration_intensity := 70
 var key_bindings := Controls.DEFAULT_KEYS.duplicate(true)
 var button_bindings := Controls.DEFAULT_BUTTONS.duplicate()
 var fullscreen := true
 var portrait := false
+var show_fps := false
 var difficulty := Difficulty.NORMAL
 var language := Language.DEFAULT_LANGUAGE
 var _storage := Storage.new()
@@ -88,10 +91,15 @@ func read(path := SAVE_PATH) -> void:
 	volume = clampi(stored_volume, 0, 100) if stored_volume is int else 100
 	var stored_bank: Variant = config.get_value("options", "audio_bank", "original")
 	audio_bank = stored_bank if stored_bank in ["original", "modern"] else "original"
+	vibration_enabled = config.get_value("options", "vibration_enabled", true) == true
+	var stored_intensity: Variant = config.get_value("options", "vibration_intensity", 70)
+	vibration_intensity = clampi(stored_intensity, 0, 100) if stored_intensity is int else 70
 	key_bindings = Controls.read_keys(config.get_value("controls", "keys", {}))
 	button_bindings = Controls.read_buttons(config.get_value("controls", "buttons", {}))
 	fullscreen = config.get_value("options", "fullscreen", true) == true
 	portrait = config.get_value("options", "portrait", false) == true
+	var stored_fps: Variant = config.get_value("options", "show_fps", false)
+	show_fps = stored_fps if stored_fps is bool else false
 	difficulty = Difficulty.VETERANS if config.get_value("options", "difficulty", 0) == 1 else Difficulty.NORMAL
 	# Profiles from before language selection used French.
 	var stored_language: Variant = config.get_value("options", "language", "fr")
@@ -182,10 +190,13 @@ func write(path := SAVE_PATH) -> Error:
 	config.set_value("options", "muted", muted)
 	config.set_value("options", "volume", volume)
 	config.set_value("options", "audio_bank", audio_bank)
+	config.set_value("options", "vibration_enabled", vibration_enabled)
+	config.set_value("options", "vibration_intensity", vibration_intensity)
 	config.set_value("controls", "keys", key_bindings)
 	config.set_value("controls", "buttons", button_bindings)
 	config.set_value("options", "fullscreen", fullscreen)
 	config.set_value("options", "portrait", portrait)
+	config.set_value("options", "show_fps", show_fps)
 	config.set_value("options", "difficulty", difficulty)
 	config.set_value("options", "language", language)
 	return _storage.save_profile(config, path)

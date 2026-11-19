@@ -8,7 +8,7 @@ class AudioSpy extends "res://arcade_audio.gd":
 	var cues: Array[String] = []
 	func _ready() -> void:
 		pass
-	func play(cue: String) -> void:
+	func play(cue: String, _pan := 0.0) -> void:
 		cues.append(cue)
 
 func _initialize() -> void:
@@ -68,12 +68,12 @@ func _run() -> void:
 		before = wave.flight_sound_serial
 		wave.kill(1)
 		_expect(wave.flight_sound_serial == before, "Une destruction ne produit pas un son de vol")
-		view._toggle_pause()
+		view._pause.toggle()
 		var frame: int = run.frame
 		var cues := spy.cues.size()
 		view._process(0.2)
 		_expect(run.frame == frame and spy.cues.size() == cues, "Pas de nouveau son en pause")
-		view._toggle_pause()
+		view._pause.toggle()
 	view._restart(false)
 	view._run._begin_combat(112,255)
 	view._run.combat.score = view._run.bonus_threshold

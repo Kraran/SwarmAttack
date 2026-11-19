@@ -17,37 +17,37 @@ func _run() -> void:
 	view._focused = true
 	view._profile = Profile.new()
 	_end_game([0])
-	_expect(view._score_results_open and view._score_entry == null and view._result_rows[0].rank == 0,
+	_expect(view._scores.results_open and view._scores.entry == null and view._scores.rows[0].rank == 0,
 		"Toute partie normale affiche son bilan")
 	_key(KEY_ENTER)
-	_expect(view._results_page == 1, "Accès au classement depuis le bilan")
+	_expect(view._scores.results_page == 1, "Accès au classement depuis le bilan")
 	_key(KEY_ESCAPE)
-	_expect(view._results_page == 0 and view._score_results_open, "Retour du classement vers le bilan")
+	_expect(view._scores.results_page == 0 and view._scores.results_open, "Retour du classement vers le bilan")
 	_key(KEY_ESCAPE)
-	_expect(not view._score_results_open and view._attract_active, "Retour du bilan vers l’accueil")
+	_expect(not view._scores.results_open and view._attract_active, "Retour du bilan vers l’accueil")
 	_end_game([9000])
 	_initials("ABC")
 	_key(KEY_ENTER)
-	_expect(view._result_rows[0].score == 9000 and view._result_rows[0].rank == 1 and view._result_rows[0].initials == "ABC",
+	_expect(view._scores.rows[0].score == 9000 and view._scores.rows[0].rank == 1 and view._scores.rows[0].initials == "ABC",
 		"Score et rang réellement enregistrés dans le bilan")
 	_end_game([14000,14000])
 	_initials("ONE")
 	_key(KEY_ENTER)
 	_initials("TWO")
 	_key(KEY_ENTER)
-	_expect(view._score_results_open and view._result_rows.size() == 2
-		and view._result_rows[0].rank == 1 and view._result_rows[1].rank == 2, "Deux nouveaux scores à égalité gardent leurs rangs")
+	_expect(view._scores.results_open and view._scores.rows.size() == 2
+		and view._scores.rows[0].rank == 1 and view._scores.rows[1].rank == 2, "Deux nouveaux scores à égalité gardent leurs rangs")
 	_expect(view._hud_layer.state[3] == 14000 and view._hud_layer.state[4] == 14000,
 		"Les scores finaux restent affichés dans le HUD")
-	_expect(view._result_rows[0].cycle == 2 and view._result_rows[1].cycle == 3
-		and view._result_rows[0].docks == 3 and view._result_rows[1].docks == 4, "Bilan individuel en duo")
+	_expect(view._scores.rows[0].cycle == 2 and view._scores.rows[1].cycle == 3
+		and view._scores.rows[0].docks == 3 and view._scores.rows[1].docks == 4, "Bilan individuel en duo")
 	_pad(JOY_BUTTON_A)
-	_expect(view._results_page == 1, "La manette ouvre le classement")
+	_expect(view._scores.results_page == 1, "La manette ouvre le classement")
 	_pad(JOY_BUTTON_B)
-	_expect(view._results_page == 0, "La manette revient au bilan")
+	_expect(view._scores.results_page == 0, "La manette revient au bilan")
 	_pad(JOY_BUTTON_DPAD_DOWN)
 	_pad(JOY_BUTTON_A)
-	_expect(not view._score_results_open, "La manette sélectionne Accueil puis valide")
+	_expect(not view._scores.results_open, "La manette sélectionne Accueil puis valide")
 	view._profile.difficulty = 1
 	_end_game([18000],false,true)
 	_initials("VET")
@@ -59,15 +59,15 @@ func _run() -> void:
 	view._profile.initials = PackedStringArray(["OLD","OLD","OLD","OLD","OLD","OLD","OLD","OLD","OLD","OLD"])
 	_end_game([1500,1200])
 	_key(KEY_ENTER)
-	_expect(view._score_entry == null and view._score_results_open and view._result_rows[0].rank == 10
-		and view._result_rows[1].rank == 0, "Le joueur évincé du top 10 conserve son bilan sans rang enregistré")
+	_expect(view._scores.entry == null and view._scores.results_open and view._scores.rows[0].rank == 10
+		and view._scores.rows[1].rank == 0, "Le joueur évincé du top 10 conserve son bilan sans rang enregistré")
 	_end_game([10000])
 	_key(KEY_ESCAPE)
-	_expect(view._score_results_open and view._result_rows[0].rank == 0 and view._profile.scores[0] == 9000,
+	_expect(view._scores.results_open and view._scores.rows[0].rank == 0 and view._profile.scores[0] == 9000,
 		"Passer les initiales affiche le bilan sans inventer de rang")
 	var profile_scores: PackedInt32Array = view._profile.scores.duplicate()
 	_end_game([99999],true)
-	_expect(not view._score_results_open and view._score_entry == null and view._profile.scores == profile_scores,
+	_expect(not view._scores.results_open and view._scores.entry == null and view._profile.scores == profile_scores,
 		"L’entraînement ne produit pas de résultat classé")
 	_docking_statistics()
 	if failures == 0:

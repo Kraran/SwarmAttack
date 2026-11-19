@@ -48,9 +48,9 @@ func _run() -> void:
 		index += 1
 	_key(KEY_ESCAPE)
 	view._profile.portrait = false
-	view._set_options_open(true)
+	view._options.set_open(true)
 	_click(view.HEADER_LOGO.get_center())
-	_expect(view._about_is_open() and view._options_open,"Ouverture depuis Options sans perdre le contexte")
+	_expect(view._about_is_open() and view._options.opened,"Ouverture depuis Options sans perdre le contexte")
 	var muted: bool = view._profile.muted
 	_key(KEY_F5)
 	_expect(view._profile.muted == muted,"Le dialogue n'active pas les raccourcis du jeu")
@@ -58,8 +58,8 @@ func _run() -> void:
 	view._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	_expect(view._audio.is_paused(),"Le retour du focus ne relance pas le son derrière À propos")
 	_key(KEY_ESCAPE)
-	_expect(view._options_open and view._audio.is_paused(),"Fermer retrouve Options et son état audio")
-	view._set_options_open(false)
+	_expect(view._options.opened and view._audio.is_paused(),"Fermer retrouve Options et son état audio")
+	view._options.set_open(false)
 	view._restart(false)
 	view._run._begin_combat(112,255)
 	view._advance_frame(view.Pilot.FRAME_USEC/2,0)
@@ -71,19 +71,19 @@ func _run() -> void:
 	_expect(view._cursor_hidden,"Le curseur peut être masqué avant l'ouverture")
 	_click(view.HEADER_LOGO.get_center())
 	view._process(0.2)
-	_expect(run.frame == frame and not view._cursor_hidden and not view._paused,"Partie figée et curseur visible, sans changer son état de pause")
+	_expect(run.frame == frame and not view._cursor_hidden and not view._pause.active,"Partie figée et curseur visible, sans changer son état de pause")
 	Input.action_press(&"fire")
 	_key(KEY_ENTER)
-	_expect(not view._about_is_open() and view._run == run and not view._paused and view._wait_for_fire_release,
+	_expect(not view._about_is_open() and view._run == run and not view._pause.active and view._wait_for_fire_release,
 		"Fermer restitue la même partie sans tirer avec le bouton maintenu")
 	_expect(view._elapsed_usec == fraction,"La reprise conserve la fraction de frame, sans recul de la pose interpolée")
 	view._advance_frame(view.Pilot.FRAME_USEC,view.Pilot.FIRE)
 	_expect(run.combat.pilot.active_shots().is_empty(),"Aucun tir involontaire à la fermeture")
 	Input.action_release(&"fire")
-	view._toggle_pause()
+	view._pause.toggle()
 	_click(view.HEADER_LOGO.get_center())
 	_key(KEY_ESCAPE)
-	_expect(view._paused and view._audio.is_paused(),"Une partie déjà en pause reste en pause")
+	_expect(view._pause.active and view._audio.is_paused(),"Une partie déjà en pause reste en pause")
 	if failures == 0:
 		print("ABOUT OK: logos, portrait, liens, six langues, navigation, focus, reprise et absence de tir involontaire.")
 	quit(1 if failures else 0)

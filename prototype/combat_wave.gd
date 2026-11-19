@@ -110,6 +110,7 @@ var divers := 0
 var credited_remaining := 0
 # Événements de vol : apparition et réapparition, sans modifier la simulation.
 var flight_sound_serial := 0
+var flight_sound_source: Enemy
 
 
 func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> void:
@@ -189,6 +190,7 @@ func advance(_frame: int, ship_x: int) -> void:
 				enemy.velocity = OPENING_STEPS[index >> 1]
 			enemies.append(enemy)
 			if enemy.alive:
+				flight_sound_source = enemy
 				flight_sound_serial += 1
 		return
 	if enemies.is_empty() or remaining == 0:
@@ -350,6 +352,7 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 		# passe en phase 1 au pas où le compteur s'annule, puis lance sa boucle.
 		# Relevé sur 130 sorties (pr1-suite, pr2, pr3, pr5b, pr6, pr7, pr10c-d).
 		if enemy.return_wait == 0:
+			flight_sound_source = enemy
 			flight_sound_serial += 1
 			enemy.position = Vector2i((enemy.position.x & 63) + 80, (enemy.position.y & 63) + 64)
 			enemy.return_wait = WIDE_RETURN_WAIT
@@ -373,6 +376,7 @@ func _advance_enemy(enemy: Enemy, ship: int) -> void:
 			Flight.DIVE:
 				_start_dive(enemy, ship)
 			Flight.RETURNING:
+				flight_sound_source = enemy
 				flight_sound_serial += 1
 				enemy.position = Vector2i(120, 80)
 				_return_pattern ^= 2
@@ -418,6 +422,7 @@ func _advance_rows(ship: int) -> void:
 			enemy.turn = 0
 			enemies.append(enemy)
 			if enemy.alive:
+				flight_sound_source = enemy
 				flight_sound_serial += 1
 		return
 	if enemies.is_empty():
@@ -464,6 +469,7 @@ func _advance_rows(ship: int) -> void:
 				if _row_exit(enemy):
 					divers -= 1
 			Flight.ROW_EXIT:
+				flight_sound_source = enemy
 				flight_sound_serial += 1
 				# Réapparition au pas suivant la sortie, y inchangé, en
 				# x = 0x822b + (0x8227 & 63) - 32 (302 réapparitions sur pr7, pr8*,
@@ -501,6 +507,7 @@ func _advance_falling() -> void:
 				if _alive_mask & (1 << index):
 					var enemy := enemies[index]
 					enemy.alive = true
+					flight_sound_source = enemy
 					flight_sound_serial += 1
 					enemy.position = FALL_STARTS[index]
 					enemy.velocity = FALL_STEPS[index]

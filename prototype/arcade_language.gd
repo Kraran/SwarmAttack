@@ -14,6 +14,14 @@ const LANGUAGES := {
 # The French source text is the key. Translations follow the order below.
 const TRANSLATED_LANGUAGES := ["en", "es", "pt", "de", "it"]
 const TEXT := {
+	"Compteur FPS": ["FPS counter", "Contador FPS", "Contador FPS", "FPS-Anzeige", "Contatore FPS"],
+	"activé": ["on", "activado", "ativado", "an", "attivo"],
+	"désactivé": ["off", "desactivado", "desativado", "aus", "disattivo"],
+	"Vibrations": ["Vibration", "Vibración", "Vibração", "Vibration", "Vibrazione"],
+	"Intensité": ["Intensity", "Intensidad", "Intensidade", "Intensität", "Intensità"],
+	"actives": ["on", "activas", "ativas", "an", "attive"],
+	"désactivées": ["off", "desactivadas", "desativadas", "aus", "disattivate"],
+	"Tester les vibrations": ["Test vibration", "Probar vibración", "Testar vibração", "Vibration testen", "Prova vibrazione"],
 	"À propos": ["About","Acerca de","Sobre","Über das Spiel","Informazioni"],
 	"Version": ["Version","Versión","Versão","Version","Versione"],
 	"Création": ["Created by","Creación","Criação","Entwicklung","Creazione"],

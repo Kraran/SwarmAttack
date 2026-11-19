@@ -1,6 +1,6 @@
 # Guide de SwarmAttack
 
-Décompressez la [version 0.3.1 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v0.3.1) et ouvrez `SwarmAttack.exe`.
+Décompressez la [version 0.4.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v0.4.0) et ouvrez `SwarmAttack.exe`.
 
 | Action | Clavier | Manette |
 | --- | --- | --- |
@@ -29,6 +29,10 @@ Le logo **SWARM ATTACK** est cliquable et ouvre **À propos**, avec la photo de 
 
 La musique de décollage accompagne l’arrivée initiale, le remplacement après destruction, la montée avant amarrage et l’arrivée au cycle suivant. Elle démarre une seule fois par montée, dans la banque sonore choisie.
 
+Les bruitages sont spatialisés en stéréo dans les deux banques : plus leur source se trouve à gauche ou à droite du terrain, plus ils s’entendent de ce côté. Les tirs partent du vaisseau, les explosions du point d’impact et les sons de vol suivent leur ennemi. Les contacts d’amarrage sont également positionnés. Le niveau global reste régulier pendant les déplacements ; chaque voix garde sa propre balance lorsque plusieurs effets se superposent. Musiques, annonces, signal de réserve et aperçu du menu Son restent centrés. Le comportement est identique en paysage et en portrait.
+
+Le routage des bus reste stable pendant les mouvements. Les rares changements de destination sont synchronisés avec le mixeur audio pour éviter une fermeture native de Godot. Les journaux locaux sont conservés dans `%APPDATA%\Godot\app_userdata\SwarmAttack\logs` (quatre fichiers au maximum) et indiquent cycle, vague et phase aux transitions. Voir le [rapport de correction](../RAPPORT_PLANTAGE_AUDIO.md).
+
 Le départ de fin de cycle utilise son thème spécifique, confirmé dans MAME. Il commence avec la montée et se termine avant la musique d’arrivée du cycle suivant, sans interruption prématurée.
 
 Les cinq familles possèdent leurs propres sons de vol/réapparition et d’impact, avec de nouvelles captures MAME pour Original et des équivalents SF pour Moderne. Les vols se déclenchent aux apparitions et aux retours, sans tir nécessaire, et s’arrêtent aux transitions. L’annonce d’amarrage et le son de vie supplémentaire sont également corrigés. Voir le [rapport d’analyse sonore](../RAPPORT_SONS_ENNEMIS.md).
@@ -37,7 +41,11 @@ Les sous-menus Options regroupent le volume (0 à 100 %), la coupure du son, l�
 
 Le menu Options de l’accueil enregistre la difficulté des prochaines parties, en solo comme en duo. En **Normal**, la partie débute au cycle 1 et la réserve est acquise à 30 000 points. En **Vétérans**, elle débute à la première vague du cycle 2 et la réserve est acquise à 50 000 points.
 
+**Options → Affichage → Compteur FPS** affiche la cadence réelle de rendu en haut à droite. Le choix est sauvegardé et désactivé par défaut. La mesure utilise le compteur d’images rendues de Godot et l’horloge monotone, indépendamment du pas de simulation, du temps de jeu ou de la fréquence nominale du moniteur. Elle s’actualise dix fois par seconde sur une fenêtre de 0,5 seconde et continue dans les menus et pendant la pause. Un arrêt du rendu produit zéro FPS ; le compteur ne reste pas artificiellement à 60.
+
 ## En jeu
+
+Options → Vibrations permet d’activer ou désactiver le retour de la manette, de régler son intensité de 0 à 100 % et de le tester. Le réglage est sauvegardé ; l’intensité initiale reste de 70 %. Deux effets sont conservés : une forte secousse explosive lors de la destruction d’un vaisseau du joueur, y compris une collision d’amarrage, et un choc sec et puissant au contact d’un amarrage réussi. Les tirs, les explosions ennemies et les vies supplémentaires ne déclenchent aucune vibration. Les effets restent indépendants du son et s’arrêtent à la pause, à la perte de focus et au retour à l’accueil. La dernière manette utilisée reçoit les effets ; lorsqu’une seule est branchée, elle est sélectionnée automatiquement. Le bouton de test nécessite une manette compatible connectée, des vibrations activées et une intensité supérieure à zéro.
 
 Le score, le record et l’état des modules s’affichent dans le terrain. Le record est mis à jour à la fin de la partie. Avant l’approche d’amarrage, les instructions rappellent comment diriger et freiner. Le chrono affiche 30:0 pendant la montée du module cible.
 
@@ -63,6 +71,8 @@ L’[audit des collisions](../RAPPORT_COLLISIONS.md) couvre les sept combinaison
 
 ## Développement
 
+Le choc d’amarrage est une impulsion unique de 85 ms sur les deux moteurs, déclenchée au contact réussi et sans répétition pendant le bonus. La destruction du joueur dure 480 ms, avec une attaque forte suivie d’une décroissance en quatre étapes. Le bouton « Tester les vibrations » joue un contact d’amarrage, une pause puis une explosion du joueur.
+
 Ouvrez [project.godot](project.godot) dans Godot 4.7.2 standard. Le [lanceur Windows](../Lancer%20le%20prototype.cmd) utilise l’exécutable Godot placé dans `.tools/godot-4.7.2`.
 
 Pour produire l’archive Windows, placez le modèle d’export `windows_release_x86_64.exe` dans `.tools/godot-4.7.2/templates` et lancez depuis la racine.
@@ -73,9 +83,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows.ps1
 
 L’archive produite se trouve dans `dist/SwarmAttack-Windows-x64.zip`.
 
+### Interface en 0.4.0
+
+Les menus Options, Pause, Entraînement, Accueil, Classements et Résultats sont extraits dans [`ui`](ui/README.md), avec leurs états et leur dessin. Un routeur traite les écrans modaux avant les commandes du vaisseau ; le calque des menus conserve le cache de rendu. La vue garde la session, le son et l’horloge du jeu ; le profil reste responsable des règles de classement et de la persistance.
+
+Le [rapport de refactorisation](../RAPPORT_REFACTOR_MENUS.md) détaille les frontières et la comparaison visuelle avant/après.
+
+L’audit visuel se lance avec un moteur graphique et un profil de test isolé. Le dernier argument est facultatif et désigne un dossier de captures de référence contenant `hashes.json`.
+
+```powershell
+& $godot --path prototype --script ../tools/audit_menu_render.gd -- .reference/menu-captures .reference/menu-baseline
+```
+
 ## Tests
 
-Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les vingt-quatre suites.
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les vingt-sept suites.
 
 ```powershell
 & $godot --headless --editor --import --path prototype
@@ -86,3 +108,10 @@ foreach ($test in Get-ChildItem prototype/tests/test_*.gd, prototype/tests/smoke
 ```
 
 La suite de livraison joue deux amarrages et atteint le deuxième cycle. Les tests de combat couvrent 18 trajectoires et 1 405 points de contrôle. Les [outils de trace](../tools/arcade/README.md) servent au diagnostic des mouvements et des collisions.
+
+Les audits de stabilité audio et des cycles utilisent aussi un profil `APPDATA` isolé. Le premier sollicite le mixeur pendant un temps réel donné ; `switch` ajoute des changements de destination. Le second rend les dix vagues aux cycles 2, 3 et 4 et vérifie les transitions vers les cycles 3, 4 et 5.
+
+```powershell
+& $godot --headless --path prototype --script ../tools/audit_audio_stability.gd -- 30 switch
+& $godot --path prototype --script ../tools/audit_cycle_stability.gd
+```
