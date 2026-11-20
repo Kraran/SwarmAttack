@@ -1,6 +1,6 @@
 # Guide de SwarmAttack
 
-Décompressez la [version 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0) et ouvrez `SwarmAttack.exe`.
+Décompressez la [version 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0) (`SwarmAttack-1.0.0-Win64.zip`) et ouvrez `SwarmAttack.exe`.
 
 | Action | Clavier | Manette |
 | --- | --- | --- |

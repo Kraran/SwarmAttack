@@ -2,9 +2,15 @@
 
 SWARM ATTACK est un jeu de défense orbitale. Pilotez votre vaisseau à travers dix vagues et assemblez ses trois modules lors des manœuvres d’amarrage. Jouez en solo ou à deux en alternance sur le même PC.
 
-**[Télécharger la 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/download/v1.0.0/SwarmAttack-Windows-x64.zip)** · [Notes de version](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0)
+**[Télécharger la 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/download/v1.0.0/SwarmAttack-1.0.0-Win64.zip)** · [Notes de version](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0)
 
 Décompressez l’archive et ouvrez `SwarmAttack.exe`. Espace lance une partie et sert à tirer. Déplacez-vous avec les flèches ou la manette. Échap ouvre le menu de pause et F5 coupe ou réactive le son.
+
+![Combat de la première vague : le vaisseau tire sur une formation d’ennemis, le menu affiche le cycle, le score et les vies](docs/captures/jeu.png)
+
+| Amarrage d’un module | Thème Phosphore et treize langues |
+| --- | --- |
+| ![Approche d’amarrage avec le chronomètre, thème Arcade](docs/captures/amarrage.png) | ![Choix de la langue avec drapeaux, thème Phosphore](docs/captures/themes-langues.png) |
 
 La version 1.0.0 comprend :
 
