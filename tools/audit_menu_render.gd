@@ -29,6 +29,7 @@ func _run() -> void:
 	view = preload("res://main.tscn").instantiate()
 	root.add_child(view)
 	view.set_process(false)
+	view.finish_intro()
 	view._focused = true
 	RenderingServer.frame_pre_draw.disconnect(view._advance_starfield)
 	view._profile = view.ArcadeProfile.new()

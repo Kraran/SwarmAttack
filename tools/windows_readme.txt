@@ -1,10 +1,15 @@
 SWARM ATTACK
-Version 0.4.0
+Version 1.0.0
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
 La présentation est conçue pour le Full HD (1920 × 1080), avec un champ
-vertical et des modèles spatiaux chromés.
+vertical et des modèles spatiaux chromés. Le fond animé occupe tout l’écran,
+y compris en ultra-large. Au démarrage, le logo est annoncé par la voix
+« Swarm Attack », suivi d’une musique jouée une fois. Toute touche passe
+l’introduction.
+Options > Affichage choisit le thème des menus (Orbital, Arcade ou
+Phosphore) et la disposition : menu à droite (par défaut) ou à gauche.
 Les bruitages sont en stéréo selon leur position dans le terrain : tirs,
 explosions, vols ennemis et contacts d’amarrage, dans les deux banques.
 Les musiques et annonces restent centrées.
@@ -28,7 +33,7 @@ Commandes par défaut au clavier
   ← / →    Déplacement latéral (Q / D également)
   Échap    Pause et reprise en jeu, quitter depuis l’accueil
   ↑ / ↓    Choisir une option dans la pause, Entrée pour valider
-  T        Retour à l’accueil depuis la pause
+  T        Retour à l’accueil depuis la pause (avec confirmation)
   R        Recommencer la partie en cours
   F1       Basculer entre la 3D et la vue de diagnostic
   F2       Choisir un entraînement ; relancer l’exercice en entraînement
@@ -45,7 +50,7 @@ Projet GitHub ouvre le dépôt du jeu. Fermer, Échap, B ou Start revient
 Manette
   Options > Vibrations : activation, intensité 0 à 100 % et test.
   Destruction du joueur : forte explosion avec décroissance.
-  Amarrage réussi : choc sec et puissant au moment du contact.
+  Amarrage réussi : double choc puissant au moment du contact.
   Aucun retour au tir, sur les ennemis ou à la vie supplémentaire.
   Le test joue un contact d’amarrage, une pause puis une explosion.
   Réglages sauvegardés, intensité initiale 70 %, indépendante du son.
@@ -53,10 +58,17 @@ Manette
   Croix ou stick gauche pour se déplacer, A pour jouer, tirer et freiner,
   Y pour démarrer une partie à deux (ou relancer un entraînement), X pour ouvrir les options, Start pour
   mettre en pause et reprendre, haut/bas à la croix et A pour valider.
-  B depuis la pause ramène à l’accueil.
+  B depuis la pause propose de revenir à l’accueil.
+  Xbox + Start ouvre la question « Quitter le jeu ? » de partout,
+  « Non » étant présélectionné.
+  Si la manette utilisée pour jouer est débranchée ou perdue, la partie
+  se met en pause. Une autre manette débranchée est ignorée.
+  En mode portrait, une direction ouvre le menu de l’accueil.
 
 Le menu de pause permet de reprendre, d’ouvrir les options ou l’entraînement,
-de revenir à l’accueil ou de quitter. Les choix sont accessibles à la souris.
+de revenir à l’accueil ou de quitter. Accueil et Quitter demandent une
+confirmation, « Non » étant présélectionné. Les choix sont accessibles
+à la souris.
 
 Options > Son règle le volume de 0 à 100 % et permet de couper le son.
 Sons choisit Original (par défaut) ou Moderne, avec un aperçu du tir.
@@ -65,8 +77,8 @@ y compris après une destruction, avant un amarrage et à l’arrivée du cycle 
 Le départ de fin de cycle utilise son thème spécifique.
 Chaque famille d’ennemis possède ses sons de vol, de retour et d’impact.
 Une vie supplémentaire déclenche son propre signal sonore.
-La banque Moderne comprend vingt-deux effets SF, avec plusieurs voix simultanées
-et un limiteur sur son bus. Le choix sonore est enregistré.
+La banque Moderne réorchestre les vingt-deux sons arcade en synthèse moderne,
+avec plusieurs voix simultanées et un limiteur. Le choix sonore est enregistré.
 Utilisez gauche/droite ou cliquez sur la moitié gauche/droite du volume.
 Options > Affichage choisit le plein écran ou le mode fenêtré, ainsi que
 l’orientation portrait ou paysage.
@@ -93,7 +105,8 @@ Le choix s’applique aux prochaines parties en solo et en duo, y compris
 quand la difficulté est choisie depuis la pause.
 
 Dans Options, choisissez Langue (Language) pour afficher le jeu en anglais,
-français, espagnol, portugais, allemand ou italien. Les nouveaux profils
+français, espagnol, portugais, allemand, italien, danois, néerlandais,
+norvégien, polonais, russe, suédois ou turc. Les nouveaux profils
 démarrent en anglais. La langue choisie est enregistrée.
 
 Les modes Normal et Vétérans ont chacun dix scores indépendants. En jeu,

@@ -33,14 +33,14 @@ func _run() -> void:
 	view._attract.frame = 300
 	view._redraw()
 	var regions: Array[Rect2] = view._logo_regions()
-	_expect(regions.size() == 2,"Le logo animé visible est également cliquable")
-	_click(regions[1].get_center())
-	_expect(view._about_is_open(),"Clic sur le logo dans le terrain")
+	_expect(regions.size() == 1,"Le terrain n'affiche plus de second logo pendant l'attraction")
+	_click(regions[0].get_center())
+	_expect(view._about_is_open(),"Clic sur le logo d'en-tête pendant l'attraction")
 	_key(KEY_ESCAPE)
 	view._profile.portrait = true
 	_click(view.PORTRAIT_HEADER_LOGO.get_center())
 	_expect(view._about_is_open() and view._about.size == Vector2(view.PORTRAIT_SIZE),"Ouverture depuis le logo en portrait")
-	var expected_close := ["Close","Fermer","Cerrar","Fechar","Schließen","Chiudi"]
+	var expected_close := ["Close","Fermer","Cerrar","Fechar","Schließen","Chiudi","Luk","Sluiten","Lukk","Zamknij","Закрыть","Stäng","Kapat"]
 	var index := 0
 	for language in view.Language.LANGUAGES:
 		view._about.present(view.PORTRAIT_SIZE,language)

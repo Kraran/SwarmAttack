@@ -47,7 +47,27 @@ enum Screen { TITLE_TEXT, SCORE_TABLE, DEMO }
 
 var frame := 0
 var _row := 0
-var _visuals := PackedByteArray()
+# Données de la démo, avec la retouche du second amarrage (voir _patch_second_docking).
+static var _rows: Array = []
+static var _visuals := PackedByteArray()
+static var _events: Array = []
+
+# Second amarrage de la démo. Sur la borne, le I + II manque le III, glisse
+# à côté de lui puis le temps expire : à l'écran, le vaisseau traverse le
+# module en attente. La démo montre plutôt un amarrage réussi : approche
+# freinée au-dessus du III, contact, écran bonus de 305 images, puis reprise
+# du combat avec I + II + III jusqu'à la perte du module II (boucle 5504),
+# où le III repasse en réserve comme en partie.
+const SECOND_DOCKING_PATH := 4240
+const SECOND_DOCKING_CONTACT := 4822
+const SECOND_DOCKING_RESUME := 5127
+const SECOND_DOCKING_LOSS := 5504
+const DOCKED_X := 112
+const DOCKED_Y := 200
+# Durée de vie des explosions, en images de boucle.
+const ENEMY_BURST_FRAMES := 18
+const SHIP_BURST_FRAMES := 36
+enum Event { FRAME, SHIP, X, Y, STYLE }
 
 
 func cycle_length() -> int:
@@ -89,7 +109,7 @@ func title_line_progress(index: int, fraction := 0.0) -> float:
 func demo_state() -> Array:
 	if screen() != Screen.DEMO:
 		return []
-	return DemoData.ROWS[_row]
+	return _rows[_row]
 
 
 func demo_value(column: Column) -> int:
@@ -111,6 +131,30 @@ func demo_attached() -> int:
 	return mask
 
 
+# Bonus affiché par l'écran BRAVO : secondes restantes × multiplicateur.
+func demo_bonus() -> Vector2i:
+	var multiplier := 100 if demo_value(Column.STEP) == 2 else 300
+	var seconds := demo_value(Column.CLOCK) >> 8
+	return Vector2i(((seconds >> 4) * 10 + (seconds & 0x0F)) * multiplier, multiplier)
+
+
+# Explosions visibles à l'image courante : [image, vaisseau, x, y, style, âge].
+func demo_bursts(fraction := 0.0) -> Array:
+	var bursts := []
+	if screen() != Screen.DEMO:
+		return bursts
+	_load()
+	var now := demo_frame()
+	for event in _events:
+		var age := float(now - event[Event.FRAME]) + fraction
+		if age < 0.0:
+			break
+		var life := SHIP_BURST_FRAMES if event[Event.SHIP] else ENEMY_BURST_FRAMES
+		if age < life:
+			bursts.append([event[Event.SHIP], Vector2(event[Event.X], event[Event.Y]), event[Event.STYLE], age / life])
+	return bursts
+
+
 func demo_clock() -> String:
 	# BCD : secondes, puis dixièmes comptés de 10 à 1 (0x3010 s'affiche 30:0).
 	var clock := demo_value(Column.CLOCK)
@@ -121,8 +165,7 @@ func demo_clock() -> String:
 func demo_objects(lookback := 0) -> PackedByteArray:
 	if screen() != Screen.DEMO:
 		return PackedByteArray()
-	if _visuals.is_empty():
-		_visuals = Marshalls.base64_to_raw(VisualData.DEFLATE).decompress(VisualData.SIZE, FileAccess.COMPRESSION_DEFLATE)
+	_load()
 	var index := maxi(0, demo_frame() - lookback) * VisualData.STRIDE
 	return _visuals.slice(index, index + VisualData.STRIDE)
 
@@ -132,7 +175,101 @@ func _sync_row() -> void:
 		_row = 0
 		return
 	var target := demo_frame()
-	if _row < DemoData.ROWS.size() and DemoData.ROWS[_row][Column.LOOP] > target:
+	_load()
+	if _row < _rows.size() and _rows[_row][Column.LOOP] > target:
 		_row = 0
-	while _row + 1 < DemoData.ROWS.size() and DemoData.ROWS[_row + 1][Column.LOOP] <= target:
+	while _row + 1 < _rows.size() and _rows[_row + 1][Column.LOOP] <= target:
 		_row += 1
+
+
+static func _load() -> void:
+	if not _rows.is_empty():
+		return
+	_rows = DemoData.ROWS.duplicate(true)
+	_visuals = Marshalls.base64_to_raw(VisualData.DEFLATE).decompress(VisualData.SIZE, FileAccess.COMPRESSION_DEFLATE)
+	_patch_second_docking()
+	_find_bursts()
+
+
+static func _row_at(loop: int) -> Array:
+	var found: Array = _rows[0]
+	for row in _rows:
+		if row[Column.LOOP] > loop:
+			break
+		found = row
+	return found
+
+
+static func _set_module(frame: int, module: int, point: Vector2i) -> void:
+	var at := frame * VISUAL_STRIDE + MODULE_OFFSET + (module - 1) * 2
+	_visuals[at] = point.x
+	_visuals[at + 1] = point.y
+
+
+static func _patch_second_docking() -> void:
+	var contact_clock: int = _row_at(SECOND_DOCKING_CONTACT)[Column.CLOCK]
+	var replaced := []
+	var span := float(SECOND_DOCKING_CONTACT - SECOND_DOCKING_PATH)
+	var start := Vector2(_visuals[SECOND_DOCKING_PATH * VISUAL_STRIDE + MODULE_OFFSET],
+		_visuals[SECOND_DOCKING_PATH * VISUAL_STRIDE + MODULE_OFFSET + 1])
+	for frame in range(SECOND_DOCKING_PATH, SECOND_DOCKING_RESUME):
+		var point := Vector2i(DOCKED_X, DOCKED_Y)
+		if frame < SECOND_DOCKING_CONTACT:
+			# Approche freinée : léger balancement, vitesse qui retombe au contact.
+			var t := (frame - SECOND_DOCKING_PATH) / span
+			point = Vector2i(roundi(DOCKED_X + (start.x - DOCKED_X) * (1.0 - t) * cos(2.5 * PI * t)),
+				roundi(start.y + (DOCKED_Y - start.y) * (1.0 - pow(1.0 - t, 1.6))))
+			var original: Array = _row_at(frame)
+			replaced.append([frame, point.x + 16, point.y + 16, original[Column.LIVES], original[Column.FLAG],
+				SCREEN_PLAY, 5, original[Column.CLOCK], 1, 1, 2, 0])
+		elif frame == SECOND_DOCKING_CONTACT:
+			replaced.append([frame, DOCKED_X + 16, DOCKED_Y + 16, 3, 1, SCREEN_RESULT, 5, contact_clock, 1, 1, 1, 0])
+		_set_module(frame, 1, point)
+		_set_module(frame, 2, point + Vector2i(0, 8))
+		_set_module(frame, 3, Vector2i(DOCKED_X, DOCKED_Y + 16))
+		_visuals[frame * VISUAL_STRIDE + THRUST_OFFSET] = 2 if frame < SECOND_DOCKING_CONTACT else 3
+	# Après la reprise, le III reste sous le II jusqu'à la perte du II.
+	for frame in range(SECOND_DOCKING_RESUME, SECOND_DOCKING_LOSS):
+		var at := frame * VISUAL_STRIDE + MODULE_OFFSET
+		if _visuals[at + 2] != 255:
+			_set_module(frame, 3, Vector2i(_visuals[at + 2], _visuals[at + 3] + 8))
+			if _visuals[frame * VISUAL_STRIDE + THRUST_OFFSET] == 2:
+				_visuals[frame * VISUAL_STRIDE + THRUST_OFFSET] = 3
+	var rows := []
+	for row in _rows:
+		var loop: int = row[Column.LOOP]
+		if loop >= SECOND_DOCKING_PATH and loop < SECOND_DOCKING_RESUME:
+			continue
+		if loop >= SECOND_DOCKING_RESUME and loop < SECOND_DOCKING_LOSS:
+			row[Column.MODULE_III] = 1
+		if loop == SECOND_DOCKING_RESUME:
+			rows.append_array(replaced)
+		rows.append(row)
+	_rows = rows
+
+
+# Les explosions ne sont pas dans le relevé : un ennemi qui disparaît juste
+# après le passage d'un tir a été abattu ; un module qui passe à 0 est perdu.
+static func _find_bursts() -> void:
+	_events = []
+	var previous_states := [1, 1, 1]
+	var row_index := 0
+	for frame in range(1, DEMO_FRAMES):
+		var before := (frame - 1) * VISUAL_STRIDE
+		var now := frame * VISUAL_STRIDE
+		for slot in range(0, 16, 2):
+			if _visuals[before + slot] == 255 or _visuals[now + slot] != 255:
+				continue
+			var point := Vector2(_visuals[before + slot], _visuals[before + slot + 1])
+			for shot in range(16, 26, 2):
+				if _visuals[before + shot] != 255 and absf(_visuals[before + shot] - point.x) + absf(_visuals[before + shot + 1] - point.y) <= 16.0:
+					_events.append([frame, false, point.x, point.y, _visuals[before + STYLE_OFFSET]])
+					break
+		while row_index + 1 < _rows.size() and _rows[row_index + 1][Column.LOOP] <= frame:
+			row_index += 1
+		for module in range(3):
+			var state: int = _rows[row_index][Column.MODULE_I + module]
+			var at := before + MODULE_OFFSET + module * 2
+			if state == 0 and previous_states[module] == 1 and _visuals[at] != 255:
+				_events.append([frame, true, _visuals[at], _visuals[at + 1] + 6, 255])
+			previous_states[module] = state

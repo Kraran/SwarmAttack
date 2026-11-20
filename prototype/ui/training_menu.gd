@@ -49,7 +49,15 @@ func close_menu() -> void:
 
 
 func row_rect(index: int, result := false) -> Rect2:
-	return Rect2(33, (137 if result else 65) + 27 * index, 158, 22)
+	var area := content_rect()
+	if result:
+		var width := minf(440.0, area.size.x - 40.0)
+		return Rect2(area.get_center().x - width / 2.0, area.position.y + 200 + 64 * index, width, 50)
+	if index == 3:
+		return Rect2(area.position.x + 40, area.position.y + 200, area.size.x - 80, 62)
+	if index == 4:
+		return Rect2(area.position.x + 70, area.position.y + 280, area.size.x - 140, 48)
+	return Rect2(area.position.x + 8, area.position.y + 4 + 60 * index, area.size.x - 16, 50)
 
 
 func handle_input(event: InputEvent) -> void:
@@ -67,13 +75,13 @@ func handle_input(event: InputEvent) -> void:
 			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A):
 		confirm()
 	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
+		var point: Vector2 = _view._panel_point(event.position)
 		for index in 5:
 			if row_rect(index).has_point(point):
 				choice = index
 				if event is InputEventMouseButton:
 					if index < 3:
-						adjust(-1 if point.x < 112 else 1)
+						adjust(-1 if point.x < row_rect(index).get_center().x else 1)
 					else:
 						confirm()
 				_view._redraw()
@@ -122,7 +130,7 @@ func handle_result_input(event: InputEvent) -> void:
 			or event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A):
 		confirm_result()
 	elif event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
-		var point := _field_input_position(event.position)
+		var point: Vector2 = _view._panel_point(event.position)
 		for index in 3:
 			if row_rect(index, true).has_point(point):
 				choice = index
@@ -146,36 +154,53 @@ func target_label(kind: int, target: int) -> String:
 
 
 func draw(canvas: Node2D) -> void:
-	var panel := Rect2(23, 36, 178, 169)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	_field_text(canvas, 112, 53, _translate("Entraînement").to_upper(), SHOT, 11)
-	var labels := [
-		"%s · %s" % [_translate("Exercice"), _translate("Vague" if kind == TrainingSession.Kind.WAVE else "Amarrage")],
-		"‹  %s  ›" % target_label(kind, target),
-		"%s · %s" % [_translate("Difficulté"), _translate(ArcadeProfile.DIFFICULTY_LABELS[difficulty])],
-		_translate("Démarrer"), _translate("Retour"),
+	sheet(canvas)
+	header(canvas, _translate("Entraînement"), _translate("Scores hors classement"))
+	var rows := [
+		[_translate("Exercice"), _translate("Vague" if kind == TrainingSession.Kind.WAVE else "Amarrage")],
+		[_translate("Cible"), target_label(kind, target)],
+		[_translate("Difficulté"), _translate(ArcadeProfile.DIFFICULTY_LABELS[difficulty])],
 	]
-	for index in labels.size():
-		_draw_score_action(canvas, row_rect(index), labels[index], index == choice)
-	_field_text(canvas, 112, 221, _translate("Scores hors classement"), MUTED, 7)
-	_field_text(canvas, 112, 238, _translate("← → ou clic pour régler"), MUTED, 7)
+	for index in rows.size():
+		var rect := row_rect(index)
+		var state := row_state(index, choice)
+		skin.button_frame(canvas, rect, state)
+		var ink := skin.c("focus_text") if state == 2 else skin.c("button_text")
+		var y := rect.get_center().y + 1
+		skin.text(canvas, Vector2(rect.position.x + rect.size.y * skin.skew + 22, y), skin.caps(rows[index][0]), skin.body_size(30), ink, -1)
+		var right := rect.end.x - 26
+		var width := skin.text(canvas, Vector2(right - 22, y), skin.caps(rows[index][1]), skin.body_size(30), ink, 1)
+		skin.arrow(canvas, Vector2(right - 4, y), 1, 14, ink)
+		skin.arrow(canvas, Vector2(right - width - 40, y), -1, 14, ink)
+	skin.button(canvas, row_rect(3), _translate("Démarrer"), row_state(3, choice), 40)
+	skin.button(canvas, row_rect(4), _translate("Retour"), row_state(4, choice), 30)
+	hints(canvas, [
+		hint(["key:↑", "key:↓"], ["pad:✚"], "Choisir"),
+		hint(["key:←", "key:→"], ["pad:◀▶"], "Régler"),
+		hint(["key:Entrée"], ["pad:A"], "Valider"),
+		hint(["key:Échap"], ["pad:B"], "Retour"),
+	])
 
 
 func draw_result(canvas: Node2D) -> void:
+	sheet(canvas)
 	var training := _session as TrainingSession
-	var panel := Rect2(23, 36, 178, 192)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
-	_field_text(canvas, 112, 54, _translate("Entraînement"), SHOT, 12)
-	_field_text(canvas, 112, 76, _exercise_label(), MUTED, 9)
+	header(canvas, _translate("Entraînement"), _exercise_label())
+	var area := content_rect()
 	var message := "Vague terminée" if training.success else "Vaisseau perdu"
 	if training.kind == TrainingSession.Kind.DOCKING:
 		message = "Amarrage réussi" if training.success else "Amarrage manqué"
-	_field_text(canvas, 112, 101, _translate(message), SHIP if training.success else ARCADE_RED, 11)
+	var box := Rect2(area.position.x + 8, area.position.y + 8, area.size.x - 16, 160)
+	skin.panel(canvas, box)
+	skin.title(canvas, Vector2(box.get_center().x, box.position.y + 52), _translate(message), 52, 0, box.size.x - 40)
 	var points := _run.score() if training.kind == TrainingSession.Kind.WAVE else _run.docking.bonus
-	_field_text(canvas, 112, 121, _translate("Score %d") % points, PRIMARY, 9)
-	var labels := [_translate("Réessayer") + " · R / Y", _translate("Choisir un exercice"), _translate("Accueil")]
+	skin.text(canvas, Vector2(box.get_center().x, box.position.y + 112), "%06d" % points, 22,
+		skin.c("success") if training.success else skin.c("danger"), 0, skin.score_font)
+	var labels := [_translate("Réessayer"), _translate("Choisir un exercice"), _translate("Accueil")]
 	for index in labels.size():
-		_draw_score_action(canvas, row_rect(index, true), labels[index], index == choice)
-	_field_text(canvas, 112, 244, _translate("Scores hors classement"), MUTED, 7)
+		skin.button(canvas, row_rect(index, true), labels[index], row_state(index, choice), 32)
+	hints(canvas, [
+		hint(["key:R"], ["pad:Y"], "Réessayer"),
+		hint(["key:Entrée"], ["pad:A"], "Valider"),
+		hint(["key:Échap"], ["pad:B"], "Exercices"),
+	])

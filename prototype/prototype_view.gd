@@ -30,6 +30,10 @@ const MenuOverlay = preload("res://ui/menu_overlay.gd")
 const MenuInput = preload("res://ui/menu_input.gd")
 const AboutPanel = preload("res://about_panel.gd")
 const FpsCounter = preload("res://ui/fps_counter.gd")
+const MenuFeedback = preload("res://ui/menu_feedback.gd")
+const QuitPrompt = preload("res://ui/quit_prompt.gd")
+const UiSkin = preload("res://ui/skin.gd")
+const BACKDROP_SHADER = preload("res://ui/backdrop.gdshader")
 const SHIP_BURST_FRAMES := 36
 const MAX_CATCHUP_USEC := 8 * Pilot.FRAME_USEC
 const CURSOR_HIDE_USEC := 3_000_000
@@ -75,6 +79,7 @@ var _profile := ArcadeProfile.new()
 var _audio := ArcadeAudio.new()
 var _haptics := ArcadeHaptics.new()
 var _attract_active := true
+var _field_font_ratios := {}
 var _last_usec := 0
 var _elapsed_usec := 0
 var _held := 0
@@ -98,9 +103,27 @@ var _starfield: Starfield
 var _dock_layer: InterfaceLayer
 var _hud_layer: InterfaceLayer
 var _pause_layer: MenuOverlay
+var _veil_layer: InterfaceLayer
+var _menu_feedback := MenuFeedback.new(self)
 var _frame_layer: InterfaceLayer
 var _panel_layer: InterfaceLayer
 var _logo_layer: InterfaceLayer
+var _backdrop := ColorRect.new()
+var _backdrop_clock := 0.0
+# Startup intro: big centred logo that zooms out into its menu position.
+const INTRO_APPEAR := 0.45
+const INTRO_HOLD := 0.95
+const INTRO_MOVE := 1.9
+const INTRO_END := 2.3
+var _intro_time := INTRO_END
+var _intro_voice_played := false
+const INTRO_VOICE_AT := 0.05
+var _canvas_offset := Vector2.ZERO
+var _backdrop_state: Array = []
+var _skin: UiSkin = UiSkin.create(UiSkin.DEFAULT_SKIN)
+var _pad_hints := false
+# Manette qui sert à jouer : la dernière à avoir produit une entrée franche.
+var _play_pad := -1
 var _about: AboutPanel
 var _fps_counter := FpsCounter.new()
 var _about_audio_was_paused := false
@@ -112,11 +135,13 @@ var _training := TrainingMenu.new(self,_navigation)
 var _title := TitleMenu.new(self,_navigation)
 var _scores := ScoresMenu.new(self,_navigation)
 var _menu_input := MenuInput.new(self,_navigation)
+var _quit_prompt := QuitPrompt.new(self,_navigation)
 
 
 func _ready() -> void:
 	get_window().title = Language.TITLE
 	_profile.read()
+	_skin = UiSkin.create(_profile.skin)
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	add_child(_audio)
 	add_child(_haptics)
@@ -130,12 +155,22 @@ func _ready() -> void:
 		RenderingServer.frame_pre_draw.connect(_advance_starfield)
 		_flight_view = FlightView.new()
 		add_child(_flight_view)
+	# Animated backdrop: one shader quad over the whole visible area.
+	var backdrop_material := ShaderMaterial.new()
+	backdrop_material.shader = BACKDROP_SHADER
+	_backdrop.material = backdrop_material
+	_backdrop.show_behind_parent = true
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_backdrop)
+	move_child(_backdrop, 0)
+	get_viewport().size_changed.connect(_layout_canvas)
 	_dock_layer = _add_interface_layer(_draw_live_docking_status)
 	_hud_layer = _add_interface_layer(_draw_arcade_hud)
 	_logo_layer = _add_interface_layer(_draw_logos)
 	var logo_material := ShaderMaterial.new()
 	logo_material.shader = LOGO_SHADER
 	_logo_layer.material = logo_material
+	_veil_layer = _add_interface_layer(_draw_veil)
 	_pause_layer = MenuOverlay.new(self,_options,_pause,_training,_scores)
 	add_child(_pause_layer)
 	_frame_layer = _add_interface_layer(_draw_static_interface)
@@ -150,6 +185,9 @@ func _ready() -> void:
 		_apply_display()
 	Controls.apply(_profile.key_bindings, _profile.button_bindings)
 	_last_usec = Time.get_ticks_usec()
+	if DisplayServer.get_name() != "headless":
+		_intro_time = 0.0
+		_apply_intro()
 
 
 func _add_interface_layer(paint: Callable) -> InterfaceLayer:
@@ -171,6 +209,19 @@ func _read_controls() -> int:
 
 
 func _input(event: InputEvent) -> void:
+	var kind := MenuFeedback.kind_of(event) if _focused and not _intro_active() else ""
+	var before := _menu_feedback.snapshot() if not kind.is_empty() else {}
+	_route_input(event)
+	if not kind.is_empty():
+		_menu_feedback.react(before, _menu_feedback.snapshot(), kind)
+		if _menu_feedback.sliding():
+			_redraw()
+
+
+func _route_input(event: InputEvent) -> void:
+	# Menus compare pointer positions with layout coordinates, before the centring offset.
+	if _canvas_offset != Vector2.ZERO and (event is InputEventMouse or event is InputEventScreenTouch):
+		event = make_input_local(event)
 	if _focused:
 		_haptics.handle_input(event)
 	if _menu_input.handle_input(event):
@@ -191,18 +242,7 @@ func _logo_regions() -> Array[Rect2]:
 	var regions: Array[Rect2] = []
 	if not _focused or _about_is_open() or _scores.entry != null or _scores.results_open or _scores.tables_open:
 		return regions
-	regions.append(PORTRAIT_HEADER_LOGO if _profile.portrait else HEADER_LOGO)
-	if not _attract_active or _pause.active or _options.opened or _training.opened or _training.result_open or _attract.screen() != Attract.Screen.TITLE_TEXT:
-		return regions
-	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)
-	if progress <= 0.0:
-		return regions
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
-	var scale := field.size / Vector2(Pilot.FIELD_SIZE)
-	var height := 184.0 * TITLE_LOGO.get_height() / TITLE_LOGO.get_width() * scale.x / scale.y
-	var target := Rect2(lerpf(224,20,progress),58,184,height)
-	var visible := target.intersection(Rect2(Vector2.ZERO,Vector2(Pilot.FIELD_SIZE)))
-	regions.append(Rect2(field.position + visible.position * scale,visible.size * scale))
+	regions.append(_header_logo())
 	return regions
 
 
@@ -229,7 +269,8 @@ func _open_about() -> void:
 	_about_audio_was_paused = _audio.is_paused()
 	_haptics.stop()
 	_audio.set_paused(true)
-	_about.present(PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE,_profile.language)
+	_audio.play_title()
+	_about.present(PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE,_profile.language,_skin,_canvas_offset)
 	_pressed = 0
 	_held = 0
 	_update_logo_hover(Vector2(-1,-1))
@@ -255,8 +296,196 @@ func _open_about_link(url: String) -> void:
 		OS.shell_open(url)
 
 
+# Landscape layout: panel on the right (default) or swapped to the left.
+const SWAPPED_PANEL_SHIFT := -640.0
+const SWAPPED_FIELD_SHIFT := 528.0
+
+
+func _menu_left() -> bool:
+	return _profile.menu_left and not _profile.portrait
+
+
+func _panel_shift() -> float:
+	return SWAPPED_PANEL_SHIFT if _menu_left() else 0.0
+
+
+func _field() -> Rect2:
+	if _profile.portrait:
+		return PORTRAIT_FIELD
+	return Rect2(FIELD.position + Vector2(SWAPPED_FIELD_SHIFT if _menu_left() else 0.0, 0), FIELD.size)
+
+
+# Panel menus are laid out for the right side; convert a pointer to that layout.
+func _panel_point(point: Vector2) -> Vector2:
+	return point - Vector2(_panel_shift(), 0)
+
+
+# Xbox (Guide) + Start: during play, pause and ask through the pause menu;
+# anywhere else, ask over the current screen. No is always preselected.
+func _ask_quit() -> void:
+	if _intro_active():
+		finish_intro()
+	if _about_is_open():
+		_close_about()
+	var bare_pause := _pause.active and not _options.opened and not _training.opened
+	if not _attract_active and not _scores.results_open and not _scores.tables_open \
+			and _scores.entry == null and not _training.result_open and (bare_pause or not _menu_open()):
+		if not _pause.active:
+			_pause.toggle()
+		_pause.ask(_pause.QUIT)
+		return
+	if not _quit_prompt.opened:
+		_quit_prompt.open()
+	else:
+		_quit_prompt.answer = 1
+		_redraw()
+
+
+func _menu_open() -> bool:
+	return _pause.active or _options.opened or _training.opened or _training.result_open or _scores.entry != null or _quit_prompt.opened
+
+
+func _header_logo() -> Rect2:
+	if _profile.portrait:
+		return PORTRAIT_HEADER_LOGO
+	var logo := MenuScreen.SMALL_LOGO if _menu_open() else TitleMenu.BIG_LOGO
+	return Rect2(logo.position + Vector2(_panel_shift(), 0), logo.size)
+
+
+func _apply_skin() -> void:
+	_skin = UiSkin.create(_profile.skin)
+	_redraw()
+
+
+# The game keeps its 16:9 (or portrait) layout, centred; on wider or taller
+# screens the extra space shows the backdrop instead of black bars.
+func _base_size() -> Vector2:
+	return Vector2(PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE)
+
+
+func _layout_canvas() -> void:
+	var offset := Vector2.ZERO
+	if DisplayServer.get_name() != "headless":
+		offset = ((get_viewport().get_visible_rect().size - _base_size()) / 2.0).floor().max(Vector2.ZERO)
+	_canvas_offset = offset
+	get_viewport().canvas_transform = Transform2D(0.0, offset)
+	_backdrop_state = []
+	_update_backdrop()
+
+
+func _update_backdrop() -> void:
+	var base := _base_size()
+	var state := [_profile.portrait, _skin.id, _canvas_offset, _menu_left()]
+	if state == _backdrop_state:
+		return
+	_backdrop_state = state
+	var area := Rect2(-_canvas_offset, base + _canvas_offset * 2.0)
+	_backdrop.position = area.position
+	_backdrop.size = area.size
+	_skin.configure_backdrop(_backdrop.material as ShaderMaterial, area.position, area.size,
+		Vector2(280, 20) if _profile.portrait else Vector2(MenuScreen.PANEL_CENTER + _panel_shift(), 120), base.length())
+
+
+func _intro_active() -> bool:
+	return _intro_time < INTRO_END
+
+
+func _advance_intro(delta: float) -> void:
+	if not _intro_active():
+		return
+	var before := _intro_time
+	_intro_time = minf(_intro_time + delta, INTRO_END)
+	if not _intro_voice_played and _intro_time >= INTRO_VOICE_AT:
+		_intro_voice_played = true
+		_audio.play_title()
+		_audio.queue_start_music()
+	if before < INTRO_MOVE and _intro_time >= INTRO_MOVE:
+		_flash_backdrop(_skin.c("accent"))
+	_apply_intro()
+
+
+func finish_intro() -> void:
+	if _intro_active():
+		_intro_time = INTRO_END
+		_apply_intro()
+
+
+# Everything except the backdrop and the logo fades in while the logo settles.
+func _apply_intro() -> void:
+	var reveal := smoothstep(INTRO_HOLD + 0.25, INTRO_END, _intro_time)
+	self_modulate.a = reveal
+	for layer in [_starfield, _dock_layer, _hud_layer, _veil_layer, _frame_layer]:
+		if layer != null:
+			layer.modulate.a = reveal
+	if _logo_layer != null:
+		_logo_layer.queue_redraw()
+	if _panel_layer != null:
+		_panel_layer.queue_redraw()
+	if _intro_time >= INTRO_END:
+		_last_usec = Time.get_ticks_usec()
+		_redraw()
+
+
+func _draw_intro_logo(canvas: Node2D) -> void:
+	var base := _base_size()
+	var aspect := float(TITLE_LOGO.get_height()) / TITLE_LOGO.get_width()
+	var width := minf(base.x * 0.62, base.y * 0.7 / aspect)
+	var big := Rect2(base / 2.0 - Vector2(width, width * aspect) / 2.0, Vector2(width, width * aspect))
+	var target := _header_logo()
+	var rect := big
+	var alpha := 1.0
+	if _intro_time < INTRO_APPEAR:
+		var t := _intro_time / INTRO_APPEAR
+		alpha = t
+		var grow := 0.7 + 0.3 * (1.0 - pow(1.0 - t, 3.0)) + 0.06 * sin(t * PI)
+		rect = Rect2(big.get_center() - big.size * grow / 2.0, big.size * grow)
+	elif _intro_time > INTRO_HOLD:
+		var t := clampf((_intro_time - INTRO_HOLD) / (INTRO_MOVE - INTRO_HOLD), 0.0, 1.0)
+		t = t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+		rect = Rect2(big.position.lerp(target.position, t), big.size.lerp(target.size, t))
+	canvas.draw_texture_rect(TITLE_LOGO, rect, false, Color(1, 1, 1, alpha))
+
+
+# The frozen game stays visible under the menus: a light veil and the pause mark.
+# Kept apart from the menu layer so the menus can slide and fade on their own.
+func _draw_veil(canvas: Node2D) -> void:
+	var field := _field()
+	if not _focused:
+		_draw_paused_field(canvas, field)
+		_skin.title(canvas, field.get_center() + Vector2(0, 70), _translate("PAUSE"), 64)
+	elif _menu_open() and not _profile.portrait and not _attract_active:
+		_draw_paused_field(canvas, field)
+
+
+func _draw_paused_field(canvas: Node2D, field: Rect2) -> void:
+	canvas.draw_rect(field, _skin.c("field_dim"))
+	var center := field.get_center()
+	for side in [-1, 1]:
+		var bar := Rect2(center + Vector2(side * 16 - 8, -32), Vector2(16, 64))
+		canvas.draw_rect(Rect2(bar.position + Vector2(3, 3), bar.size), Color(0, 0, 0, 0.6))
+		canvas.draw_rect(bar, Color(1, 1, 1, 0.85))
+
+
+func _intro_reveal() -> float:
+	return smoothstep(INTRO_HOLD + 0.25, INTRO_END, _intro_time)
+
+
+# Only the clock goes to the GPU each frame; flashes are a start time and a colour.
+func _advance_backdrop(delta: float) -> void:
+	if not _focused:
+		return
+	_backdrop_clock += delta
+	(_backdrop.material as ShaderMaterial).set_shader_parameter(&"clock", _backdrop_clock)
+
+
+func _flash_backdrop(color: Color) -> void:
+	var material := _backdrop.material as ShaderMaterial
+	material.set_shader_parameter(&"flash_start", _backdrop_clock)
+	material.set_shader_parameter(&"flash_color", color)
+
+
 func _field_input_position(position: Vector2) -> Vector2:
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var field := _field()
 	return (position - field.position) * Vector2(Pilot.FIELD_SIZE) / field.size
 
 
@@ -278,6 +507,8 @@ func _return_to_title() -> void:
 	_pause.active = false
 	_options.opened = false
 	_scores.reset()
+	_title.choice = 0
+	_title.portrait_open = false
 	_elapsed_usec = 0
 	_last_usec = Time.get_ticks_usec()
 	_pressed = 0
@@ -288,6 +519,7 @@ func _return_to_title() -> void:
 
 func _restart(practice: bool, players := 1) -> void:
 	_haptics.stop()
+	_audio.stop_start_music()
 	_training.opened = false
 	_training.result_open = false
 	_combat_impacts.clear()
@@ -331,6 +563,21 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 		_scores.entry.release_pad(device)
 	if not connected and _options.gamepad_disconnected():
 		_redraw()
+	if not connected and device == _play_pad and _game_in_progress():
+		# La manette en jeu est débranchée ou perdue : pause automatique.
+		# Une autre manette qui disparaît est ignorée.
+		if not _pause.active:
+			_pause.toggle()
+		_pause.pad_lost = true
+		_redraw()
+	elif connected and _pause.pad_lost:
+		_pause.pad_lost = false
+		_redraw()
+
+
+func _game_in_progress() -> bool:
+	return not _attract_active and _scores.entry == null and not _scores.results_open \
+		and not _training.result_open and _run.phase != ArcadeRun.Phase.GAME_OVER
 
 
 func _save_profile() -> void:
@@ -343,11 +590,12 @@ func _save_profile() -> void:
 func _apply_display() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var field := _field()
 	_starfield.position = field.position
 	_starfield.size = field.size
 	var window := get_window()
 	window.content_scale_size = PORTRAIT_SIZE if _profile.portrait else LANDSCAPE_SIZE
+	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	var mode := Window.MODE_FULLSCREEN if _profile.fullscreen else Window.MODE_WINDOWED
 	if window.mode != mode:
 		window.mode = mode
@@ -358,6 +606,7 @@ func _apply_display() -> void:
 		var scale_factor := minf(scale_limit, minf((monitor.size.x - 48.0) / preferred.x, (monitor.size.y - 80.0) / preferred.y))
 		window.size = Vector2i(Vector2(preferred) * scale_factor)
 		window.position = monitor.get_center() - window.size / 2
+	_layout_canvas()
 	_redraw()
 
 
@@ -389,6 +638,7 @@ func _notification(what: int) -> void:
 			_focused = false
 			_update_cursor()
 			_audio.set_paused(true)
+			_audio.set_start_music_paused(true)
 			_held = 0
 			_pressed = 0
 			_last_input = 0
@@ -399,16 +649,26 @@ func _notification(what: int) -> void:
 		NOTIFICATION_APPLICATION_FOCUS_IN:
 			_focused = true
 			_audio.set_paused(_pause.active or _options.opened or _about_is_open())
+			_audio.set_start_music_paused(false)
 			_last_usec = Time.get_ticks_usec()
 			_redraw()
 
 
 func _process(delta: float) -> void:
+	_advance_backdrop(delta)
+	_advance_intro(delta)
+	if _menu_feedback.advance(delta):
+		_redraw()
+	if _intro_active():
+		_last_usec = Time.get_ticks_usec()
+		return
 	_haptics.set_gameplay_active(_in_play())
 	_update_cursor()
 	_update_logo_hover(get_global_mouse_position())
-	if not _focused or _pause.active or _options.opened or _scores.results_open or _scores.tables_open or _training.opened or _training.result_open or _about_is_open():
+	if not _focused or _quit_prompt.opened or _pause.active or _options.opened or _scores.results_open or _scores.tables_open or _training.opened or _training.result_open or _about_is_open():
 		return
+	if _attract_active:
+		_title.expire_portrait()
 	if _scores.entry != null:
 		if _scores.entry.repeat(delta):
 			_redraw()
@@ -467,7 +727,11 @@ func _step_session(input_mask: int) -> void:
 	var dock_stage := previous.docking.stage if previous.docking != null else -1
 	var frame := previous.combat.pilot.frame
 	var shots := previous.combat.pilot.active_shots()
+	var game_over_shown := _run.game_over_shows_message()
 	_session.step(input_mask)
+	# The voice announces each player's game over as the message appears.
+	if not game_over_shown and _run == previous and _run.game_over_shows_message() and not _session.practice:
+		_audio.play_game_over()
 	if _run != previous or _run.combat != previous_combat or _run.phase != phase:
 		print("SESSION cycle=%d wave=%d phase=%s modules=%d lives=%d audio=%s" % [
 			_run.cycle, _cycle_wave(), ArcadeRun.Phase.keys()[_run.phase],
@@ -539,6 +803,10 @@ func _play_feedback(cue: String) -> void:
 	elif cue.begins_with("enemy_") and _run.combat.wave.flight_sound_source != null:
 		x = _run.combat.wave.flight_sound_source.display_position().x
 	_audio.play(cue, ArcadeAudio.pan_for_x(x))
+	match cue:
+		"success", "bonus": _flash_backdrop(Color("#ffd21f"))
+		"loss", "crash": _flash_backdrop(Color("#ff3b2f"))
+		"cycle": _flash_backdrop(Color("#9fe8ff"))
 	if (cue in ["loss", "crash"] or cue == "success"
 			and _run.phase == ArcadeRun.Phase.DOCKING and _run.docking != null
 			and _run.docking.stage == Docking.Stage.SUCCESS):
@@ -573,6 +841,7 @@ func _capture_combat_impacts(combat: ArcadeRun.CombatRound, alive_before: int, n
 
 func _redraw() -> void:
 	_fps_counter.set_enabled(_profile.show_fps)
+	_fps_counter.left_side = _menu_left()
 	_haptics.set_gameplay_active(_in_play())
 	if not _attract_active and _run.combat.wave.flight_sound_source != null:
 		_audio.set_enemy_pan(ArcadeAudio.pan_for_x(_run.combat.wave.flight_sound_source.display_position().x))
@@ -584,12 +853,13 @@ func _redraw() -> void:
 func _refresh_interface() -> void:
 	var portrait := _profile.portrait
 	var language := _profile.language
-	var title_visible := _attract_active and not _scores.tables_open and _scores.entry == null and _attract.screen() == Attract.Screen.TITLE_TEXT
-	_logo_layer.refresh([portrait, title_visible, _logo_hovered,
-		_attract.title_line_progress(1, _visual_tick - _simulation_tick) if title_visible else 0.0])
+	_update_backdrop()
+	# Le logo n'existe plus que dans l'en-tête : il ne dépend pas de l'attraction.
+	_logo_layer.refresh([portrait, _logo_hovered, _menu_open(), _menu_left(), _intro_time])
 	var controls_state := [hash(_profile.key_bindings), hash(_profile.button_bindings)]
-	_frame_layer.refresh([portrait, _uses_hd(), language, controls_state])
-	_pause_layer.refresh(controls_state)
+	_frame_layer.refresh([portrait, _uses_hd(), language, controls_state, _menu_left()])
+	_pause_layer.refresh(controls_state + [_pad_hints, _skin.id, _menu_left()])
+	_veil_layer.refresh([portrait, _menu_left(), _focused, _menu_open(), _attract_active, _skin.id])
 	var demo := _attract_active and _attract.screen() == Attract.Screen.DEMO
 	var results := _scores.results_open and not _scores.rows.is_empty()
 	var duo := _scores.rows.size() == 2 if results else not _attract_active and _session.runs.size() == 2
@@ -597,11 +867,11 @@ func _refresh_interface() -> void:
 	var second_score: int = _scores.rows[1].score if results and duo else (_session.runs[1].score() if duo else 0)
 	var modules := _hud_modules(demo)
 	_hud_layer.refresh([portrait, _profile.scores_for(_score_mode())[0], _score_mode(),
-		first_score, second_score, duo, _session.player, _attract_active and not demo, modules, language, results])
+		first_score, second_score, duo, _session.player, _attract_active and not demo, modules, language, results, _menu_left()])
 
 	var docking := not _attract_active and _run.phase == ArcadeRun.Phase.DOCKING
 	var dock := _run.docking if docking else null
-	var dock_state: Array = [portrait, language]
+	var dock_state: Array = [portrait, _menu_left(), language]
 	if dock != null:
 		dock_state.append(dock.stage)
 		match dock.stage:
@@ -621,49 +891,45 @@ func _refresh_interface() -> void:
 func _refresh_panel(duo: bool, dock: Docking) -> void:
 	var pointer := get_global_mouse_position()
 	var state: Array = [_profile.portrait, _attract_active, _profile.language,
-		_session.practice, _exercise_kind, _exercise_target,
-		TitleMenu.TRAINING_BUTTON.has_point(pointer), TitleMenu.PORTRAIT_TRAINING_BUTTON.has_point(pointer),
+		_session.practice, _exercise_kind, _exercise_target, _skin.id, _pad_hints, _menu_open(), _menu_left(),
+		_menu_feedback.slide_time,
 		hash(_profile.key_bindings), hash(_profile.button_bindings),
-		_score_mode(),
-		TitleMenu.SCORES_BUTTON.has_point(pointer), TitleMenu.PORTRAIT_SCORES_BUTTON.has_point(pointer),
-		_scores.entry != null or _scores.results_open or _scores.tables_open]
+		_score_mode(), _scores.results_open, _scores.tables_open, _scores.entry != null, _focused, _profile.muted]
 	if _profile.portrait:
+		state.append_array([TitleMenu.PORTRAIT_TRAINING_BUTTON.has_point(pointer), TitleMenu.PORTRAIT_SCORES_BUTTON.has_point(pointer)])
 		if _attract_active:
 			state.append(_profile.difficulty)
-			state.append(TitleMenu.PORTRAIT_OPTIONS_BUTTON.has_point(get_global_mouse_position()))
+			state.append(TitleMenu.PORTRAIT_OPTIONS_BUTTON.has_point(pointer))
+			state.append_array(_title.render_state())
 		else:
 			state.append_array([_run.lives, _run.phase, _run.cycle, _cycle_wave(),
 				duo, _session.player, _run.attached])
-	else:
-		state.append(_focused)
-		if _focused:
-			state.append(_profile.muted)
-			if _attract_active:
-				state.append_array([_profile.difficulty, TitleMenu.SOLO_BUTTON.has_point(pointer),
-					TitleMenu.DUO_BUTTON.has_point(pointer), TitleMenu.OPTIONS_BUTTON.has_point(pointer)])
+	elif _focused:
+		if _attract_active:
+			state.append_array([_profile.difficulty] + _title.render_state())
+		else:
+			state.append_array([_run.phase, _run.lives, duo, _session.player, _run.attached, _diagnostics, _run.score()])
+			if dock != null:
+				state.append(dock.stage)
+				match dock.stage:
+					Docking.Stage.INTRO, Docking.Stage.APPROACH:
+						state.append(dock.display_clock_tenths())
+					Docking.Stage.SUCCESS:
+						state.append(dock.bonus)
+						state.append(_docking_multiplier(dock))
+				if _diagnostics:
+					state.append(dock.display_position())
+					state.append(dock.module)
 			else:
-				state.append_array([_run.phase, _run.lives, duo, _session.player, _run.attached, _diagnostics])
-				if dock != null:
-					state.append(dock.stage)
-					match dock.stage:
-						Docking.Stage.INTRO, Docking.Stage.APPROACH:
-							state.append(dock.display_clock_tenths())
-						Docking.Stage.SUCCESS:
-							state.append(dock.bonus)
-							state.append(_docking_multiplier(dock))
-					if _diagnostics:
-						state.append(dock.display_position())
-						state.append(dock.module)
-				else:
-					state.append_array([_run.cycle, _cycle_wave(), _run.combat.wave.remaining,
-						_run.is_cycle_entrance(), _run.entrance_elapsed() >= 0, _run.game_over_shows_message()])
-					if _diagnostics:
-						state.append(_run.frame)
+				state.append_array([_run.cycle, _cycle_wave(), _run.combat.wave.remaining,
+					_run.is_cycle_entrance(), _run.entrance_elapsed() >= 0, _run.game_over_shows_message()])
+				if _diagnostics:
+					state.append(_run.frame)
 	_panel_layer.refresh(state)
 
 
 func _draw() -> void:
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var field := _field()
 	if _uses_hd():
 		_flight_view.start_frame()
 		draw_texture_rect(_flight_view.get_texture(), field, false)
@@ -675,7 +941,7 @@ func _draw() -> void:
 			_scores.draw_tables(self)
 		elif _scores.results_open and _scores.results_page == 0:
 			_scores.draw_results(self)
-		elif _scores.entry == null:
+		elif _scores.entry == null or not _profile.portrait:
 			_draw_attract()
 		if not _options.opened and not _scores.results_open and not _scores.tables_open and _scores.entry == null and (_profile.recovered_backup or _profile.unreadable_profile):
 			var notice := "Profil restauré depuis la sauvegarde" if _profile.recovered_backup else "Profil illisible · Réglages par défaut"
@@ -1085,67 +1351,73 @@ func _draw_impact(combat: ArcadeRun.CombatRound) -> void:
 
 
 func _draw_static_interface(canvas: Node2D) -> void:
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var field := _field()
 	canvas.draw_rect(field, BORDER, false, 1.0)
 	if _uses_hd():
 		_draw_chrome_frame(canvas, field)
-	if _profile.portrait:
-		return
-	_draw_text(canvas, Vector2(946, 77), _translate("Défense orbitale"), 18, SHIP)
-	canvas.draw_line(Vector2(LABEL_X, 127), Vector2(PANEL_END, 127), BORDER)
-	_text(canvas, 169, _translate("COMMANDES"), 13, MUTED)
-	_text(canvas, 200, _translate("%s / %s   Déplacer") % [_key_label(&"move_left"), _key_label(&"move_right")], 18, PRIMARY)
-	_text(canvas, 235, _translate("%s / %s   Tirer · Freiner en approche") % [_key_label(&"fire"), _button_label(&"fire")], 16, MUTED)
-	_text(canvas, 270, _translate("%s   Pause     R   Recommencer") % _key_label(&"pause"), 16, MUTED)
-	canvas.draw_line(Vector2(LABEL_X, 384), Vector2(PANEL_END, 384), BORDER)
 
 
 func _draw_logos(canvas: Node2D) -> void:
 	var tint := Color(1.12,1.12,1.12) if _logo_hovered else Color.WHITE
-	if _profile.portrait:
-		canvas.draw_texture_rect(TITLE_LOGO, PORTRAIT_HEADER_LOGO, false, tint)
-	else:
-		canvas.draw_texture_rect(TITLE_LOGO, HEADER_LOGO, false, tint)
-	if not _attract_active or _scores.tables_open or _scores.entry != null or _attract.screen() != Attract.Screen.TITLE_TEXT:
+	if _intro_active():
+		_draw_intro_logo(canvas)
 		return
-	var progress := _attract.title_line_progress(1, _visual_tick - _simulation_tick)
-	if progress <= 0.0:
-		return
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
-	var scale := field.size / Vector2(Pilot.FIELD_SIZE)
-	var height := 184.0 * TITLE_LOGO.get_height() / TITLE_LOGO.get_width() * scale.x / scale.y
-	var target := Rect2(lerpf(224, 20, progress), 58, 184, height)
-	var visible := target.intersection(Rect2(Vector2.ZERO, Vector2(Pilot.FIELD_SIZE)))
-	var source := Rect2((visible.position - target.position) / target.size * TITLE_LOGO.get_size(),
-		visible.size / target.size * TITLE_LOGO.get_size())
-	canvas.draw_set_transform(field.position, 0.0, scale)
-	canvas.draw_texture_rect_region(TITLE_LOGO, visible, source)
+	canvas.draw_texture_rect(TITLE_LOGO, _header_logo(), false, tint)
 
 
 func _draw_panel(canvas: Node2D) -> void:
-	if _scores.entry != null or _scores.results_open or _scores.tables_open:
-		return
+	canvas.modulate.a = _menu_feedback.slide_alpha() * _intro_reveal()
+	canvas.draw_set_transform(Vector2(_panel_shift() + _menu_feedback.slide_offset(), 0))
 	if _profile.portrait:
-		_draw_portrait_hud(canvas)
+		if not _menu_open() and _scores.entry == null and not _scores.results_open and not _scores.tables_open:
+			if _attract_active and _title.portrait_open:
+				_title.draw_portrait(canvas)
+			else:
+				_draw_portrait_hud(canvas)
 		return
-	var difficulty := "%s · %s" % [_translate("Difficulté"),
-		_translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()])]
-	_text(canvas, 373, difficulty, 17, SHOT)
-	if not _attract_active and _session.practice:
-		_text(canvas, 331, _translate("Entraînement"), 20, SHOT)
-		_text(canvas, 356, "%s · R / Y %s" % [_exercise_label(), _translate("Réessayer")], 15, MUTED)
+	if _menu_open():
+		return
+	if _scores.results_open or _scores.tables_open:
+		var heading := "Classements" if _scores.tables_open or _scores.results_page == 1 else "Résultats"
+		_skin.title(canvas, Vector2(MenuScreen.PANEL_CENTER, 300), _translate(heading), 84)
+		if not _scores.tables_open:
+			_skin.text(canvas, Vector2(MenuScreen.PANEL_CENTER, 360), _skin.caps(_translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()])),
+				_skin.body_size(34), _skin.c("muted"), 0, _skin.detail_font)
+		_skin.hint_bar(canvas, MenuScreen.LANDSCAPE_BAR, [
+			_title.hint(["key:Entrée"], ["pad:A"], "Valider"),
+			_title.hint(["key:Échap"], ["pad:B"], "Retour")], 22)
+		return
 	if not _focused:
-		_text(canvas, 425, _translate("En pause"), 20, SHOT)
+		_skin.title(canvas, Vector2(MenuScreen.PANEL_CENTER, 320), _translate("En pause"), 72)
 		return
 	if _attract_active:
 		_title.draw(canvas)
 		return
+	_draw_game_status(canvas)
+	if _diagnostics:
+		if _run.phase == ArcadeRun.Phase.DOCKING:
+			var point := _run.docking.display_position()
+			_text(canvas, 543, _translate("Module %d    x %d    y %d") % [_run.docking.module, point.x, point.y], 17, SHIP)
+		else:
+			_draw_readout(canvas)
+	_title.draw_hints(canvas)
+
+
+func _status_lines() -> Array:
 	if _run.phase == ArcadeRun.Phase.DOCKING:
-		_draw_docking_panel(canvas)
-		return
+		var dock := _run.docking
+		match dock.stage:
+			Docking.Stage.SUCCESS:
+				var multiplier := _docking_multiplier(dock)
+				return [_translate("Bravo ! Amarrage réussi"), _translate("Bonus   %d × %d = %d") % [dock.bonus / multiplier, multiplier, dock.bonus], "success"]
+			Docking.Stage.COLLISION:
+				return [_translate("Collision à l’amarrage"), "", "danger"]
+			Docking.Stage.TIMED_OUT:
+				return [_translate("Temps écoulé"), "", "danger"]
+		return [_translate("Mission amarrage"), _translate("Chrono   %s") % dock.display_clock(), "title"]
 	match _run.phase:
 		ArcadeRun.Phase.LAUNCH:
-			_text(canvas, 425, _translate("Décollage"), 20, SHOT)
+			return [_translate("Décollage"), "", "title"]
 		ArcadeRun.Phase.REPLACEMENT:
 			var status := _translate("Vaisseau perdu")
 			if _run.combat.lost_module > 0:
@@ -1154,47 +1426,68 @@ func _draw_panel(canvas: Node2D) -> void:
 				status = _translate("Cycle %d · entrée du module I") % _run.cycle
 			elif _run.entrance_elapsed() >= 0:
 				status = _translate("Déploiement du module %s") % _run.ship_label()
-			_text(canvas, 425, status, 20, SHOT)
+			return [status, "", "title"]
 		ArcadeRun.Phase.CYCLE_END:
-			_text(canvas, 425, _translate("Plus loin · fin du cycle %d") % _run.cycle, 20, PRIMARY)
+			return [_translate("Plus loin · fin du cycle %d") % _run.cycle, "", "title"]
 		ArcadeRun.Phase.GAME_OVER:
 			if _run.game_over_shows_message():
-				_text(canvas, 425, _translate("JOUEUR %d · PARTIE TERMINÉE") % (_session.player + 1), 20, SHOT)
-				_text(canvas, 448, _translate("ESSAYEZ À NOUVEAU"), 17, SHOT)
-			else:
-				_text(canvas, 425, _translate("Vaisseau perdu"), 20, SHOT)
-		_:
-			_text(canvas, 425, _translate("Cycle %d · vague %d / %d") % [_run.cycle, _cycle_wave(), Presentation.WAVES_PER_CYCLE], 20, PRIMARY)
-	_text(canvas, 463, _translate("Vies %d") % _run.lives if _run.phase == ArcadeRun.Phase.LAUNCH
-		else _translate("%d cibles   ·   Vies %d") % [_run.combat.wave.remaining, _run.lives], 17, MUTED)
-	if _session.runs.size() == 2:
-		_text(canvas, 489, _turn_label(), 16, SHIP)
-	if _diagnostics:
-		_draw_readout(canvas)
-	_title.draw_hints(canvas)
+				return [_translate("JOUEUR %d · PARTIE TERMINÉE") % (_session.player + 1), _translate("ESSAYEZ À NOUVEAU"), "danger"]
+			return [_translate("Vaisseau perdu"), "", "danger"]
+	return [_translate("Cycle %d · vague %d / %d") % [_run.cycle, _cycle_wave(), Presentation.WAVES_PER_CYCLE], "", "title"]
 
 
-func _draw_docking_panel(canvas: Node2D) -> void:
-	var dock := _run.docking
-	match dock.stage:
-		Docking.Stage.SUCCESS:
-			_text(canvas, 425, _translate("Bravo ! Amarrage réussi"), 20, SHIP)
-			var multiplier := _docking_multiplier(dock)
-			_text(canvas, 463, _translate("Bonus   %d × %d = %d") % [dock.bonus / multiplier, multiplier, dock.bonus], 17, SHOT)
-		Docking.Stage.COLLISION:
-			_text(canvas, 425, _translate("Collision à l’amarrage"), 20, SHOT)
-		Docking.Stage.TIMED_OUT:
-			_text(canvas, 425, _translate("Temps écoulé"), 20, ARCADE_CYAN)
-		_:
-			_text(canvas, 425, _translate("Mission amarrage"), 20, PRIMARY)
-			_text(canvas, 463, _translate("Chrono   %s") % dock.display_clock(), 17, SHOT)
-	_text(canvas, 510, _translate("Vies %d") % _run.lives, 17, MUTED)
+func _draw_game_status(canvas: Node2D) -> void:
+	var center := MenuScreen.PANEL_CENTER
+	var context := "%s · %s" % [_translate("Difficulté"), _translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()])]
+	if _session.practice:
+		context = "%s · %s" % [_translate("Entraînement"), _exercise_label()]
+	_skin.text(canvas, Vector2(center, 208), _skin.caps(context), _skin.body_size(28), _skin.c("muted"), 0, _skin.detail_font, 540)
+	var lines := _status_lines()
+	var tone: String = lines[2]
+	var label: String = _skin.caps(lines[0])
+	if tone == "title":
+		_skin.title(canvas, Vector2(center, 262), label, 64, 0, 540)
+	else:
+		_skin.text(canvas, Vector2(center + 3, 265), label, _skin.body_size(48), _skin.c("shadow"), 0, _skin.title_font, 540)
+		_skin.text(canvas, Vector2(center, 262), label, _skin.body_size(48), _skin.c(tone), 0, _skin.title_font, 540)
+	if not String(lines[1]).is_empty():
+		_skin.text(canvas, Vector2(center, 312), lines[1], _skin.body_size(32), _skin.c("text"), 0, _skin.body_font, 540)
+	var box := Rect2(688, 346, 544, 112)
+	_skin.panel(canvas, box)
+	var columns := [[_translate("Score"), "%06d" % _run.score()], [_translate("Vies"), str(_run.lives)]]
+	if _run.phase == ArcadeRun.Phase.DOCKING:
+		columns.append([_translate("Chrono"), _run.docking.display_clock()])
+	else:
+		columns.append([_translate("Cibles"), str(_run.combat.wave.remaining)])
+	for index in columns.size():
+		var x := box.position.x + box.size.x * (index + 0.5) / columns.size()
+		_skin.text(canvas, Vector2(x, box.position.y + 32), _skin.caps(columns[index][0]), _skin.body_size(24), _skin.c("accent"), 0, _skin.detail_font)
+		_skin.text(canvas, Vector2(x, box.position.y + 76), columns[index][1], 20, _skin.c("text"), 0, _skin.score_font)
 	if _session.runs.size() == 2:
-		_text(canvas, 569, _turn_label(), 16, SHIP)
-	if _diagnostics:
-		var point := dock.display_position()
-		_text(canvas, 543, _translate("Module %d    x %d    y %d") % [dock.module, point.x, point.y], 17, SHIP)
-	_title.draw_hints(canvas)
+		_skin.title(canvas, Vector2(center, 500), _turn_label(), 44)
+	var moves: Array = ["pad:✚"] if _pad_hints else []
+	if not _pad_hints:
+		for action in [&"move_left", &"move_right"]:
+			for code in _profile.key_bindings[String(action)]:
+				moves.append("key:" + _translate(Controls.key_name(code)))
+	var fire: Array = ["pad:" + _button_label(&"fire")] if _pad_hints else []
+	if not _pad_hints:
+		for code in _profile.key_bindings["fire"]:
+			fire.append("key:" + _translate(Controls.key_name(code)))
+	_skin.text(canvas, Vector2(696, 554), _skin.caps(_translate("COMMANDES")), _skin.body_size(24), _skin.c("muted"), -1, _skin.detail_font)
+	_command_row(canvas, 592, moves, _translate("Déplacer"))
+	_command_row(canvas, 632, fire, _translate("Tirer · Freiner en approche"))
+
+
+func _command_row(canvas: Node2D, y: float, glyphs: Array, label: String) -> void:
+	var x := 696.0
+	for glyph in glyphs:
+		var value: String = String(glyph).substr(4)
+		if String(glyph).begins_with("pad:"):
+			x += _skin.pad(canvas, Vector2(x, y), value, 28) + 6
+		else:
+			x += _skin.keycap(canvas, Vector2(x, y), value, 28) + 6
+	_skin.text(canvas, Vector2(x + 8, y + 1), label, _skin.body_size(28), _skin.c("text"), -1)
 
 
 func _draw_readout(canvas: Node2D) -> void:
@@ -1221,16 +1514,30 @@ func _draw_readout(canvas: Node2D) -> void:
 
 
 func _field_text(canvas: Node2D, center_x: float, y: float, label: String, color: Color, size := 8, slide := 1.0) -> void:
-	var field := PORTRAIT_FIELD if _profile.portrait else FIELD
+	var field := _field()
 	var scale := field.size / Vector2(Pilot.FIELD_SIZE)
-	var font_size := size * 3
-	var width := ThemeDB.fallback_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	# Police du thème, ramenée à la chasse de la police d'origine pour garder les colonnes.
+	var font: Font = _skin.body_font
+	var font_size := maxi(6, roundi(size * 3 * _field_font_ratio(font)))
 	var right := (Pilot.FIELD_SIZE.x - 2.0) * 3.0
+	var room := (Pilot.FIELD_SIZE.x - 12.0) * 3.0
+	var width := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	if width > room:
+		font_size = maxi(6, floori(font_size * room / width))
+		width = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	var x := lerpf(right, center_x * 3.0 - width / 2.0, slide)
 	canvas.draw_set_transform(field.position, 0.0, scale / 3.0)
-	canvas.draw_string(ThemeDB.fallback_font, Vector2(x, y * 3), label, HORIZONTAL_ALIGNMENT_LEFT,
+	canvas.draw_string(font, Vector2(x, y * 3), label, HORIZONTAL_ALIGNMENT_LEFT,
 		right - x if slide < 1.0 else -1.0, font_size, color)
 	canvas.draw_set_transform(field.position, 0.0, scale)
+
+
+func _field_font_ratio(font: Font) -> float:
+	if not _field_font_ratios.has(font):
+		const SAMPLE := "ASSEMBLEZ 0123456789"
+		_field_font_ratios[font] = ThemeDB.fallback_font.get_string_size(SAMPLE, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 48).x \
+			/ font.get_string_size(SAMPLE, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 48).x
+	return _field_font_ratios[font]
 
 
 func _draw_arcade_hud(canvas: Node2D) -> void:
@@ -1284,7 +1591,7 @@ func _draw_module_mark(canvas: Node2D, point: Vector2, module: int, active: bool
 func _draw_attract() -> void:
 	match _attract.screen():
 		Attract.Screen.TITLE_TEXT:
-			const ROWS := [43, 78, 168, 191, 214]
+			const ROWS := [96, 0, 146, 172, 208]
 			const COLORS := [ARCADE_GREEN, SHOT, ARCADE_PINK, ARCADE_GREEN, ARCADE_CYAN]
 			for index in range(Attract.TITLE_LINES.size()):
 				if index == 1:
@@ -1295,7 +1602,7 @@ func _draw_attract() -> void:
 				var label: String = Attract.TITLE_LINES[index][0]
 				if index == Attract.TITLE_LINES.size() - 1:
 					label = _translate("%s / %s POUR JOUER") % [_key_label(&"fire").to_upper(), _button_label(&"fire")]
-				_field_text(self, 112, ROWS[index], _translate(label), COLORS[index], 14 if index == 1 else 10, progress)
+				_field_text(self, 112, ROWS[index], _translate(label), COLORS[index], 16 if index == 0 else 10, progress)
 		Attract.Screen.SCORE_TABLE:
 			_scores.draw_table(self)
 		Attract.Screen.DEMO:
@@ -1314,6 +1621,7 @@ func _draw_demo() -> void:
 			var point := _visual_point(_motion.demo_modules[module - 1], Vector2(track[index], track[index + 1]))
 			_draw_module(point, module, SHIP, track[Attract.THRUST_OFFSET] == module)
 	_draw_demo_objects(track)
+	_draw_demo_bursts()
 	match screen_code:
 		Attract.SCREEN_PLAY:
 			if step in [2, 5]:
@@ -1323,10 +1631,31 @@ func _draw_demo() -> void:
 				elif _attract.demo_value(target) == 3:
 					_draw_docking_briefing(self)
 		Attract.SCREEN_RESULT:
-			if step == 2:
-				_draw_congratulations(self, 1000, 100)
+			if step in [2, 5]:
+				var bonus := _attract.demo_bonus()
+				_draw_congratulations(self, bonus.x, bonus.y)
 		Attract.SCREEN_TIMEOUT, Attract.SCREEN_TIMEOUT_TEXT:
 			_draw_docking_timeout(self, screen_code == Attract.SCREEN_TIMEOUT_TEXT)
+
+
+func _draw_demo_bursts() -> void:
+	for burst in _attract.demo_bursts(_visual_tick - _simulation_tick):
+		var point: Vector2 = burst[1]
+		var progress: float = burst[3]
+		if not _uses_hd():
+			draw_arc(point, (4.0 if burst[0] else 2.0) + 8.0 * progress, 0.0, TAU, 18, Color(SHOT, 1.0 - progress), 1.0, true)
+		elif burst[0]:
+			Effects.burst(self, point, progress, 1.2, true)
+		else:
+			var kind: int = burst[2] >> 1
+			match kind:
+				Presentation.EnemyKind.METEOR:
+					Effects.meteor_burst(self, point, progress, 1.0, burst[2] & 1)
+				Presentation.EnemyKind.RING:
+					Effects.burst(self, point, progress, 0.7)
+				_:
+					var heavy := kind == Presentation.EnemyKind.ROW
+					Effects.burst(self, point, progress, 1.12 if heavy else 0.85, heavy, Color("#a8c5dd") if kind == Presentation.EnemyKind.INTERCEPTOR else Color("#d4d9df"), kind == Presentation.EnemyKind.INTERCEPTOR)
 
 
 func _draw_demo_objects(track: PackedByteArray) -> void:
@@ -1363,22 +1692,21 @@ func _draw_demo_objects(track: PackedByteArray) -> void:
 
 
 func _draw_portrait_hud(canvas: Node2D) -> void:
-	_draw_text(canvas, Vector2(198, 24), _translate("Difficulté"), 12, MUTED)
-	_draw_text(canvas, Vector2(198, 44), _translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()]), 15, SHOT)
+	_skin.text(canvas, Vector2(198, 22), _skin.caps(_translate("Difficulté")), _skin.body_size(20), _skin.c("muted"), -1, _skin.detail_font)
+	_skin.text(canvas, Vector2(198, 44), _skin.caps(_translate(ArcadeProfile.DIFFICULTY_LABELS[_score_mode()])), _skin.body_size(26), _skin.c("accent"), -1)
 	if _attract_active:
 		_title.draw_options_button(canvas, TitleMenu.PORTRAIT_OPTIONS_BUTTON, get_global_mouse_position())
 		_title.draw_menu_button(canvas, TitleMenu.PORTRAIT_SCORES_BUTTON, _translate("Classements"), "F4")
 		_title.draw_menu_button(canvas, TitleMenu.PORTRAIT_TRAINING_BUTTON, _translate("Entraînement"), "F2")
 		return
-	else:
-		_draw_text(canvas, Vector2(421, 43), _translate("VIES %d") % _run.lives, 20, SHOT)
-	var label := _translate("Espace / A   Solo      2 / Y   Duo      F10   Paysage")
-	if not _attract_active:
-		var status := _translate("Décollage") if _run.phase == ArcadeRun.Phase.LAUNCH else _translate("Cycle %d · Vague %d") % [_run.cycle, _cycle_wave()]
-		label = _translate("%s     %s     %s   Pause") % [_turn_label(), status, _key_label(&"pause")]
+	_skin.title(canvas, Vector2(532, 34), _translate("VIES %d") % _run.lives, 36, 1)
+	var status := _translate("Décollage") if _run.phase == ArcadeRun.Phase.LAUNCH else _translate("Cycle %d · Vague %d") % [_run.cycle, _cycle_wave()]
+	var label := "%s     %s" % [_turn_label(), status]
 	if _session.practice:
-		label = "%s · %s · R / Y %s" % [_translate("Entraînement"), _exercise_label(), _translate("Réessayer")]
-	_draw_text(canvas, Vector2(28, 761), label, 16, MUTED)
+		label = "%s · %s" % [_translate("Entraînement"), _exercise_label()]
+	_skin.text(canvas, Vector2(28, 759), _skin.caps(label), _skin.body_size(24), _skin.c("text"), -1, _skin.body_font, 360)
+	_skin.keycap(canvas, Vector2(404, 759), _translate(Controls.key_name(_profile.key_bindings["pause"][0])) if not _pad_hints else "Start", 24)
+	_skin.text(canvas, Vector2(532, 759), _skin.caps(_translate("Pause")), _skin.body_size(24), _skin.c("text"), 1)
 
 
 func _turn_label() -> String:

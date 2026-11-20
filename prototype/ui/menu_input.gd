@@ -1,13 +1,27 @@
 extends "res://ui/menu_screen.gd"
 
 # Routes modal input before gameplay controls, preserving the original priority.
+const QuitPrompt = preload("res://ui/quit_prompt.gd")
 
 func handle_input(event: InputEvent) -> bool:
+	_track_device(event)
 	if event is InputEventMouseMotion:
 		_view._last_mouse_motion_usec = Time.get_ticks_usec()
 		_view._update_cursor()
 		_view._update_logo_hover(event.position)
 	if not _focused:
+		return true
+	if QuitPrompt.is_combo(event):
+		_view._ask_quit()
+		return true
+	if _view._quit_prompt.opened:
+		_view._quit_prompt.handle_input(event)
+		return true
+	if _view._intro_active():
+		# Any key, button or click skips the intro without starting a game.
+		if (event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton) and event.is_pressed():
+			_view.finish_intro()
+			_view._wait_for_fire_release = true
 		return true
 	if _view._about_is_open():
 		if _view._about.handle_input(event):
@@ -36,6 +50,8 @@ func handle_input(event: InputEvent) -> bool:
 		return true
 	if _view._pause.active and _view._pause.handle_input(event):
 		return true
+	if _attract_active and not _view._scores.results_open and not _view._scores.tables_open and _view._title.handle_input(event):
+		return true
 	if not _attract_active and event.is_action_pressed(&"pause"):
 		_view._pause.toggle()
 		return true
@@ -62,7 +78,7 @@ func handle_input(event: InputEvent) -> bool:
 				return true
 			KEY_T:
 				if _view._pause.active:
-					_view._return_to_title()
+					_view._pause.ask(_view._pause.HOME)
 				return true
 			KEY_F3:
 				if _attract_active or _view._pause.active:
@@ -110,26 +126,35 @@ func handle_input(event: InputEvent) -> bool:
 			_view._pause.toggle()
 			return true
 		if _view._pause.active and event.button_index == JOY_BUTTON_B:
-			_view._return_to_title()
+			_view._pause.ask(_view._pause.HOME)
 			return true
-	if _attract_active and event is InputEventMouseButton:
+	if _attract_active and _profile.portrait and event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			var training_button: Rect2 = _view.TitleMenu.PORTRAIT_TRAINING_BUTTON if _profile.portrait else _view.TitleMenu.TRAINING_BUTTON
-			if training_button.has_point(event.position):
+			if _view.TitleMenu.PORTRAIT_TRAINING_BUTTON.has_point(event.position):
 				_view._training.open_menu()
 				return true
-			var scores_button: Rect2 = _view.TitleMenu.PORTRAIT_SCORES_BUTTON if _profile.portrait else _view.TitleMenu.SCORES_BUTTON
-			if scores_button.has_point(event.position):
+			if _view.TitleMenu.PORTRAIT_SCORES_BUTTON.has_point(event.position):
 				_view._scores.open()
 				return true
-			var options_button: Rect2 = _view.TitleMenu.PORTRAIT_OPTIONS_BUTTON if _profile.portrait else _view.TitleMenu.OPTIONS_BUTTON
-			if options_button.has_point(event.position):
+			if _view.TitleMenu.PORTRAIT_OPTIONS_BUTTON.has_point(event.position):
 				_view._options.set_open(true)
 				return true
-			if not _profile.portrait and _view.TitleMenu.SOLO_BUTTON.has_point(event.position):
-				_view._restart(false)
-				return true
-			if not _profile.portrait and _view.TitleMenu.DUO_BUTTON.has_point(event.position):
-				_view._restart(false, 2)
-				return true
 	return false
+
+
+# Hints follow the last device that produced a deliberate input; the pad
+# that last did so is the one in play (-1: keyboard or mouse).
+func _track_device(event: InputEvent) -> void:
+	var pad: bool = _view._pad_hints
+	if event is InputEventJoypadButton and event.pressed:
+		pad = true
+		_view._play_pad = event.device
+	elif event is InputEventJoypadMotion and absf(event.axis_value) >= 0.65:
+		pad = true
+		_view._play_pad = event.device
+	elif event is InputEventKey and event.pressed or event is InputEventMouseButton and event.pressed:
+		pad = false
+		_view._play_pad = -1
+	if pad != _view._pad_hints:
+		_view._pad_hints = pad
+		_view._redraw()

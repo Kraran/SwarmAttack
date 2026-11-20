@@ -45,6 +45,14 @@ func _run() -> void:
 	_expect(view._scores.results_page == 1, "La manette ouvre le classement")
 	_pad(JOY_BUTTON_B)
 	_expect(view._scores.results_page == 0, "La manette revient au bilan")
+	_stick(0.9)
+	_expect(view._scores.result_choice == 1, "Le stick bas sélectionne Accueil")
+	_stick(0.95)
+	_expect(view._scores.result_choice == 1, "Le stick maintenu ne répète pas")
+	_stick(0.0)
+	_stick(-0.9)
+	_expect(view._scores.result_choice == 0, "Le stick haut revient au classement")
+	_stick(0.0)
 	_pad(JOY_BUTTON_DPAD_DOWN)
 	_pad(JOY_BUTTON_A)
 	_expect(not view._scores.results_open, "La manette sélectionne Accueil puis valide")
@@ -117,6 +125,12 @@ func _pad(button: JoyButton) -> void:
 	var event := InputEventJoypadButton.new()
 	event.button_index = button
 	event.pressed = true
+	view._input(event)
+
+func _stick(value: float) -> void:
+	var event := InputEventJoypadMotion.new()
+	event.axis = JOY_AXIS_LEFT_Y
+	event.axis_value = value
 	view._input(event)
 
 func _expect(ok: bool, message: String) -> void:

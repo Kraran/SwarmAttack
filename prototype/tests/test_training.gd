@@ -64,6 +64,22 @@ func _run() -> void:
 	_key(view, KEY_F2)
 	_key(view, KEY_ESCAPE)
 	_expect(view._pause.active and view._run == run_before and not view._training.opened, "Annuler conserve la partie en pause")
+	var b_button := InputEventJoypadButton.new()
+	b_button.button_index = JOY_BUTTON_B
+	b_button.pressed = true
+	view._input(b_button)
+	_expect(view._pause.asking == view._pause.HOME and view._run == run_before and not view._attract_active,
+		"B dans la pause demande confirmation au lieu de revenir à l'accueil")
+	view._input(b_button)
+	_expect(view._pause.asking == -1 and view._pause.active and view._run == run_before, "B annule et garde la partie")
+	view._pause.choice = view._pause.HOME
+	_key(view, KEY_ENTER)
+	_key(view, KEY_LEFT)
+	_key(view, KEY_ENTER)
+	_expect(view._attract_active, "Oui revient à l'accueil")
+	view._restart(false)
+	run_before = view._run
+	_key(view, KEY_ESCAPE)
 	view._options.set_open(true)
 	view._options.choice = view.OptionsMenu.TRAINING
 	_key(view, KEY_ENTER)

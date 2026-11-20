@@ -276,9 +276,16 @@ func step(input_mask: int, stop_after_exercise := false) -> void:
 		bonus_reserve = true
 
 
-# Le nombre de plongeurs varie avec le numéro du cycle.
+# Le nombre de plongeurs varie avec le numéro du cycle : 1 au cycle 1, 2 au
+# cycle 2, et ainsi de suite jusqu'à 16 au cycle 16.
+# Sur la borne, 0x823d ne garde que les quatre bits bas du cycle : au cycle 17,
+# le plafond retombait à 1 et la difficulté repartait de zéro tous les seize
+# cycles. Le plafond est désormais gelé à son maximum à partir du cycle 16.
+const MAX_DIVERS_CAP := 16
+
+
 func max_divers() -> int:
-	return ((cycle - 1) & 0x0F) + 1
+	return clampi(cycle, 1, MAX_DIVERS_CAP)
 
 
 func last_wave() -> int:

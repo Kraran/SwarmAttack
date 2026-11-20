@@ -39,6 +39,9 @@ var _enemies: Array[Node3D] = []
 var _enemy_count := 0
 var _enemy_style := Vector2i(-1, -1)
 var _ship_mask := 0
+# Une image vide suffit une fois : sans vaisseau ni ennemi, inutile de
+# refaire le rendu 3D à chaque image (texte de présentation, classements…).
+var _rendered_empty := false
 
 
 func _ready() -> void:
@@ -92,6 +95,10 @@ func finish_frame() -> void:
 			_exhaust_motion[index].reset()
 	for index in range(_enemy_count, _enemies.size()):
 		_enemies[index].hide()
+	var empty := _ship_mask == 0 and _enemy_count == 0
+	if empty and _rendered_empty:
+		return
+	_rendered_empty = empty
 	render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
