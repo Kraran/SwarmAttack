@@ -1,6 +1,6 @@
 # Guide de SwarmAttack
 
-Décompressez la [version 0.4.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v0.4.0) et ouvrez `SwarmAttack.exe`.
+Décompressez la [version 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0) et ouvrez `SwarmAttack.exe`.
 
 | Action | Clavier | Manette |
 | --- | --- | --- |
@@ -9,7 +9,9 @@ Décompressez la [version 0.4.0 pour Windows x64](https://github.com/Kraran/Swar
 | Déplacer le module | ←/→ ou Q/D | Stick gauche ou croix |
 | Mettre en pause ou reprendre | Échap | Start |
 | Choisir et valider dans la pause | ↑/↓ et Entrée | Croix et A |
-| Revenir à l’accueil depuis la pause | T | B |
+| Revenir à l’accueil depuis la pause (avec confirmation) | T | B |
+| Quitter le jeu de partout (avec confirmation) | | Xbox + Start |
+| Ouvrir le menu de l’accueil en portrait | ↑/↓ | Croix ou stick |
 | Recommencer | R | |
 | Choisir un entraînement ; relancer l’exercice en entraînement | F2 | Y pour relancer |
 | Ouvrir les options depuis l’accueil ou la pause | F3 | X |
@@ -19,13 +21,13 @@ Décompressez la [version 0.4.0 pour Windows x64](https://github.com/Kraran/Swar
 | Alterner entre plein écran et fenêtré | F11 | |
 | Activer le diagnostic visuel | F1 | |
 
-Le menu de pause propose « Reprendre », « Options », « Entraînement », « Accueil » et « Quitter ». La souris permet également de choisir ces options. En jeu, le curseur disparaît après trois secondes sans mouvement de la souris et réapparaît dès qu’elle bouge.
+Le menu de pause propose « Reprendre », « Options », « Entraînement », « Accueil » et « Quitter ». « Accueil » et « Quitter » demandent une confirmation, « Non » étant présélectionné. La souris permet également de choisir ces options. Si la manette utilisée pour jouer est débranchée ou perdue, la partie se met en pause et l’affiche. En jeu, le curseur disparaît après trois secondes sans mouvement de la souris et réapparaît dès qu’elle bouge.
 
-Le logo **SWARM ATTACK** est cliquable et ouvre **À propos**, avec la photo de Franck Fornasari (Kraran) à gauche. La photo et Profil GitHub ouvrent son profil ; Projet GitHub ouvre le dépôt du jeu. Fermer, Échap, B ou Start revient à l’écran précédent. L’ouverture pendant une partie fige le jeu et le son, puis restitue leur état à la fermeture. L’écran est adapté au paysage et au portrait, dans les six langues.
+Le logo **SWARM ATTACK** est cliquable et ouvre **À propos**, avec la photo de Franck Fornasari (Kraran) à gauche. La photo et Profil GitHub ouvrent son profil ; Projet GitHub ouvre le dépôt du jeu. Fermer, Échap, B ou Start revient à l’écran précédent. L’ouverture pendant une partie fige le jeu et le son, puis restitue leur état à la fermeture. L’écran reprend le thème choisi et s’adapte au paysage et au portrait, dans les treize langues.
 
 **Entraînement**, depuis l’accueil, les options, la pause ou F2, propose les dix vagues et les deux amarrages en Normal ou Vétérans. L’exercice s’arrête après réussite ou échec, hors classement. R, F2 ou Y relance le même exercice ; le bilan permet de changer d’exercice. Annuler le sélecteur conserve la partie en pause.
 
-**Options > Son > Sons** choisit Original (par défaut) ou Moderne, avec un aperçu du tir et sauvegarde du choix. La banque moderne comprend vingt-deux effets SF en PCM 48 kHz sans perte, huit voix d’effets, une voix de vol indépendante des séquences et un limiteur sur son bus. `tools/build_modern_audio.py` régénère cette banque de façon déterministe.
+**Options > Son > Sons** choisit Original (par défaut) ou Moderne, avec un aperçu du tir et sauvegarde du choix. La banque moderne comprend vingt-deux sons en PCM 48 kHz sans perte, huit voix d’effets, une voix de vol indépendante des séquences et un limiteur sur son bus. Chaque son reprend la durée, le rythme et la mélodie de son équivalent arcade, réorchestrés en synthèse moderne : thèmes joués par des synthés avec basse, accords et percussions, explosions en couches (souffle, grave, débris, réverbération), vols et impacts qui suivent le contour mélodique d’origine. Le niveau est aligné sur la banque Original en sonie perçue (pondération K). `tools/build_modern_audio.py` régénère cette banque de façon déterministe à partir des sons arcade (NumPy et SciPy nécessaires à la génération uniquement).
 
 La musique de décollage accompagne l’arrivée initiale, le remplacement après destruction, la montée avant amarrage et l’arrivée au cycle suivant. Elle démarre une seule fois par montée, dans la banque sonore choisie.
 
@@ -37,7 +39,7 @@ Le départ de fin de cycle utilise son thème spécifique, confirmé dans MAME. 
 
 Les cinq familles possèdent leurs propres sons de vol/réapparition et d’impact, avec de nouvelles captures MAME pour Original et des équivalents SF pour Moderne. Les vols se déclenchent aux apparitions et aux retours, sans tir nécessaire, et s’arrêtent aux transitions. L’annonce d’amarrage et le son de vie supplémentaire sont également corrigés. Voir le [rapport d’analyse sonore](../RAPPORT_SONS_ENNEMIS.md).
 
-Les sous-menus Options regroupent le volume (0 à 100 %), la coupure du son, l’affichage plein écran ou fenêtré, l’orientation portrait ou paysage et la langue. Commandes permet de réaffecter le déplacement, le tir/freinage et la pause au clavier et aux boutons de manette. Sélectionnez une action puis appuyez sur la touche ou le bouton voulu. Échap ou Back annule la saisie. Une affectation déjà utilisée échange les deux commandes. Le stick gauche déplace le vaisseau et permet de naviguer dans les options. Les commandes par défaut peuvent être rétablies pour le clavier, la manette ou les deux. Les indications du jeu affichent les affectations choisies.
+Les sous-menus Options regroupent le volume (0 à 100 %), la coupure du son, l’affichage plein écran ou fenêtré, l’orientation portrait ou paysage, le thème, la disposition du menu et la langue. Treize langues sont proposées, chacune avec son drapeau. Commandes permet de réaffecter le déplacement, le tir/freinage et la pause au clavier et aux boutons de manette. Sélectionnez une action puis appuyez sur la touche ou le bouton voulu. Échap ou Back annule la saisie. Une affectation déjà utilisée échange les deux commandes. Le stick gauche déplace le vaisseau et permet de naviguer dans les options. Les commandes par défaut peuvent être rétablies pour le clavier, la manette ou les deux. Les indications du jeu affichent les affectations choisies.
 
 Le menu Options de l’accueil enregistre la difficulté des prochaines parties, en solo comme en duo. En **Normal**, la partie débute au cycle 1 et la réserve est acquise à 30 000 points. En **Vétérans**, elle débute à la première vague du cycle 2 et la réserve est acquise à 50 000 points.
 
@@ -45,7 +47,7 @@ Le menu Options de l’accueil enregistre la difficulté des prochaines parties,
 
 ## En jeu
 
-Options → Vibrations permet d’activer ou désactiver le retour de la manette, de régler son intensité de 0 à 100 % et de le tester. Le réglage est sauvegardé ; l’intensité initiale reste de 70 %. Deux effets sont conservés : une forte secousse explosive lors de la destruction d’un vaisseau du joueur, y compris une collision d’amarrage, et un choc sec et puissant au contact d’un amarrage réussi. Les tirs, les explosions ennemies et les vies supplémentaires ne déclenchent aucune vibration. Les effets restent indépendants du son et s’arrêtent à la pause, à la perte de focus et au retour à l’accueil. La dernière manette utilisée reçoit les effets ; lorsqu’une seule est branchée, elle est sélectionnée automatiquement. Le bouton de test nécessite une manette compatible connectée, des vibrations activées et une intensité supérieure à zéro.
+Options → Vibrations permet d’activer ou désactiver le retour de la manette, de régler son intensité de 0 à 100 % et de le tester. Le réglage est sauvegardé ; l’intensité initiale reste de 70 %. Deux effets sont conservés : une forte secousse explosive lors de la destruction d’un vaisseau du joueur, y compris une collision d’amarrage, et un double choc puissant au contact d’un amarrage réussi. Les tirs, les explosions ennemies et les vies supplémentaires ne déclenchent aucune vibration. Les effets restent indépendants du son et s’arrêtent à la pause, à la perte de focus et au retour à l’accueil ; l’ouverture automatique d’un écran de résultats ne coupe pas une explosion en cours. La dernière manette utilisée reçoit les effets ; lorsqu’une seule est branchée, elle est sélectionnée automatiquement. Le bouton de test nécessite une manette compatible connectée, des vibrations activées et une intensité supérieure à zéro.
 
 Le score, le record et l’état des modules s’affichent dans le terrain. Le record est mis à jour à la fin de la partie. Avant l’approche d’amarrage, les instructions rappellent comment diriger et freiner. Le chrono affiche 30:0 pendant la montée du module cible.
 
@@ -71,7 +73,7 @@ L’[audit des collisions](../RAPPORT_COLLISIONS.md) couvre les sept combinaison
 
 ## Développement
 
-Le choc d’amarrage est une impulsion unique de 85 ms sur les deux moteurs, déclenchée au contact réussi et sans répétition pendant le bonus. La destruction du joueur dure 480 ms, avec une attaque forte suivie d’une décroissance en quatre étapes. Le bouton « Tester les vibrations » joue un contact d’amarrage, une pause puis une explosion du joueur.
+Le choc d’amarrage dure 580 ms : contact plein pendant 160 ms, courte coupure, puis verrouillage fort qui s’estompe ; il est déclenché au contact réussi et sans répétition pendant le bonus. La destruction du joueur dure 950 ms, avec une attaque pleine suivie d’une décroissance en quatre étapes ; une collision d’amarrage prolonge le premier choc (1,1 s au total). Le bouton « Tester les vibrations » joue un contact d’amarrage, une pause puis une explosion du joueur.
 
 Ouvrez [project.godot](project.godot) dans Godot 4.7.2 standard. Le [lanceur Windows](../Lancer%20le%20prototype.cmd) utilise l’exécutable Godot placé dans `.tools/godot-4.7.2`.
 
@@ -82,6 +84,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows.ps1
 ```
 
 L’archive produite se trouve dans `dist/SwarmAttack-Windows-x64.zip`.
+
+### Interface en 1.0.0
+
+Les menus utilisent des thèmes définis dans [`ui/skin.gd`](ui/skin.gd) : Orbital (par défaut), Arcade et Phosphore, ainsi que des thèmes personnalisés placés dans `user://skins`. Le fond animé est un shader unique, les retours sonores et le glissement des écrans sont gérés par `ui/menu_feedback.gd`, et la question « Quitter le jeu ? » par `ui/quit_prompt.gd`. Les détails sont dans le [README de l’interface](ui/README.md).
 
 ### Interface en 0.4.0
 
@@ -97,7 +103,7 @@ L’audit visuel se lance avec un moteur graphique et un profil de test isolé. 
 
 ## Tests
 
-Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les vingt-sept suites.
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les trente et une suites.
 
 ```powershell
 & $godot --headless --editor --import --path prototype

@@ -1,5 +1,33 @@
 # Notes de version
 
+## 1.0.0 — 20 novembre 2026
+
+### Interface
+- Refonte complète des menus, toujours à côté du terrain de jeu : style « Arcade » avec trois thèmes au choix (Orbital par défaut, Arcade, Phosphore) et thèmes personnalisés possibles dans `user://skins`.
+- Fond animé plein écran, y compris sur les écrans ultra-larges, calculé par un seul shader sans coût notable.
+- Courte introduction : le logo apparaît en grand, est annoncé par la voix « Swarm Attack », puis se place dans le menu. Une musique de démarrage suit la voix, une seule fois, et continue dans les menus jusqu’à sa fin.
+- Options → Affichage → Disposition : menu à droite (par défaut) ou à gauche, mémorisé.
+- Navigation façon Phenix Rebirth : bips de déplacement, validation, retour et refus, glissement des écrans ; stick, croix, clavier et souris partout, y compris dans les résultats et en portrait.
+- Mode portrait : l’accueil s’ouvre au clavier et à la manette par une direction, et se referme après vingt secondes sans action.
+- Difficulté réglable par ←/→ et LB/RB dans les Options et l’accueil.
+- Confirmation (Non par défaut) avant de quitter ou de revenir à l’accueil depuis la pause ; Xbox + Start ouvre la question « Quitter le jeu ? » de partout.
+- Pause automatique si la manette en jeu est débranchée ou perdue.
+- Treize langues : ajout du danois, néerlandais, norvégien, polonais, russe, suédois et turc, avec drapeaux dans le choix de la langue et polices de secours assorties pour le cyrillique et les caractères étendus.
+- « À propos » aux couleurs du thème, avec photo et liens conservés.
+
+### Jeu et présentation
+- Voix « Game Over » à l’affichage de fin de partie.
+- Plafond de plongeurs gelé à seize à partir du cycle 17, au lieu de revenir à un.
+- Mode attraction : plus de logo en double, textes du terrain dans la police du thème, classement et encadré « Meilleurs pilotes » lisibles ; la démo montre les explosions et réussit son second amarrage.
+- Vibrations renforcées : explosion du vaisseau d’environ une seconde, double choc à l’amarrage ; une explosion n’est plus coupée par l’ouverture d’un écran de résultats.
+
+### Son
+- Banque Moderne entièrement refaite : chaque son reprend la durée, le rythme et la mélodie de l’original arcade, réorchestrés en synthèse moderne, au même niveau perçu. Les vols d’ennemis restent discrets et suivent les priorités de la borne. La banque Original reste celle par défaut.
+
+### Performances et qualité
+- Le rendu 3D n’est plus recalculé quand aucun vaisseau ni ennemi n’est affiché ; le logo n’est redessiné qu’en cas de changement.
+- Trente et une suites de tests, dont de nouvelles pour la confirmation de sortie, la manette débranchée, la musique de démarrage et le menu portrait.
+
 ## 0.4.0 — 19 novembre 2026
 
 - Options → Affichage → Compteur FPS : activation sauvegardée et traduite, affichage discret en haut à droite en paysage et portrait. Cadence mesurée sur les images réellement rendues et l’horloge monotone, actualisée dix fois par seconde sur une fenêtre de 0,5 seconde, y compris dans les menus et en pause.

@@ -36,6 +36,10 @@ var button_bindings := Controls.DEFAULT_BUTTONS.duplicate()
 var fullscreen := true
 var portrait := false
 var show_fps := false
+var skin := "orbital"
+# True once the player picked a theme; until then the default theme applies.
+var skin_chosen := false
+var menu_left := false
 var difficulty := Difficulty.NORMAL
 var language := Language.DEFAULT_LANGUAGE
 var _storage := Storage.new()
@@ -100,6 +104,12 @@ func read(path := SAVE_PATH) -> void:
 	portrait = config.get_value("options", "portrait", false) == true
 	var stored_fps: Variant = config.get_value("options", "show_fps", false)
 	show_fps = stored_fps if stored_fps is bool else false
+	# Without a saved choice, Orbital is the default theme.
+	var stored_skin: Variant = config.get_value("options", "skin", "orbital")
+	skin = stored_skin if stored_skin is String and not String(stored_skin).is_empty() else "orbital"
+	skin_chosen = config.has_section_key("options", "skin") and skin == stored_skin
+	var stored_layout: Variant = config.get_value("options", "menu_left", false)
+	menu_left = stored_layout if stored_layout is bool else false
 	difficulty = Difficulty.VETERANS if config.get_value("options", "difficulty", 0) == 1 else Difficulty.NORMAL
 	# Profiles from before language selection used French.
 	var stored_language: Variant = config.get_value("options", "language", "fr")
@@ -197,6 +207,9 @@ func write(path := SAVE_PATH) -> Error:
 	config.set_value("options", "fullscreen", fullscreen)
 	config.set_value("options", "portrait", portrait)
 	config.set_value("options", "show_fps", show_fps)
+	if skin_chosen:
+		config.set_value("options", "skin", skin)
+	config.set_value("options", "menu_left", menu_left)
 	config.set_value("options", "difficulty", difficulty)
 	config.set_value("options", "language", language)
 	return _storage.save_profile(config, path)

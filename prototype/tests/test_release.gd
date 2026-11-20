@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ArcadeRun = preload("res://arcade_run.gd")
+const Pilot = preload("res://pilot.gd")
 const ArcadeSession = preload("res://arcade_session.gd")
 const ArcadeProfile = preload("res://arcade_profile.gd")
 const Attract = preload("res://attract.gd")
@@ -223,8 +224,18 @@ func _test_reserve() -> void:
 	_expect(session.finished and run.cycle == 2 and not run.bonus_reserve, "La réserve s’est déclenchée deux fois.")
 	run.cycle = 3
 	_expect(run.max_divers() == 3, "Maximum de plongeurs au cycle 3.")
-	run.cycle = 17
-	_expect(run.max_divers() == 1, "Le quartet de cycle de la limite de plongeurs doit revenir à zéro.")
+	run.cycle = 16
+	_expect(run.max_divers() == 16, "Maximum de plongeurs au cycle 16.")
+	for cycle in [17, 18, 32, 33, 100]:
+		run.cycle = cycle
+		_expect(run.max_divers() == 16, "Cycle %d : plafond de plongeurs gelé à 16 au lieu de revenir à 1." % cycle)
+	# Passage réel du cycle 16 au cycle 17 : la vague reçoit toujours le plafond maximal.
+	var late := ArcadeRun.new(16)
+	_expect(late.combat.wave.max_divers == 16, "Le cycle 16 démarre avec 16 plongeurs simultanés.")
+	late.cycle = 17
+	late.wave_number = 1
+	late._begin_combat(Pilot.START_X, 255)
+	_expect(late.combat.wave.max_divers == 16, "La première vague du cycle 17 garde 16 plongeurs simultanés.")
 
 
 func _test_difficulties() -> void:

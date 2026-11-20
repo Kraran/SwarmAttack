@@ -40,5 +40,6 @@ try {
 
 $readme = Join-Path $package 'LISEZ-MOI.txt'
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'windows_readme.txt') -Destination $readme -Force
-Compress-Archive -LiteralPath @($executable, $readme, $licenses) -DestinationPath $archive -Force
+$fontLicenses = Join-Path $project 'fonts/LICENCES-POLICES.txt'
+Compress-Archive -LiteralPath @($executable, $readme, $licenses, $fontLicenses) -DestinationPath $archive -Force
 Get-FileHash -LiteralPath $archive -Algorithm SHA256

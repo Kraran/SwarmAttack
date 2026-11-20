@@ -85,12 +85,36 @@ func _check_demo_events() -> void:
 	var resume := _demo_at(1998)
 	_expect(resume.demo_attached() == 3, "Boucle 1998 : reprise en I + II")
 	_expect(resume.demo_value(Attract.Column.X) == 128 and resume.demo_value(Attract.Column.Y) == 232, "Reprise à 0x822b = 128, 0x822c = 232")
-	# Amarrage I + II → III : temps écoulé (frame 5967), écran DOMMAGE.
-	var timeout := _demo_at(4944)
-	_expect(timeout.demo_value(Attract.Column.SCREEN) == Attract.SCREEN_TIMEOUT, "Boucle 4944 : écran d'expiration")
-	_expect(timeout.demo_clock() == "00:0", "Chrono 00:0, obtenu %s" % timeout.demo_clock())
+	# Amarrage I + II → III retouché : approche au-dessus du III, puis contact.
+	var approach := _demo_at(Attract.SECOND_DOCKING_CONTACT - 1)
+	_expect(approach.demo_value(Attract.Column.MODULE_III) == 2 and approach.demo_value(Attract.Column.STEP) == 5, "Approche du III, chrono en marche")
+	for loop in range(Attract.SECOND_DOCKING_PATH, Attract.SECOND_DOCKING_CONTACT, 7):
+		var objects := _demo_at(loop).demo_objects()
+		var module_i := Vector2(objects[Attract.MODULE_OFFSET], objects[Attract.MODULE_OFFSET + 1])
+		_expect(module_i.y + 8 <= Attract.DOCKED_Y + 8 and absf(module_i.x - Attract.DOCKED_X) <= 6, "Boucle %d : le I + II reste au-dessus du III" % loop)
+	var contact_iii := _demo_at(Attract.SECOND_DOCKING_CONTACT)
+	_expect(contact_iii.demo_value(Attract.Column.SCREEN) == Attract.SCREEN_RESULT and contact_iii.demo_attached() == 7, "Contact I + II → III : écran bonus, trois modules")
+	var bonus := contact_iii.demo_bonus()
+	_expect(bonus.y == 300 and bonus.x > 0 and bonus.x % 300 == 0, "Bonus du second amarrage au multiplicateur 300, obtenu %s" % bonus)
 	var after := _demo_at(5127)
-	_expect(after.demo_attached() == 3 and after.demo_value(Attract.Column.Y) == 216, "Boucle 5127 : I + II à 0x822c = 216")
+	_expect(after.demo_attached() == 7 and after.demo_value(Attract.Column.Y) == 216, "Boucle 5127 : I + II + III à 0x822c = 216")
+	_expect(after.demo_value(Attract.Column.STEP) == 6, "Boucle 5127 : reprise du combat")
+	var loss := _demo_at(Attract.SECOND_DOCKING_LOSS)
+	_expect(loss.demo_value(Attract.Column.MODULE_II) == 0 and loss.demo_value(Attract.Column.MODULE_III) == 3, "Perte du II : le III repasse en réserve")
+	# Explosions : ennemis abattus et trois modules perdus.
+	var ships := 0
+	var enemies := 0
+	var demo := _demo_at(0)
+	for _index in range(Attract.DEMO_FRAMES - 1):
+		demo.step()
+		for burst in demo.demo_bursts():
+			if burst[3] == 0.0:
+				if burst[0]:
+					ships += 1
+				else:
+					enemies += 1
+	_expect(ships == 3, "Trois explosions de modules, obtenu %d" % ships)
+	_expect(enemies >= 20, "Ennemis abattus visibles, obtenu %d" % enemies)
 	# Trois pertes : vies 3 → 2 → 1 → 0.
 	_expect(_demo_at(5791).demo_value(Attract.Column.LIVES) == 3, "Boucle 5791 : 3 vies")
 	_expect(_demo_at(5792).demo_value(Attract.Column.LIVES) == 2, "Boucle 5792 : 2 vies")
@@ -99,7 +123,7 @@ func _check_demo_events() -> void:
 	_expect(_demo_at(5664).demo_attached() == 0, "Après la perte du I + II, aucun module actif pendant l'entrée")
 	_expect(_demo_at(6169).demo_attached() == 1, "Le module I reprend après la perte du I + II")
 	_expect(_demo_at(7913).demo_attached() == 4, "Le module III reprend après la perte du I")
-	print("OK démo : entrée du I, amarrage I → II réussi (10:7), I + II → III expiré, trois pertes")
+	print("OK démo : entrée du I, amarrage I → II réussi (10:7), I + II → III réussi, explosions, trois pertes")
 
 
 func _check_demo_volleys() -> void:
@@ -125,9 +149,9 @@ func _check_demo_volleys() -> void:
 func _check_demo_matches_game_constants() -> void:
 	# Les durées de la démo recoupent celles de la partie.
 	_expect(1998 - 1693 == Docking.BONUS_HOLD, "Écran bonus de la démo : 305 images")
-	_expect(5127 - 4944 == Docking.TIMEOUT_HOLD, "Écran d'expiration de la démo : 183 images")
+	_expect(Attract.SECOND_DOCKING_RESUME - Attract.SECOND_DOCKING_CONTACT == Docking.BONUS_HOLD, "Second écran bonus de la démo : 305 images")
 	_expect(5792 - 5503 == ArcadeRun.COUNTER_DROP_FRAMES, "Perte du I + II : 289 images jusqu'à la baisse des vies")
 	_expect(7536 - 7247 == ArcadeRun.COUNTER_DROP_FRAMES, "Perte du I : 289 images")
 	var last := _demo_at(8209)
 	_expect(last.demo_value(Attract.Column.FLAG) == 1, "Boucle 8209 : dernière perte")
-	print("OK démo : bonus 305, expiration 183, pertes 289 comme en partie ; dernière perte 317 images jusqu'au texte")
+	print("OK démo : bonus 305 (deux fois), pertes 289 comme en partie ; dernière perte 317 images jusqu'au texte")

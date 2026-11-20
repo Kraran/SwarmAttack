@@ -3,16 +3,21 @@ extends Node
 # Finite pulses, independent from the selected audio bank and volume.
 # Each stage: high-frequency motor, low-frequency motor, seconds.
 # Only player destruction and successful docking contact produce game rumble.
+# A ship explosion: full shock, then a long rumble that fades (about 0.95 s).
 const EXPLOSION := [
-	[1.0, 1.0, 0.09], [0.35, 0.9, 0.11], [0.1, 0.55, 0.13], [0.0, 0.2, 0.15]]
+	[1.0, 1.0, 0.12], [0.75, 1.0, 0.16], [0.45, 0.85, 0.2], [0.2, 0.6, 0.22], [0.06, 0.3, 0.25]]
+# A docking collision destroys the whole assembly: a longer first shock.
+const CRASH := [
+	[1.0, 1.0, 0.2], [0.75, 1.0, 0.18], [0.45, 0.85, 0.22], [0.2, 0.6, 0.24], [0.06, 0.3, 0.26]]
+# Docking contact: the hull meets the module, a short gap, the clamps lock.
+const DOCKING := [[1.0, 1.0, 0.16], [0.0, 0.0, 0.06], [0.6, 1.0, 0.16], [0.2, 0.5, 0.2]]
+const PREVIEW_GAP := [[0.0, 0.0, 0.3]]
 const PATTERNS := {
 	"loss": {"priority": 3, "steps": EXPLOSION},
-	"crash": {"priority": 3, "steps": EXPLOSION},
-	"success": {"priority": 2, "steps": [[1.0, 1.0, 0.085]]},
+	"crash": {"priority": 3, "steps": CRASH},
+	"success": {"priority": 2, "steps": DOCKING},
 	# A docking contact, a pause, then a player explosion.
-	"preview": {"priority": 3, "steps": [
-		[1.0, 1.0, 0.085], [0.0, 0.0, 0.2], [1.0, 1.0, 0.09],
-		[0.35, 0.9, 0.11], [0.1, 0.55, 0.13], [0.0, 0.2, 0.15]]},
+	"preview": {"priority": 3, "steps": DOCKING + PREVIEW_GAP + EXPLOSION},
 }
 
 var enabled := true
@@ -46,9 +51,10 @@ func connection_changed(id: int, connected: bool) -> void:
 		device = -1
 
 
+# Leaving play only blocks new effects: a running explosion still ends
+# normally when a result screen opens. Pause, options, focus loss and the
+# other menus the player opens stop the motors explicitly.
 func set_gameplay_active(value: bool) -> void:
-	if gameplay_active != value:
-		stop()
 	gameplay_active = value
 
 

@@ -65,6 +65,7 @@ func next_entry() -> void:
 	if candidates.is_empty():
 		entry = null
 		results_open = true
+		_navigation.reset()
 		results_page = 0
 		_view._attract.frame = Attract.TITLE_TEXT_FRAMES
 	else:
@@ -91,14 +92,21 @@ func resolve_entry(save: bool) -> void:
 
 
 func letter_rect(index: int) -> Rect2:
-	return Rect2(LETTER.position + Vector2(39 * index, 0), LETTER.size)
+	var area := content_rect()
+	return Rect2(area.get_center().x - 150 + 106 * index, area.position.y + 150, 88, 104)
+
+
+func entry_button(save: bool) -> Rect2:
+	var area := content_rect()
+	var width := minf(240.0, area.size.x / 2.0 - 20.0)
+	return Rect2(area.get_center().x + (-width - 10 if save else 10), area.position.y + 330, width, 52)
 
 
 func handle_entry_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var point := _field_input_position(event.position)
-		if SAVE.has_point(point) or SKIP.has_point(point):
-			resolve_entry(SAVE.has_point(point))
+		var point: Vector2 = _view._panel_point(event.position)
+		if entry_button(true).has_point(point) or entry_button(false).has_point(point):
+			resolve_entry(entry_button(true).has_point(point))
 			return
 		for index in 3:
 			if letter_rect(index).has_point(point):
@@ -122,8 +130,8 @@ func handle_results_input(event: InputEvent) -> void:
 				result_choice = int(RESULT_HOME.has_point(point))
 				_view._redraw()
 			return
-		if (event is InputEventKey and event.pressed and event.keycode in [KEY_UP, KEY_DOWN]
-				or event is InputEventJoypadButton and event.pressed and event.button_index in [JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN]):
+		# Arrows, D-pad and left stick share the menus' navigation (stick hysteresis included).
+		if _navigation.direction(event).y != 0:
 			result_choice = 1 - result_choice
 			_view._redraw()
 			return
@@ -172,42 +180,44 @@ func open() -> void:
 
 
 func draw_entry(canvas: Node2D) -> void:
-	var panel := Rect2(17, 37, 190, 185)
-	canvas.draw_rect(panel, Color(0.025, 0.04, 0.07, 0.97))
-	canvas.draw_rect(panel, BORDER, false, 0.65)
+	sheet(canvas)
 	var candidate := candidates[0]
-	_field_text(canvas, 112, 55, _translate("NOUVEAU RECORD"), SHOT, 11)
-	_field_text(canvas, 112, 207, _translate(ArcadeProfile.DIFFICULTY_LABELS[_view._run_difficulty]), MUTED, 8)
-	var result := "%06d" % candidate.score
+	var detail := _translate(ArcadeProfile.DIFFICULTY_LABELS[_view._run_difficulty])
 	if _session.runs.size() == 2:
-		result = "%s · %s" % [_translate("Joueur %d") % candidate.player, result]
-	_field_text(canvas, 112, 72, result, ARCADE_CYAN, 12)
-	_field_text(canvas, 112, 86, _translate("Saisissez vos trois initiales"), MUTED)
+		detail = "%s · %s" % [_translate("Joueur %d") % candidate.player, detail]
+	header(canvas, _translate("NOUVEAU RECORD"), detail)
+	var area := content_rect()
+	var box := Rect2(area.position.x + 8, area.position.y + 4, area.size.x - 16, 112)
+	skin.panel(canvas, box)
+	skin.text(canvas, Vector2(box.get_center().x, box.position.y + 40), "%06d" % candidate.score, 30, skin.c("accent"), 0, skin.score_font)
+	skin.text(canvas, Vector2(box.get_center().x, box.position.y + 84), _translate("Saisissez vos trois initiales"), skin.body_size(24), skin.c("muted"), 0, skin.detail_font)
 	for index in 3:
 		var tile := letter_rect(index)
-		var selected := index == entry.cursor
-		canvas.draw_rect(tile, GRID if selected else BACKGROUND)
-		canvas.draw_rect(tile, SHOT if selected else BORDER, false, 0.65)
-		_field_text(canvas, tile.get_center().x, tile.position.y + 23, entry.initials[index], SHOT if selected else PRIMARY, 19)
-	_field_text(canvas, 112, 142, _translate("← → Case    ↑ ↓ Lettre"), MUTED, 8)
-	_field_text(canvas, 112, 155, _translate("A Suivant    B Précédent"), MUTED, 8)
-	_field_text(canvas, 112, 168, _translate("Entrée / Start  Valider"), MUTED, 8)
-	_draw_score_action(canvas, SAVE, _translate("Enregistrer"), true)
-	_draw_score_action(canvas, SKIP, _translate("Passer"), false)
+		var state := 2 if index == entry.cursor else 0
+		skin.button_frame(canvas, tile, state)
+		skin.text(canvas, tile.get_center() + Vector2(0, 2), entry.initials[index], 40,
+			skin.c("focus_text") if state == 2 else skin.c("text"), 0, skin.score_font)
+	skin.button(canvas, entry_button(true), _translate("Enregistrer"), 2, 30)
+	skin.button(canvas, entry_button(false), _translate("Passer"), 0, 30)
 	if entry.save_failed:
-		_field_text(canvas, 112, 218, _translate("Échec de l’enregistrement"), ARCADE_RED, 7)
+		skin.text(canvas, Vector2(area.get_center().x, area.position.y + 410), _translate("Échec de l’enregistrement"), skin.body_size(22), skin.c("danger"), 0, skin.detail_font)
+	hints(canvas, [
+		hint(["key:←", "key:→"], ["pad:◀▶"], "Case"),
+		hint(["key:↑", "key:↓"], ["pad:▲▼"], "Lettre"),
+		hint(["key:Entrée"], ["pad:Start"], "Valider"),
+	])
 
 
 func draw_table(canvas: Node2D) -> void:
 	var mode := _score_mode()
-	_field_text(canvas, 112, 26, _translate(ArcadeProfile.DIFFICULTY_LABELS[mode]), SHOT, 8)
-	_field_text(canvas, 39, 35, _translate("RANG"), ARCADE_PINK, 9)
-	_field_text(canvas, 105, 35, _translate("INITIALES"), ARCADE_PINK, 9)
-	_field_text(canvas, 175, 35, _translate("SCORE"), ARCADE_PINK, 9)
+	_field_text(canvas, 112, 36, _translate(ArcadeProfile.DIFFICULTY_LABELS[mode]), SHOT, 9)
+	_field_text(canvas, 39, 52, _translate("RANG"), ARCADE_PINK, 9)
+	_field_text(canvas, 105, 52, _translate("INITIALES"), ARCADE_PINK, 9)
+	_field_text(canvas, 175, 52, _translate("SCORE"), ARCADE_PINK, 9)
 	var scores := _profile.scores_for(mode)
 	var names := _profile.initials_for(mode)
 	for index in scores.size():
-		var y := 53 + index * 15
+		var y := 70 + index * 15
 		var color: Color = SCORE_RANK_COLORS[index]
 		var score := scores[index]
 		if results_open:
