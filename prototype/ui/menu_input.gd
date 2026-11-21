@@ -149,9 +149,11 @@ func _track_device(event: InputEvent) -> void:
 	if event is InputEventJoypadButton and event.pressed:
 		pad = true
 		_view._play_pad = event.device
+		_view._set_pad_family(Controls.pad_family(event.device))
 	elif event is InputEventJoypadMotion and absf(event.axis_value) >= 0.65:
 		pad = true
 		_view._play_pad = event.device
+		_view._set_pad_family(Controls.pad_family(event.device))
 	elif event is InputEventKey and event.pressed or event is InputEventMouseButton and event.pressed:
 		pad = false
 		_view._play_pad = -1

@@ -40,6 +40,8 @@ var skin := "orbital"
 # True once the player picked a theme; until then the default theme applies.
 var skin_chosen := false
 var menu_left := false
+# Collisions sur les silhouettes HD (true) ou sur les boîtes de la borne.
+var precise_collisions := true
 var difficulty := Difficulty.NORMAL
 # Un nouveau profil démarre dans la langue du système quand le jeu la connaît.
 var language := Language.system_language()
@@ -111,6 +113,7 @@ func read(path := SAVE_PATH) -> void:
 	skin_chosen = config.has_section_key("options", "skin") and skin == stored_skin
 	var stored_layout: Variant = config.get_value("options", "menu_left", false)
 	menu_left = stored_layout if stored_layout is bool else false
+	precise_collisions = config.get_value("options", "collisions", "precise") != "arcade"
 	difficulty = Difficulty.VETERANS if config.get_value("options", "difficulty", 0) == 1 else Difficulty.NORMAL
 	# Profiles from before language selection used French.
 	var stored_language: Variant = config.get_value("options", "language", "fr")
@@ -211,6 +214,7 @@ func write(path := SAVE_PATH) -> Error:
 	if skin_chosen:
 		config.set_value("options", "skin", skin)
 	config.set_value("options", "menu_left", menu_left)
+	config.set_value("options", "collisions", "precise" if precise_collisions else "arcade")
 	config.set_value("options", "difficulty", difficulty)
 	config.set_value("options", "language", language)
 	return _storage.save_profile(config, path)

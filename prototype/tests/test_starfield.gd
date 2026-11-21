@@ -24,7 +24,22 @@ func _initialize() -> void:
 	var wrap := Starfield.new()
 	wrap.advance(Starfield.TILE_EDGE / 60.0)
 	_expect(wrap.offsets().x == 0, "Le défilement boucle sur la tuile")
-	for item in [at_60, at_120, at_144, half, wrap]:
+	var right := Starfield.new()
+	var right_120 := Starfield.new()
+	for i in 120:
+		right.steer(1.0, 1.0 / 60.0)
+	for i in 240:
+		right_120.steer(1.0, 1.0 / 120.0)
+	_expect(right.drift() == Vector3i(Starfield.DRIFT_PIXELS), "Vaisseau à droite : décalage maximal, obtenu %s" % right.drift())
+	_expect(right_120.drift() == right.drift(), "La parallaxe suit le temps, pas la fréquence")
+	var left := Starfield.new()
+	left.steer(-1.0, 0.1)
+	_expect(left.drift().z < 0 and left.drift().z > -int(Starfield.DRIFT_PIXELS.z), "Vaisseau à gauche : décalage progressif dans l'autre sens, obtenu %s" % left.drift())
+	_expect(absi(left.drift().x) <= absi(left.drift().z), "Le plan proche bouge plus que le plan lointain")
+	for i in 300:
+		left.steer(0.0, 1.0 / 60.0)
+	_expect(left.drift() == Vector3i.ZERO, "Sans vaisseau, le décor revient au centre")
+	for item in [at_60, at_120, at_144, half, wrap, right, right_120, left]:
 		item.free()
 	if failures:
 		printerr("%d échecs" % failures)

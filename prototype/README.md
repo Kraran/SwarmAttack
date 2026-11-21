@@ -1,6 +1,6 @@
 # Guide de SwarmAttack
 
-Décompressez la [version 1.0.1 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.1) (`SwarmAttack-1.0.1-Win64.zip`) et ouvrez `SwarmAttack.exe`.
+Décompressez la [version 1.0.2 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.2) (`SwarmAttack-1.0.2-Win64.zip`) et ouvrez `SwarmAttack.exe`.
 
 | Action | Clavier | Manette |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ Décompressez la [version 1.0.1 pour Windows x64](https://github.com/Kraran/Swar
 | Mettre en pause ou reprendre | Échap | Start |
 | Choisir et valider dans la pause | ↑/↓ et Entrée | Croix et A |
 | Revenir à l’accueil depuis la pause (avec confirmation) | T | B |
-| Quitter le jeu de partout (avec confirmation) | | Xbox + Start |
+| Quitter le jeu de partout (avec confirmation) | | Xbox + Start (PS + Options) |
 | Ouvrir le menu de l’accueil en portrait | ↑/↓ | Croix ou stick |
 | Recommencer | R | |
 | Choisir un entraînement ; relancer l’exercice en entraînement | F2 | Y pour relancer |
@@ -103,7 +103,7 @@ L’audit visuel se lance avec un moteur graphique et un profil de test isolé. 
 
 ## Tests
 
-Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les trente-deux suites.
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les trente-cinq suites.
 
 ```powershell
 & $godot --headless --editor --import --path prototype

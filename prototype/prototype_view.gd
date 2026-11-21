@@ -123,6 +123,8 @@ var _canvas_offset := Vector2.ZERO
 var _backdrop_state: Array = []
 var _skin: UiSkin = UiSkin.create(UiSkin.DEFAULT_SKIN)
 var _pad_hints := false
+# Symboles de manette affichés : xbox, playstation, playstation5 ou nintendo.
+var _pad_family := "xbox"
 var _starfield_usec := 0
 # Manette qui sert à jouer : la dernière à avoir produit une entrée franche.
 var _play_pad := -1
@@ -145,12 +147,17 @@ func _ready() -> void:
 	_profile.read()
 	_skin = UiSkin.create(_profile.skin)
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
+	var pads := Input.get_connected_joypads()
+	if not pads.is_empty():
+		_pad_family = Controls.pad_family(pads[0])
+		_skin.pad_family = _pad_family
 	add_child(_audio)
 	add_child(_haptics)
 	_haptics.configure(_profile.vibration_enabled, _profile.vibration_intensity)
 	_audio.set_muted(_profile.muted)
 	_audio.set_volume(_profile.volume)
 	_audio.set_bank(_profile.audio_bank)
+	_apply_collisions()
 	if DisplayServer.get_name() != "headless":
 		_starfield = Starfield.new()
 		add_child(_starfield)
@@ -356,7 +363,29 @@ func _header_logo() -> Rect2:
 
 func _apply_skin() -> void:
 	_skin = UiSkin.create(_profile.skin)
+	_skin.pad_family = _pad_family
 	_redraw()
+
+
+func _set_pad_family(family: String) -> void:
+	if family != _pad_family:
+		_pad_family = family
+		_skin.pad_family = family
+		_redraw()
+
+
+# Libellé d'un bouton dans un texte : la croix PlayStation s'écrit « × »,
+# les autres symboles par leur nom, faute de glyphe dans les polices.
+func _pad_text(label: String) -> String:
+	if _pad_family.begins_with("playstation"):
+		match label:
+			"A": return "×"
+			"B": return _translate("Rond")
+			"X": return _translate("Carré")
+			"Y": return _translate("Triangle")
+	elif _pad_family == "nintendo" and label in UiSkin.NINTENDO_LETTERS:
+		return UiSkin.NINTENDO_LETTERS[label]
+	return _skin.pad_label(label)
 
 
 # The game keeps its 16:9 (or portrait) layout, centred; on wider or taller
@@ -560,6 +589,8 @@ func _score_mode() -> int:
 
 
 func _on_joy_connection_changed(device: int, connected: bool) -> void:
+	if connected and _play_pad < 0:
+		_set_pad_family(Controls.pad_family(device))
 	_haptics.connection_changed(device, connected)
 	if not connected and _scores.entry != null:
 		_scores.entry.release_pad(device)
@@ -587,6 +618,13 @@ func _save_profile() -> void:
 	if _options.save_failed:
 		push_warning("Impossible d’enregistrer les réglages ou les scores.")
 	_redraw()
+
+
+func _apply_collisions() -> void:
+	CombatWave.precise_collisions = _profile.precise_collisions
+	if _profile.precise_collisions:
+		# Construire les silhouettes maintenant plutôt qu'au premier contact.
+		CombatWave.HullShapes.clearance(1, Vector2.ZERO)
 
 
 func _apply_display() -> void:
@@ -688,10 +726,28 @@ func _advance_starfield() -> void:
 	if _focused and not _pause.active and not _about_is_open() and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
 		if _starfield_usec > 0:
 			# Un à-coup (chargement, glissement de fenêtre) ne fait pas sauter le décor.
-			_starfield.advance(minf((now - _starfield_usec) / 1_000_000.0, MAX_STARFIELD_STEP))
+			var seconds := minf((now - _starfield_usec) / 1_000_000.0, MAX_STARFIELD_STEP)
+			_starfield.advance(seconds)
+			_starfield.steer(_ship_parallax(), seconds)
 		_starfield_usec = now
 	else:
 		_starfield_usec = 0
+
+
+# Position horizontale du vaisseau, de -1 (bord gauche) à 1 (bord droit),
+# pour la parallaxe du fond étoilé. 0 quand aucun vaisseau n'est piloté.
+func _ship_parallax() -> float:
+	var ship_x := -1.0
+	if _attract_active:
+		if _attract.screen() == Attract.Screen.DEMO:
+			var track := _attract.demo_objects()
+			if not track.is_empty() and track[Attract.MODULE_OFFSET] != 255:
+				ship_x = track[Attract.MODULE_OFFSET]
+	elif _game_in_progress() and _run.phase in [ArcadeRun.Phase.COMBAT, ArcadeRun.Phase.REPLACEMENT, ArcadeRun.Phase.DOCKING]:
+		ship_x = _run.combat.pilot.ship_x
+	if ship_x < 0.0:
+		return 0.0
+	return (ship_x - Pilot.START_X) / float(Pilot.MAX_X - Pilot.START_X)
 
 
 func _advance_frame(duration_usec: int, input_mask: int) -> void:
@@ -867,7 +923,7 @@ func _refresh_interface() -> void:
 	_logo_layer.refresh([portrait, _logo_hovered, _menu_open(), _menu_left(), _intro_time])
 	var controls_state := [hash(_profile.key_bindings), hash(_profile.button_bindings)]
 	_frame_layer.refresh([portrait, _uses_hd(), language, controls_state, _menu_left()])
-	_pause_layer.refresh(controls_state + [_pad_hints, _skin.id, _menu_left()])
+	_pause_layer.refresh(controls_state + [_pad_hints, _pad_family, _skin.id, _menu_left()])
 	_veil_layer.refresh([portrait, _menu_left(), _focused, _menu_open(), _attract_active, _skin.id])
 	var demo := _attract_active and _attract.screen() == Attract.Screen.DEMO
 	var results := _scores.results_open and not _scores.rows.is_empty()
@@ -900,7 +956,7 @@ func _refresh_interface() -> void:
 func _refresh_panel(duo: bool, dock: Docking) -> void:
 	var pointer := get_global_mouse_position()
 	var state: Array = [_profile.portrait, _attract_active, _profile.language,
-		_session.practice, _exercise_kind, _exercise_target, _skin.id, _pad_hints, _menu_open(), _menu_left(),
+		_session.practice, _exercise_kind, _exercise_target, _skin.id, _pad_hints, _pad_family, _menu_open(), _menu_left(),
 		_menu_feedback.slide_time,
 		hash(_profile.key_bindings), hash(_profile.button_bindings),
 		_score_mode(), _scores.results_open, _scores.tables_open, _scores.entry != null, _focused, _profile.muted]
@@ -1073,7 +1129,7 @@ func _draw_combat() -> void:
 	if _run.phase == ArcadeRun.Phase.COMBAT:
 		for point in pilot.active_shots():
 			_draw_shot(_motion.projectile(point, _visual_tick) if _uses_hd() else Vector2(point))
-		if _diagnostics:
+		if _diagnostics and not CombatWave.precise_collisions:
 			for module in range(1, 4):
 				if pilot.has_module(module):
 					var contact := Rect2(CombatWave.module_contact_rect(pilot.ship_x, module, pilot.attached, pilot.assembly_y_offset))
@@ -1432,7 +1488,7 @@ func _status_lines() -> Array:
 			if _run.combat.lost_module > 0:
 				status = _translate("Module %s perdu") % ["I", "II", "III"][_run.combat.lost_module - 1]
 			if _run.is_cycle_entrance():
-				status = _translate("Cycle %d · entrée du module I") % _run.cycle
+				status = _translate("Cycle %d · entrée du module %s") % [_run.cycle, _run.ship_label()]
 			elif _run.entrance_elapsed() >= 0:
 				status = _translate("Déploiement du module %s") % _run.ship_label()
 			return [status, "", "title"]
@@ -1610,7 +1666,7 @@ func _draw_attract() -> void:
 					continue
 				var label: String = Attract.TITLE_LINES[index][0]
 				if index == Attract.TITLE_LINES.size() - 1:
-					label = _translate("%s / %s POUR JOUER") % [_key_label(&"fire").to_upper(), _button_label(&"fire")]
+					label = _translate("%s / %s POUR JOUER") % [_key_label(&"fire").to_upper(), _pad_text(_button_label(&"fire")).to_upper()]
 				_field_text(self, 112, ROWS[index], _translate(label), COLORS[index], 16 if index == 0 else 10, progress)
 		Attract.Screen.SCORE_TABLE:
 			_scores.draw_table(self)
@@ -1714,7 +1770,7 @@ func _draw_portrait_hud(canvas: Node2D) -> void:
 	if _session.practice:
 		label = "%s · %s" % [_translate("Entraînement"), _exercise_label()]
 	_skin.text(canvas, Vector2(28, 759), _skin.caps(label), _skin.body_size(24), _skin.c("text"), -1, _skin.body_font, 360)
-	_skin.keycap(canvas, Vector2(404, 759), _translate(Controls.key_name(_profile.key_bindings["pause"][0])) if not _pad_hints else "Start", 24)
+	_skin.keycap(canvas, Vector2(404, 759), _translate(Controls.key_name(_profile.key_bindings["pause"][0])) if not _pad_hints else _skin.pad_label("Start"), 24)
 	_skin.text(canvas, Vector2(532, 759), _skin.caps(_translate("Pause")), _skin.body_size(24), _skin.c("text"), 1)
 
 

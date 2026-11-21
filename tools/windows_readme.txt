@@ -1,5 +1,5 @@
 SWARM ATTACK
-Version 1.0.1
+Version 1.0.2
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
@@ -16,7 +16,8 @@ Les musiques et annonces restent centrées.
 Les jets des réacteurs s’allongent progressivement pendant les déplacements,
 puis retrouvent leur taille normale lorsque le vaisseau s’arrête.
 La VSync suit la fréquence du moniteur. Le jeu, les animations et le fond
-étoilé gardent la même vitesse à 60, 120 ou 144 Hz.
+étoilé gardent la même vitesse à 60, 120 ou 144 Hz. Les étoiles glissent
+en parallaxe, en sens inverse des déplacements du vaisseau.
 Options > Affichage > Compteur FPS affiche les FPS réels en haut à droite.
 Le choix est sauvegardé ; la mesure reste active dans les menus et en pause.
 Les arrêts matériels de la borne ne sont pas reproduits. Le vaisseau
@@ -24,7 +25,10 @@ continue à se déplacer pendant le crédit final des points. Les tirs
 sont vidés aux transitions : après un amarrage ou une nouvelle vague,
 un nouvel appui est nécessaire pour tirer, même si le bouton était maintenu.
 Les collisions prennent en compte le trajet entre deux positions et excluent
-les sorties masquées. F1 affiche les zones de contact ; à l’amarrage,
+les sorties masquées. Options > Affichage > Collisions : « Précises »
+(par défaut) suit la silhouette des vaisseaux et des ennemis affichés ;
+« Borne » reprend les boîtes rectangulaires de la borne d’origine.
+F1 affiche les zones de contact de la borne ; à l’amarrage,
 le rouge signale la collision et reste prioritaire sur la capture verte.
 
 Commandes par défaut au clavier
@@ -59,7 +63,10 @@ Manette
   Y pour démarrer une partie à deux (ou relancer un entraînement), X pour ouvrir les options, Start pour
   mettre en pause et reprendre, haut/bas à la croix et A pour valider.
   B depuis la pause propose de revenir à l’accueil.
-  Xbox + Start ouvre la question « Quitter le jeu ? » de partout,
+  Les manettes PlayStation (DualShock 4, DualSense) et Nintendo sont
+  reconnues : les aides affichent croix, rond, carré, triangle, L1/R1
+  et Options, ou les lettres Nintendo, selon la manette utilisée.
+  Xbox + Start (PS + Options) ouvre la question « Quitter le jeu ? » de partout,
   « Non » étant présélectionné.
   Si la manette utilisée pour jouer est débranchée ou perdue, la partie
   se met en pause. Une autre manette débranchée est ignorée.
