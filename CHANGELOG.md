@@ -1,5 +1,15 @@
 # Notes de version
 
+## 1.0.2 — 22 novembre 2026
+
+- Collisions précises : le contact entre le vaisseau et un ennemi suit désormais la silhouette réelle des modules HD et la taille apparente de chaque famille d’ennemis, au lieu des boîtes rectangulaires de la borne, qui déclenchaient souvent une explosion avant tout contact visible (jusqu’à la moitié des contacts pour le module III seul). Le trajet entre deux images reste suivi. Options → Affichage → Collisions : « Précises » (par défaut) ou « Borne » pour retrouver exactement les boîtes d’origine.
+- Fond étoilé plus lisible en Full HD : étoiles plus grosses, de tailles variées avec quelques grosses étoiles au premier plan, couleurs réalistes du bleu au rouge orangé. En 4K, le fond garde la même taille apparente.
+- Parallaxe horizontale : les trois plans d’étoiles glissent en sens inverse des déplacements du vaisseau, en jeu et dans la démo, en plus du défilement vertical.
+- Manettes PlayStation (DualShock 4, DualSense) et Nintendo : les aides affichent leurs propres symboles (croix, rond, carré, triangle, L1/R1, Options, ou lettres Nintendo) selon la manette utilisée.
+- Correction : au début d’un nouveau cycle, le menu annonce le module qui entre réellement (par exemple « entrée du module III » quand le III a fini le cycle seul), et non plus toujours le module I.
+- Icône du jeu pour l’exécutable et la fenêtre, et informations de version dans les propriétés du fichier.
+- Trente-cinq suites de tests, dont de nouvelles pour les collisions précises, l’annonce d’entrée de cycle et les manettes PlayStation.
+
 ## 1.0.1 — 21 novembre 2026
 
 - Fond étoilé à la bonne vitesse sur les écrans à 120 ou 144 Hz : le défilement suit désormais le temps écoulé, et non plus le nombre d’images affichées. Les étoiles restent calées au pixel. Le jeu, les animations et les menus étaient déjà indépendants de la fréquence de l’écran.

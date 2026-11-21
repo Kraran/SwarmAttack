@@ -2,6 +2,12 @@
 
 Audit du code local 0.3.1-dev, incluant les correctifs de fluidité et de tirs fantômes. Les modifications déjà présentes ont été conservées.
 
+## Collisions précises (1.0.2)
+
+Avec les modèles HD, les boîtes de la borne déclenchaient souvent un contact sans contact visible. Mesure sur les rendus Full HD, ennemi placé sur chaque position de contact : module III seul, environ 50 % des contacts sans contact visible et jusqu’à 16 pixels logiques d’écart ; anneaux et rangées, 20 à 30 % jusqu’à 8 pixels.
+
+Le mode « Précises », par défaut, remplace ces boîtes par la silhouette de chaque module (`prototype/hull_shapes.gd`, relevée sur son rendu sans la flamme du réacteur) et par un disque de rayon apparent pour chaque famille d’ennemis. Les distances tiennent compte de la compression horizontale du terrain (192/224). Le trajet relatif de l’image est suivi par demi-pixel, les réapparitions restent exclues et, à instant égal, le module le plus profondément touché est retenu. Après réglage, il reste au plus 1 à 3 pixels d’écart, et environ 4 pour les anneaux, dont l’arc ouvert tourne avec le cap. Le mode « Borne » conserve à l’identique les boîtes ci-dessous et leurs tests. `prototype/tests/test_precise_collisions.gd` couvre la géométrie, la comparaison avec la borne, les trajets, l’attribution et le réglage.
+
 ## Résultat
 
 Les 21 suites existantes passaient avant l’audit, mais ne couvraient pas quatre anomalies reproduites. Après correction, les **22 suites passent**. La nouvelle suite `prototype/tests/test_collision_audit.gd` exécute **510 290 assertions**, sans échec.

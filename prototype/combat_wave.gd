@@ -1,6 +1,13 @@
 extends RefCounted
 
 const CollisionGeometry = preload("res://collision_geometry.gd")
+const HullShapes = preload("res://hull_shapes.gd")
+const Presentation = preload("res://flight_presentation.gd")
+const Pilot = preload("res://pilot.gd")
+
+# Collisions vaisseau-ennemi : boîtes relevées sur la borne (false) ou
+# silhouettes des modèles HD (true, réglage par défaut du profil).
+static var precise_collisions := false
 
 const SPAWN_FRAME := 32
 const OPENING_LENGTH := 16
@@ -93,6 +100,8 @@ var _alive_mask: int
 var _resumed := false
 # Étape du cycle (amarrages franchis) : choisit la variante d'entrée.
 var stage := 0
+# Rayon apparent des ennemis de la vague, pour les collisions précises.
+var enemy_radius := 5.0
 var _wave_clock := 0
 # Compteurs de motifs, rangés en RAM de 0x8242 (formation) à 0x8246 (piqués,
 # quatre zones) puis 0x8247 (retour). Ils ne sont pas remis à zéro entre les
@@ -115,6 +124,7 @@ var flight_sound_source: Enemy
 
 func _init(wave_number := 1, alive_mask := 255, points := -1, at_stage := 0) -> void:
 	stage = at_stage
+	enemy_radius = HullShapes.ENEMY_RADII[Presentation.enemy_kind(Presentation.cycle_wave(wave_number, mini(at_stage, 2)))]
 	falling = wave_number >= 5
 	rows = at_stage >= 2 and wave_number >= 3 and not falling
 	wide_entry = wave_number >= 3 and not falling and not rows
@@ -260,6 +270,8 @@ func hits_attached(ship_x: int, attached: int, y_offset := 0) -> bool:
 # la plus proche. La priorité systématique au III rendait le II intouchable
 # dans le trio, sa boîte étant entièrement recouverte par celle du III.
 func hit_module(ship_x: int, attached: int, y_offset := 0, previous_ship_x := -1, previous_enemies: Dictionary = {}) -> int:
+	if precise_collisions:
+		return _hit_module_precise(ship_x, attached, y_offset, previous_ship_x, previous_enemies)
 	var hit := 0
 	var nearest := INF
 	var first_time := INF
@@ -286,6 +298,50 @@ func hit_module(ship_x: int, attached: int, y_offset := 0, previous_ship_x := -1
 				first_time = time
 				nearest = distance
 				hit = module
+	return hit
+
+
+# Contact quand le disque apparent de l'ennemi touche la silhouette d'un
+# module. Le trajet de l'image est suivi par demi-pixel : un ennemi rapide ne
+# traverse pas une aile entre deux images. À instant égal, le module le plus
+# profondément touché est retenu.
+func _hit_module_precise(ship_x: int, attached: int, y_offset: int, previous_ship_x: int, previous_enemies: Dictionary) -> int:
+	var hit := 0
+	var first_time := INF
+	var deepest := INF
+	for enemy in enemies:
+		if not enemy.has_visible_pose():
+			continue
+		var before := Vector2(previous_enemies.get(enemy, enemy.position))
+		var old_ship := ship_x if previous_ship_x < 0 else previous_ship_x
+		if not CollisionGeometry.continuous(before, Vector2(enemy.position)) or absi(ship_x - old_ship) > CollisionGeometry.MAX_CONTINUOUS_STEP:
+			before = Vector2(enemy.position)
+			old_ship = ship_x
+		# Centre affiché de l'ennemi (display_position), relatif au vaisseau.
+		var from := before + Vector2(-8 - old_ship, 8)
+		var to := Vector2(enemy.position) + Vector2(-8 - ship_x, 8)
+		var steps := clampi(ceili(from.distance_to(to) * 2.0), 1, 64)
+		for step in range(steps + 1):
+			var time := float(step) / steps
+			if time > first_time + CollisionGeometry.EPSILON:
+				break
+			var point := from.lerp(to, time)
+			var module := 0
+			var gap := INF
+			for candidate in range(3, 0, -1):
+				if not (attached & (1 << (candidate - 1))):
+					continue
+				var anchor := Vector2(0, Pilot.SHIP_Y + (candidate - 1) * 8 + y_offset)
+				var candidate_gap := HullShapes.clearance(candidate, point - anchor) - enemy_radius
+				if candidate_gap <= 0.0 and candidate_gap < gap:
+					module = candidate
+					gap = candidate_gap
+			if module != 0:
+				if time < first_time - CollisionGeometry.EPSILON or gap < deepest:
+					first_time = time
+					deepest = gap
+					hit = module
+				break
 	return hit
 
 

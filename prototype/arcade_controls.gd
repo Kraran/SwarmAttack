@@ -17,6 +17,28 @@ const RESERVED_KEYS := [KEY_R, KEY_T, KEY_2, KEY_KP_2, KEY_F1, KEY_F2, KEY_F3,
 const RESERVED_BUTTONS := [JOY_BUTTON_X, JOY_BUTTON_Y, JOY_BUTTON_BACK]
 
 
+# Famille de manette d'après son nom : les symboles affichés suivent la manette
+# utilisée (Xbox par défaut, PlayStation, Nintendo). SDL donne la même
+# disposition à toutes : le bouton du bas reste JOY_BUTTON_A.
+const PLAYSTATION_HINTS := ["playstation", "dualshock", "dualsense", "ps3", "ps4", "ps5", "sony"]
+const NINTENDO_HINTS := ["nintendo", "switch", "joy-con", "joycon"]
+
+
+static func family_for_name(joy_name: String) -> String:
+	var lowered := joy_name.to_lower()
+	for hint: String in PLAYSTATION_HINTS:
+		if lowered.contains(hint):
+			return "playstation5" if lowered.contains("dualsense") or lowered.contains("ps5") else "playstation"
+	for hint: String in NINTENDO_HINTS:
+		if lowered.contains(hint):
+			return "nintendo"
+	return "xbox"
+
+
+static func pad_family(device: int) -> String:
+	return family_for_name(Input.get_joy_name(device)) if device >= 0 else "xbox"
+
+
 static func valid_key(code: int, action: StringName) -> bool:
 	return (code > 0 and not code in RESERVED_KEYS and (code != KEY_ESCAPE or action == &"pause")
 		and not OS.get_keycode_string(code).is_empty())

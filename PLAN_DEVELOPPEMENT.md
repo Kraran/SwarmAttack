@@ -1,12 +1,12 @@
 # SWARM ATTACK — Plan de développement
 
-Version **1.0.1** : menus « Arcade » à thèmes, treize langues avec choix automatique selon Windows, navigation complète clavier, manette et souris, banque Moderne réorchestrée, mode attraction revu et vitesse identique quelle que soit la fréquence de l’écran. SWARM ATTACK est un jeu de défense orbitale pour Windows, développé avec Godot. Le joueur traverse dix vagues, manœuvre dans des champs de météorites et assemble jusqu’à trois modules pour faire évoluer son armement.
+Version **1.0.2** : menus « Arcade » à thèmes, treize langues avec choix automatique selon Windows, navigation complète clavier, manette (Xbox, PlayStation, Nintendo) et souris, banque Moderne réorchestrée, mode attraction revu, vitesse identique quelle que soit la fréquence de l’écran, collisions précises sur les modèles HD et fond étoilé en parallaxe. SWARM ATTACK est un jeu de défense orbitale pour Windows, développé avec Godot. Le joueur traverse dix vagues, manœuvre dans des champs de météorites et assemble jusqu’à trois modules pour faire évoluer son armement.
 
 Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et les trois arrêts matériels reproduits dans les vagues. Ils maintiennent le déplacement pendant le crédit final et remplacent les délais dépendant de la charge de la borne par un délai d’effet constant. Les tests vérifient désormais ces comportements corrigés ; les relevés arcade restent des références de trajectoires, pas une obligation de reproduire leurs défauts.
 
 ## Fonctionnalités réalisées
 
-| Domaine | État en 1.0.1 |
+| Domaine | État en 1.0.2 |
 | --- | --- |
 | Boucle de jeu | Dix vagues, deux amarrages, cycles successifs, vies, réserve et scores ; solo et duo local en alternance |
 | Modules | Seule la coque touchée est détruite ; les survivants se séparent. Après perte du II, le I reprend seul et peut s’amarrer au III resté en réserve |
@@ -15,14 +15,15 @@ Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et le
 | Menus et commandes | Menus « Arcade » à côté du terrain, trois thèmes et thèmes personnalisés, menu à droite ou à gauche, introduction animée ; navigation clavier, manette et souris partout, y compris en portrait ; confirmations avant de quitter, Xbox + Start, pause si la manette est débranchée ; affectations personnalisables |
 | Langues | Treize langues avec drapeaux : anglais, français, espagnol, portugais, allemand, italien, danois, néerlandais, norvégien, polonais, russe, suédois et turc ; choix sauvegardé |
 | Classements | Dix scores par difficulté, initiales au clavier ou à la manette, record du mode actif, écran regroupant les deux tables et bilan individuel en fin de partie |
-| Affichage | Modèles 3D chromés, Full HD paysage et portrait, plein écran ou fenêtre, interpolation avec VSync, fond étoilé à trois plans et jets de réacteurs progressifs pendant les mouvements |
+| Affichage | Modèles 3D chromés, Full HD paysage et portrait, plein écran ou fenêtre, interpolation avec VSync, fond étoilé à trois plans aux couleurs réalistes avec parallaxe horizontale, et jets de réacteurs progressifs pendant les mouvements |
 | Vibrations | Deux effets : explosion du joueur (environ une seconde) et double choc d’amarrage réussi ; activation, intensité 0 à 100 % et test ; réglages sauvegardés |
 | FPS | Compteur facultatif des images réellement rendues, fenêtre de 0,5 seconde et actualisation à 10 Hz ; actif aussi dans les menus et en pause |
 | Curseur | Masquage après trois secondes sans mouvement en jeu, retour au mouvement de la souris et visibilité dans les menus |
 | À propos | Logo cliquable, photo de l’auteur à gauche ouvrant son profil GitHub, lien vers le dépôt, aux couleurs du thème, treize langues et reprise du contexte après fermeture |
 | Son | Banques Original et Moderne sélectionnables, vingt-deux sons par banque, vols et impacts propres aux cinq familles, thèmes de montée et de cycle, annonce d’amarrage et signal de réserve ; volume, silence et aperçu du tir ; balance stéréo selon les sources et routage audio synchronisé |
 | Sauvegardes | Réglages et classements versionnés, vérifiés par SHA-256 ; récupération de la version précédente si nécessaire et import de l’ancien profil |
-| Livraison | [Version Windows x64 1.0.1](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.1), exécutable autonome, guide et licences dans l’archive |
+| Collisions | Précises par défaut : silhouettes des modules HD et rayon apparent de chaque famille d’ennemis ; mode Borne avec les boîtes d’origine ; trajet suivi entre deux images |
+| Livraison | [Version Windows x64 1.0.2](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.2), exécutable autonome avec icône, guide et licences dans l’archive |
 
 ## Architecture et validation
 
@@ -35,7 +36,8 @@ Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et le
 - En 0.4.0, les bruitages Original et Moderne sont spatialisés selon leur source dans le terrain. Le routage indépendant par voix conserve les priorités et le limiteur Moderne ; les sons de vol suivent leur ennemi. Les tests capturent le mixage gauche/droite et vérifient la normalisation du niveau sonore.
 - En 1.0.0, les menus passent par des thèmes (`ui/skin.gd`), un fond animé en shader, des retours sonores et animations communs, et une question de sortie globale. Le rendu 3D n’est recalculé que lorsqu’un vaisseau ou un ennemi est visible.
 - En 1.0.1, le fond étoilé défile selon le temps écoulé et non plus par image affichée, et un nouveau profil prend la langue de Windows.
-- Trente-deux suites Godot sans affichage couvrent notamment les trajectoires, la continuité des mouvements, l’absence de tirs fantômes, les tirs assemblés, les pertes de modules, l’amarrage I → III, l’entraînement, les classements, les options, À propos, le curseur, les sons et les sauvegardes. L’[audit des collisions](RAPPORT_COLLISIONS.md) ajoute plus de 510 000 assertions sur les contacts fixes et mobiles. Le test de livraison atteint le cycle suivant après deux amarrages réussis.
+- En 1.0.2, `hull_shapes.gd` décrit la silhouette de chaque module, relevée sur son rendu HD, et en tire un champ de distances au démarrage. Le mode précis teste le disque apparent de l’ennemi contre ces silhouettes sur le trajet de l’image ; le mode Borne garde les boîtes relevées sur la borne, toujours couvertes par les tests de référence.
+- Trente-cinq suites Godot sans affichage couvrent notamment les trajectoires, la continuité des mouvements, l’absence de tirs fantômes, les tirs assemblés, les pertes de modules, l’amarrage I → III, l’entraînement, les classements, les options, À propos, le curseur, les sons et les sauvegardes. L’[audit des collisions](RAPPORT_COLLISIONS.md) ajoute plus de 510 000 assertions sur les contacts fixes et mobiles. Le test de livraison atteint le cycle suivant après deux amarrages réussis.
 - Les audits complémentaires couvrent les dix vagues des cycles 2, 3 et 4, les transitions jusqu’au cycle 5 et le routage audio sous charge. La [vérification de la 1.0.0](RAPPORT_VERIFICATION_1.0.0.md) consigne les résultats.
 - Les contrôles graphiques complètent ces suites pour les compositions paysage et portrait. Le guide détaille les [commandes, la compilation et les tests](prototype/README.md).
 

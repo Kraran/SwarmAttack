@@ -32,7 +32,7 @@ func render_state(controls: Array) -> Array:
 	return [opened, choice, _profile.difficulty, languages_open, page,
 		binding_waiting, binding_error, save_failed, _profile.volume,
 		_profile.backup_failed, _profile.audio_bank, _profile.muted,
-		_profile.fullscreen, _profile.show_fps, _profile.skin, _profile.menu_left, pad_hints(), _profile.vibration_enabled, _profile.vibration_intensity, controls]
+		_profile.fullscreen, _profile.show_fps, _profile.skin, _profile.menu_left, _profile.precise_collisions, pad_hints(), _profile.vibration_enabled, _profile.vibration_intensity, controls]
 
 
 func item_rect(index: int) -> Rect2:
@@ -58,7 +58,7 @@ func back_index() -> int:
 		Page.LANGUAGES: return Language.LANGUAGES.size()
 		Page.AUDIO: return 3
 		Page.VIBRATION: return 3
-		Page.DISPLAY: return 5
+		Page.DISPLAY: return 6
 		Page.CONTROLS: return 3
 		Page.KEYBOARD, Page.GAMEPAD: return Controls.ACTIONS.size() + 1
 	return BACK
@@ -280,6 +280,9 @@ func adjust(direction: int) -> void:
 				_profile.show_fps = not _profile.show_fps
 			elif choice == 4:
 				_profile.menu_left = not _profile.menu_left
+			elif choice == 5:
+				_profile.precise_collisions = not _profile.precise_collisions
+				_view._apply_collisions()
 			elif choice == 3:
 				var skins := UiSkin.available()
 				_profile.skin = skins[posmod(skins.find(_profile.skin) + direction, skins.size())]
@@ -448,7 +451,7 @@ func draw_row(canvas: Node2D, rect: Rect2, index: int, state: int) -> void:
 func keycap_width(label: String) -> float:
 	var size := int(28 * 0.55)
 	if page == Page.GAMEPAD:
-		return 28.0 if UiSkin.PAD_COLORS.has(label) else maxf(28 * 1.4, skin.text_width(skin.symbol_font, label, int(28 * 0.45)) + 12.0)
+		return 28.0 if UiSkin.PAD_COLORS.has(label) else maxf(28 * 1.4, skin.text_width(skin.symbol_font, skin.pad_label(label), int(28 * 0.45)) + 12.0)
 	return maxf(28.0, skin.text_width(skin.symbol_font, label, size) + 14.0)
 
 
@@ -482,7 +485,9 @@ func option_parts(index: int) -> Array:
 				return [_translate("Compteur FPS"), "choice", _translate("activé" if _profile.show_fps else "désactivé")]
 			if index == 3:
 				return [_translate("Thème"), "choice", skin.display_name]
-			return [_translate("Disposition"), "choice", _translate("Menu à gauche" if _profile.menu_left else "Menu à droite")]
+			if index == 4:
+				return [_translate("Disposition"), "choice", _translate("Menu à gauche" if _profile.menu_left else "Menu à droite")]
+			return [_translate("Collisions"), "choice", _translate("Précises" if _profile.precise_collisions else "Borne")]
 		Page.CONTROLS:
 			if index < 2:
 				return [_translate(["Clavier", "Manette"][index]), "open", ""]
@@ -525,6 +530,12 @@ func option_label(index: int) -> String:
 				return _translate("Plein écran" if _profile.fullscreen else "Fenêtré")
 			if index == 2:
 				return "%s · %s" % [_translate("Compteur FPS"), _translate("activé" if _profile.show_fps else "désactivé")]
+			if index == 3:
+				return "%s · %s" % [_translate("Thème"), skin.display_name]
+			if index == 4:
+				return "%s · %s" % [_translate("Disposition"), _translate("Menu à gauche" if _profile.menu_left else "Menu à droite")]
+			if index == 5:
+				return "%s · %s" % [_translate("Collisions"), _translate("Précises" if _profile.precise_collisions else "Borne")]
 			return _translate("Portrait" if _profile.portrait else "Paysage")
 		Page.CONTROLS:
 			return _translate(["Clavier", "Manette", "Rétablir par défaut"][index])

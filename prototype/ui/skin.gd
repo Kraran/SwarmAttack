@@ -66,8 +66,17 @@ const SKINS := {
 	},
 }
 const PAD_COLORS := {"A": "#5ec84b", "B": "#e5443b", "X": "#3d8eef", "Y": "#f0c02c"}
+# PlayStation : croix, rond, carré, triangle aux couleurs de la manette.
+const PLAYSTATION_COLORS := {"A": "#82aef0", "B": "#ee7a72", "X": "#df90d0", "Y": "#4fcfa6"}
+# Nintendo : le bouton du bas porte la lettre B, celui de droite la lettre A.
+const NINTENDO_LETTERS := {"A": "B", "B": "A", "X": "Y", "Y": "X"}
+const PLAYSTATION_LABELS := {"LB": "L1", "RB": "R1", "Start": "Options", "Back": "Share", "Guide": "PS"}
+const PLAYSTATION5_LABELS := {"LB": "L1", "RB": "R1", "Start": "Options", "Back": "Create", "Guide": "PS"}
+const NINTENDO_LABELS := {"LB": "L", "RB": "R", "Start": "+", "Back": "−", "Guide": "Home"}
 
 var id := "arcade"
+# Famille de la dernière manette utilisée : xbox, playstation, playstation5 ou nintendo.
+var pad_family := "xbox"
 var display_name := "Arcade"
 var colors := {}
 var skew := 0.21
@@ -309,14 +318,37 @@ func keycap(canvas: CanvasItem, left: Vector2, label: String, height := 22.0) ->
 	return width
 
 
+# Libellé affiché pour un bouton hors boutons de façade (LB → L1, Start → Options…).
+func pad_label(label: String) -> String:
+	match pad_family:
+		"playstation": return PLAYSTATION_LABELS.get(label, label)
+		"playstation5": return PLAYSTATION5_LABELS.get(label, label)
+		"nintendo": return NINTENDO_LABELS.get(label, label)
+	return label
+
+
+func _playstation() -> bool:
+	return pad_family.begins_with("playstation")
+
+
 func pad(canvas: CanvasItem, left: Vector2, label: String, height := 22.0) -> float:
 	var round_button := PAD_COLORS.has(label)
+	var face := label
+	if round_button:
+		if pad_family == "nintendo":
+			label = NINTENDO_LETTERS[label]
+	else:
+		label = pad_label(label)
 	var size := int(height * (0.6 if round_button else 0.45))
 	var shaped := label in ["✚", "◀▶", "▲▼", "←", "→", "↑", "↓"]
 	var width := height if round_button or label == "✚" or ARROWS.has(label) else maxf(height * 1.4, text_width(symbol_font, label, size) + 12.0)
 	if shaped and label in ["◀▶", "▲▼"]:
 		width = height * 1.5
 	var tint := Color(PAD_COLORS.get(label, "#aab3c2"))
+	if round_button and _playstation():
+		tint = Color(PLAYSTATION_COLORS[face])
+	elif round_button and pad_family == "nintendo":
+		tint = Color("#c9d2df")
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color("#15111c")
 	box.border_color = tint
@@ -339,11 +371,29 @@ func pad(canvas: CanvasItem, left: Vector2, label: String, height := 22.0) -> fl
 			_glyph_arrow(canvas, middle - Vector2(height * 0.3, 0), Vector2.UP, height * 0.38, ink)
 			_glyph_arrow(canvas, middle + Vector2(height * 0.3, 0), Vector2.DOWN, height * 0.38, ink)
 		_:
-			if ARROWS.has(label):
+			if round_button and _playstation():
+				_playstation_symbol(canvas, middle, face, height * 0.22, ink, maxf(1.6, height * 0.08))
+			elif ARROWS.has(label):
 				_glyph_arrow(canvas, middle, ARROWS[label], height * 0.45, ink)
 			else:
 				text(canvas, middle, label, size, ink, 0, symbol_font)
 	return width
+
+
+# Croix, rond, carré et triangle dessinés : aucune police ne les fournit.
+func _playstation_symbol(canvas: CanvasItem, center: Vector2, face: String, r: float, color: Color, line: float) -> void:
+	match face:
+		"A":
+			canvas.draw_line(center + Vector2(-r, -r), center + Vector2(r, r), color, line, true)
+			canvas.draw_line(center + Vector2(-r, r), center + Vector2(r, -r), color, line, true)
+		"B":
+			canvas.draw_arc(center, r * 1.05, 0, TAU, 24, color, line, true)
+		"X":
+			canvas.draw_rect(Rect2(center - Vector2(r, r), Vector2(r, r) * 2.0), color, false, line)
+		"Y":
+			var points := PackedVector2Array([center + Vector2(0, -r * 1.1), center + Vector2(r * 1.1, r * 0.85),
+				center + Vector2(-r * 1.1, r * 0.85), center + Vector2(0, -r * 1.1)])
+			canvas.draw_polyline(points, color, line, true)
 
 
 func mouse(canvas: CanvasItem, left: Vector2, button_side: int, height := 22.0) -> float:
@@ -399,7 +449,7 @@ func _hint_width(items: Array, glyph_height: float, label_size: int) -> float:
 				elif value in ["◀▶", "▲▼"]:
 					width += glyph_height * 1.5
 				else:
-					width += maxf(glyph_height * 1.4, text_width(symbol_font, value, int(glyph_height * 0.45)) + 12.0)
+					width += maxf(glyph_height * 1.4, text_width(symbol_font, pad_label(value), int(glyph_height * 0.45)) + 12.0)
 			elif kind == "mouse":
 				width += glyph_height * 0.68
 			else:
