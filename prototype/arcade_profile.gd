@@ -41,7 +41,8 @@ var skin := "orbital"
 var skin_chosen := false
 var menu_left := false
 var difficulty := Difficulty.NORMAL
-var language := Language.DEFAULT_LANGUAGE
+# Un nouveau profil démarre dans la langue du système quand le jeu la connaît.
+var language := Language.system_language()
 var _storage := Storage.new()
 var recovered_backup: bool:
 	get:
@@ -113,7 +114,7 @@ func read(path := SAVE_PATH) -> void:
 	difficulty = Difficulty.VETERANS if config.get_value("options", "difficulty", 0) == 1 else Difficulty.NORMAL
 	# Profiles from before language selection used French.
 	var stored_language: Variant = config.get_value("options", "language", "fr")
-	language = stored_language if stored_language is String and Language.LANGUAGES.has(stored_language) else Language.DEFAULT_LANGUAGE
+	language = stored_language if stored_language is String and Language.LANGUAGES.has(stored_language) else Language.system_language()
 
 
 func starting_cycle() -> int:

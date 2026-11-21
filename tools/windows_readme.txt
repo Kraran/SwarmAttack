@@ -1,5 +1,5 @@
 SWARM ATTACK
-Version 1.0.0
+Version 1.0.1
 Jeu de défense orbitale
 
 Décompressez l’archive, puis lancez SwarmAttack.exe sous Windows x64.
@@ -15,8 +15,8 @@ explosions, vols ennemis et contacts d’amarrage, dans les deux banques.
 Les musiques et annonces restent centrées.
 Les jets des réacteurs s’allongent progressivement pendant les déplacements,
 puis retrouvent leur taille normale lorsque le vaisseau s’arrête.
-La VSync suit la fréquence du moniteur. Pour jouer à 60 Hz, sélectionnez
-60 Hz dans les paramètres d’affichage Windows si nécessaire.
+La VSync suit la fréquence du moniteur. Le jeu, les animations et le fond
+étoilé gardent la même vitesse à 60, 120 ou 144 Hz.
 Options > Affichage > Compteur FPS affiche les FPS réels en haut à droite.
 Le choix est sauvegardé ; la mesure reste active dans les menus et en pause.
 Les arrêts matériels de la borne ne sont pas reproduits. Le vaisseau
@@ -106,8 +106,9 @@ quand la difficulté est choisie depuis la pause.
 
 Dans Options, choisissez Langue (Language) pour afficher le jeu en anglais,
 français, espagnol, portugais, allemand, italien, danois, néerlandais,
-norvégien, polonais, russe, suédois ou turc. Les nouveaux profils
-démarrent en anglais. La langue choisie est enregistrée.
+norvégien, polonais, russe, suédois ou turc. Au premier lancement, le jeu
+prend la langue de Windows si elle est disponible, sinon l’anglais.
+La langue choisie est enregistrée.
 
 Les modes Normal et Vétérans ont chacun dix scores indépendants. En jeu,
 seul le classement de la difficulté jouée est utilisé. Depuis l’accueil,

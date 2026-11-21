@@ -1,6 +1,6 @@
 # Guide de SwarmAttack
 
-Décompressez la [version 1.0.0 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0) (`SwarmAttack-1.0.0-Win64.zip`) et ouvrez `SwarmAttack.exe`.
+Décompressez la [version 1.0.1 pour Windows x64](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.1) (`SwarmAttack-1.0.1-Win64.zip`) et ouvrez `SwarmAttack.exe`.
 
 | Action | Clavier | Manette |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ Les modules assemblés élargissent les possibilités de tir. Une fois les trois
 
 Après chaque partie, le bilan affiche le score, le rang enregistré, le cycle atteint et les amarrages réussis de chaque joueur. Les nouvelles entrées sont surlignées dans le classement. Haut/bas choisit Voir le classement ou Accueil, puis Entrée/A valide. Échap/B revient au bilan depuis le classement, puis à l’accueil depuis le bilan. Le tableau de l’accueil reste visible environ huit secondes.
 
-Le pas logique est de 16,5 ms. Le rendu interpole les positions et suit le rafraîchissement de l’écran via la VSync. Les trois plans d’étoiles descendent de 1, 2 et 3 pixels physiques par image. Le fond se fige en pause et sa cadence suit la fréquence de l’écran. La composition paysage est prévue pour 1920 × 1080. F1 affiche les positions et les zones de collision du diagnostic.
+Le pas logique est de 16,5 ms. Le rendu interpole les positions et suit le rafraîchissement de l’écran via la VSync. Les trois plans d’étoiles descendent de 60, 120 et 180 pixels physiques par seconde, au pixel près, quelle que soit la fréquence de l’écran (60, 120 ou 144 Hz). Le fond se fige en pause. La composition paysage est prévue pour 1920 × 1080. F1 affiche les positions et les zones de collision du diagnostic.
 
 Les jets des réacteurs s’allongent jusqu’à environ deux fois leur taille et s’élargissent légèrement lorsque les vaisseaux se déplacent. La montée et le retour au repos sont progressifs ; l’effet se fige avec l’animation en pause et ne change ni les déplacements ni les collisions.
 
@@ -103,7 +103,7 @@ L’audit visuel se lance avec un moteur graphique et un profil de test isolé. 
 
 ## Tests
 
-Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les trente et une suites.
+Importez le projet avant la première exécution des tests. Depuis la racine, en remplaçant `$godot` par le chemin de l’exécutable console, lancez les trente-deux suites.
 
 ```powershell
 & $godot --headless --editor --import --path prototype

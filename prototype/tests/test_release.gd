@@ -258,8 +258,15 @@ func _test_difficulties() -> void:
 func _test_profile() -> void:
 	var path := "user://test-release-%d.cfg" % OS.get_process_id()
 	var profile := ArcadeProfile.new()
-	_expect(profile.language == "en" and ArcadeProfile.Language.LANGUAGES.keys()[0] == "en",
-		"L’anglais est proposé en premier et par défaut pour un nouveau profil.")
+	var Language = ArcadeProfile.Language
+	_expect(profile.language == Language.system_language() and Language.LANGUAGES.keys()[0] == "en",
+		"Un nouveau profil démarre dans la langue du système ; l’anglais est proposé en premier.")
+	_expect(Language.for_locale("fr_FR") == "fr" and Language.for_locale("fr_CA") == "fr" and Language.for_locale("de-AT") == "de",
+		"Windows en français ou en allemand : le jeu démarre dans cette langue.")
+	_expect(Language.for_locale("nb_NO") == "no" and Language.for_locale("nn") == "no" and Language.for_locale("ru_RU") == "ru",
+		"Norvégien bokmål ou nynorsk et russe reconnus.")
+	_expect(Language.for_locale("ja_JP") == "en" and Language.for_locale("") == "en",
+		"Une langue non traduite démarre en anglais.")
 	_expect(profile.scores.size() == 10 and profile.qualifies(10) and not profile.qualifies(0),
 		"Dix places, dont cinq libres, au premier lancement.")
 	_expect(profile.submit_score(6100, "ONE", path) == OK and profile.submit_score(7200, "TWO", path) == OK
@@ -303,7 +310,7 @@ func _test_profile() -> void:
 	legacy.set_value("options", "language", "invalid")
 	_expect(legacy.save(legacy_path + ".invalid") == OK, "Écriture du profil avec une langue inconnue.")
 	reloaded.read(legacy_path + ".invalid")
-	_expect(reloaded.language == "en", "Une langue inconnue revient à la langue par défaut.")
+	_expect(reloaded.language == Language.system_language(), "Une langue inconnue revient à la langue du système.")
 	DirAccess.remove_absolute(path)
 
 

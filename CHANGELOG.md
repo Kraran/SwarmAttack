@@ -1,5 +1,11 @@
 # Notes de version
 
+## 1.0.1 — 21 novembre 2026
+
+- Fond étoilé à la bonne vitesse sur les écrans à 120 ou 144 Hz : le défilement suit désormais le temps écoulé, et non plus le nombre d’images affichées. Les étoiles restent calées au pixel. Le jeu, les animations et les menus étaient déjà indépendants de la fréquence de l’écran.
+- Au premier lancement, le jeu prend la langue de Windows parmi les treize disponibles (par exemple le français sur un Windows français), sinon l’anglais. Une langue choisie dans les Options reste prioritaire.
+- Trente-deux suites de tests, dont une nouvelle pour la vitesse du fond étoilé.
+
 ## 1.0.0 — 20 novembre 2026
 
 ### Interface
