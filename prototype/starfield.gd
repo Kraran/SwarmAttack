@@ -2,10 +2,14 @@ extends ColorRect
 
 const Scroll = preload("res://space_scroll.gdshader")
 const TILE_EDGE := 2048
+# Vitesse des trois plans en pixels par image à 60 Hz, la référence d'origine.
+# Le défilement suit le temps écoulé : même vitesse à 60, 120 ou 144 Hz.
 const PIXELS_PER_FRAME := Vector3i(1, 2, 3)
+const REFERENCE_HZ := 60.0
 const STAR_COUNTS := Vector3i(740, 470, 170)
 
 var _offsets := Vector3i.ZERO
+var _position := Vector3.ZERO
 var _scroll_material := ShaderMaterial.new()
 
 
@@ -17,9 +21,18 @@ func _ready() -> void:
 	material = _scroll_material
 
 
-func advance() -> void:
-	_offsets = (_offsets + PIXELS_PER_FRAME) % TILE_EDGE
-	_scroll_material.set_shader_parameter(&"scroll_pixels", _offsets)
+func advance(seconds: float) -> void:
+	_position += Vector3(PIXELS_PER_FRAME) * REFERENCE_HZ * seconds
+	_position = Vector3(fposmod(_position.x, TILE_EDGE), fposmod(_position.y, TILE_EDGE), fposmod(_position.z, TILE_EDGE))
+	# Positions entières : les étoiles restent nettes, sans demi-pixel.
+	var offsets := Vector3i(_position.floor())
+	if offsets != _offsets:
+		_offsets = offsets
+		_scroll_material.set_shader_parameter(&"scroll_pixels", _offsets)
+
+
+func offsets() -> Vector3i:
+	return _offsets
 
 
 func _build_star_map() -> ImageTexture:

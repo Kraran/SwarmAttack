@@ -115,6 +115,7 @@ const INTRO_APPEAR := 0.45
 const INTRO_HOLD := 0.95
 const INTRO_MOVE := 1.9
 const INTRO_END := 2.3
+const MAX_STARFIELD_STEP := 0.1
 var _intro_time := INTRO_END
 var _intro_voice_played := false
 const INTRO_VOICE_AT := 0.05
@@ -122,6 +123,7 @@ var _canvas_offset := Vector2.ZERO
 var _backdrop_state: Array = []
 var _skin: UiSkin = UiSkin.create(UiSkin.DEFAULT_SKIN)
 var _pad_hints := false
+var _starfield_usec := 0
 # Manette qui sert à jouer : la dernière à avoir produit une entrée franche.
 var _play_pad := -1
 var _about: AboutPanel
@@ -680,9 +682,16 @@ func _process(delta: float) -> void:
 
 
 func _advance_starfield() -> void:
-	# Une mise à jour par image de rendu. La VSync cadence sa présentation.
+	# Une mise à jour par image de rendu, à la vitesse du temps écoulé :
+	# le défilement ne dépend pas de la fréquence de l'écran (60, 120, 144 Hz).
+	var now := Time.get_ticks_usec()
 	if _focused and not _pause.active and not _about_is_open() and _starfield.is_visible_in_tree() and get_window().mode != Window.MODE_MINIMIZED:
-		_starfield.advance()
+		if _starfield_usec > 0:
+			# Un à-coup (chargement, glissement de fenêtre) ne fait pas sauter le décor.
+			_starfield.advance(minf((now - _starfield_usec) / 1_000_000.0, MAX_STARFIELD_STEP))
+		_starfield_usec = now
+	else:
+		_starfield_usec = 0
 
 
 func _advance_frame(duration_usec: int, input_mask: int) -> void:

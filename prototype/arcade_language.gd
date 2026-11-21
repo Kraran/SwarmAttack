@@ -2739,6 +2739,19 @@ const TEXT := {
 	],
 }
 
+# Langue proposée à un nouveau profil : celle du système si le jeu la
+# connaît (« fr_FR » → « fr », norvégien « nb »/« nn » → « no »), sinon l'anglais.
+static func for_locale(locale: String) -> String:
+	var code := locale.get_slice("_", 0).get_slice("-", 0).to_lower()
+	if code in ["nb", "nn"]:
+		code = "no"
+	return code if LANGUAGES.has(code) else DEFAULT_LANGUAGE
+
+
+static func system_language() -> String:
+	return for_locale(OS.get_locale())
+
+
 static func text(source: String, language: String) -> String:
 	var index := TRANSLATED_LANGUAGES.find(language)
 	if index < 0 or not TEXT.has(source):

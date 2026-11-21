@@ -1,12 +1,12 @@
 # SWARM ATTACK — Plan de développement
 
-Version **1.0.0** : menus « Arcade » à thèmes, treize langues, navigation complète clavier, manette et souris, banque Moderne réorchestrée et mode attraction revu. SWARM ATTACK est un jeu de défense orbitale pour Windows, développé avec Godot. Le joueur traverse dix vagues, manœuvre dans des champs de météorites et assemble jusqu’à trois modules pour faire évoluer son armement.
+Version **1.0.1** : menus « Arcade » à thèmes, treize langues avec choix automatique selon Windows, navigation complète clavier, manette et souris, banque Moderne réorchestrée, mode attraction revu et vitesse identique quelle que soit la fréquence de l’écran. SWARM ATTACK est un jeu de défense orbitale pour Windows, développé avec Godot. Le joueur traverse dix vagues, manœuvre dans des champs de météorites et assemble jusqu’à trois modules pour faire évoluer son armement.
 
 Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et les trois arrêts matériels reproduits dans les vagues. Ils maintiennent le déplacement pendant le crédit final et remplacent les délais dépendant de la charge de la borne par un délai d’effet constant. Les tests vérifient désormais ces comportements corrigés ; les relevés arcade restent des références de trajectoires, pas une obligation de reproduire leurs défauts.
 
 ## Fonctionnalités réalisées
 
-| Domaine | État en 1.0.0 |
+| Domaine | État en 1.0.1 |
 | --- | --- |
 | Boucle de jeu | Dix vagues, deux amarrages, cycles successifs, vies, réserve et scores ; solo et duo local en alternance |
 | Modules | Seule la coque touchée est détruite ; les survivants se séparent. Après perte du II, le I reprend seul et peut s’amarrer au III resté en réserve |
@@ -22,7 +22,7 @@ Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et le
 | À propos | Logo cliquable, photo de l’auteur à gauche ouvrant son profil GitHub, lien vers le dépôt, aux couleurs du thème, treize langues et reprise du contexte après fermeture |
 | Son | Banques Original et Moderne sélectionnables, vingt-deux sons par banque, vols et impacts propres aux cinq familles, thèmes de montée et de cycle, annonce d’amarrage et signal de réserve ; volume, silence et aperçu du tir ; balance stéréo selon les sources et routage audio synchronisé |
 | Sauvegardes | Réglages et classements versionnés, vérifiés par SHA-256 ; récupération de la version précédente si nécessaire et import de l’ancien profil |
-| Livraison | [Version Windows x64 1.0.0](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.0), exécutable autonome, guide et licences dans l’archive |
+| Livraison | [Version Windows x64 1.0.1](https://github.com/Kraran/SwarmAttack/releases/tag/v1.0.1), exécutable autonome, guide et licences dans l’archive |
 
 ## Architecture et validation
 
@@ -34,7 +34,8 @@ Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et le
 - En 0.4.0, un contrôleur de vibrations indépendant du son gère les impulsions et leurs priorités sur la manette active. Options → Vibrations expose activation, intensité et test, avec persistance et six langues. Les tests simulent les moteurs ; le ressenti et la compatibilité matérielle restent à vérifier sur une manette connectée.
 - En 0.4.0, les bruitages Original et Moderne sont spatialisés selon leur source dans le terrain. Le routage indépendant par voix conserve les priorités et le limiteur Moderne ; les sons de vol suivent leur ennemi. Les tests capturent le mixage gauche/droite et vérifient la normalisation du niveau sonore.
 - En 1.0.0, les menus passent par des thèmes (`ui/skin.gd`), un fond animé en shader, des retours sonores et animations communs, et une question de sortie globale. Le rendu 3D n’est recalculé que lorsqu’un vaisseau ou un ennemi est visible.
-- Trente et une suites Godot sans affichage couvrent notamment les trajectoires, la continuité des mouvements, l’absence de tirs fantômes, les tirs assemblés, les pertes de modules, l’amarrage I → III, l’entraînement, les classements, les options, À propos, le curseur, les sons et les sauvegardes. L’[audit des collisions](RAPPORT_COLLISIONS.md) ajoute plus de 510 000 assertions sur les contacts fixes et mobiles. Le test de livraison atteint le cycle suivant après deux amarrages réussis.
+- En 1.0.1, le fond étoilé défile selon le temps écoulé et non plus par image affichée, et un nouveau profil prend la langue de Windows.
+- Trente-deux suites Godot sans affichage couvrent notamment les trajectoires, la continuité des mouvements, l’absence de tirs fantômes, les tirs assemblés, les pertes de modules, l’amarrage I → III, l’entraînement, les classements, les options, À propos, le curseur, les sons et les sauvegardes. L’[audit des collisions](RAPPORT_COLLISIONS.md) ajoute plus de 510 000 assertions sur les contacts fixes et mobiles. Le test de livraison atteint le cycle suivant après deux amarrages réussis.
 - Les audits complémentaires couvrent les dix vagues des cycles 2, 3 et 4, les transitions jusqu’au cycle 5 et le routage audio sous charge. La [vérification de la 1.0.0](RAPPORT_VERIFICATION_1.0.0.md) consigne les résultats.
 - Les contrôles graphiques complètent ces suites pour les compositions paysage et portrait. Le guide détaille les [commandes, la compilation et les tests](prototype/README.md).
 
@@ -50,7 +51,7 @@ Les correctifs après la 0.3.0 retirent les tirs fantômes aux transitions et le
 Avant chaque version :
 
 1. Vérifier la révision source et mettre à jour le numéro de version, les liens de téléchargement, le guide et ce plan.
-2. Importer le projet et exécuter les trente et une suites avec des profils de test isolés.
+2. Importer le projet et exécuter les trente-deux suites avec des profils de test isolés.
 3. Contrôler les interactions clavier, manette et souris ainsi que le rendu paysage et portrait des fonctions modifiées.
 4. Reconstruire l’archive Windows avec `tools/build_windows.ps1`, puis lancer l’exécutable extrait avec un profil de test isolé.
 5. Publier un tag correspondant à la révision testée, joindre l’archive à la version GitHub et vérifier son empreinte SHA-256.
